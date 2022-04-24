@@ -1,0 +1,40 @@
+[package]
+authors = ["Johankio Smith <johankoi@1991.com>"]
+edition = "2018"
+license = "MIT"
+name = "examples"
+publish = false
+version = "0.1.0"
+
+[[bin]]
+name = "helloworld-server"
+path = "src/helloworld/server.rs"
+
+[[bin]]
+name = "helloworld-client"
+path = "src/helloworld/client.rs"
+
+[[bin]]
+name = "grpc-web-server"
+path = "src/grpc-web/server.rs"
+
+[[bin]]
+name = "grpc-web-client"
+path = "src/grpc-web/client.rs"
+
+[dependencies]
+async-stream = "0.3"
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
+prost = "0.10"
+tokio = { version = "1.0", features = [ "rt-multi-thread", "time", "fs", "macros", "net",] }
+tokio-stream = { version = "0.1", features = ["net"] }
+# Required for wellknown types
+prost-types = "0.10"
+# grpc-web example
+bytes = "1"
+tokio-rustls = "*"
+hyper-rustls = { version = "0.23", features = ["http2"] }
+rustls-pemfile = "*"
+tower-http = { version = "0.2", features = ["add-extension"] }
+
+[build-dependencies]
