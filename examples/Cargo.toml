@@ -1,10 +1,8 @@
 [package]
-authors = ["Johankio Smith <johankoi@1991.com>"]
-edition = "2018"
-license = "MIT"
 name = "examples"
 publish = false
 version = "0.1.0"
+edition = "2022"
 
 [[bin]]
 name = "helloworld-server"
