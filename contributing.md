@@ -1,4 +1,4 @@
-Contributing to Dubbogo
+Contributing to dubbo-rust
 
 ## 1. Branch
 
