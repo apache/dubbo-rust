@@ -27,7 +27,7 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
           toolchain: ${{ matrix.rust }}
-    - run: cargo che
+    - run: cargo check
     
  fmt:
     name: Rustfmt
@@ -41,9 +41,7 @@ jobs:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          toolchain: ${{ matrix.rust }}
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
       
