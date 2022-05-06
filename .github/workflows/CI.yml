@@ -12,7 +12,7 @@ on:
 
 jobs:
  check:
-    name: check dubbo-rus project
+    name: check dubbo-rust project
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -44,11 +44,3 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
-      
-  
-
-    
-
-
-   
-   
