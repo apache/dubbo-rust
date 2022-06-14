@@ -19,7 +19,7 @@ use hyper::client::conn::Builder;
 use hyper::client::connect::HttpConnector;
 use hyper::client::service::Connect;
 use hyper::service::Service;
-use hyper::{Body, Request};
+use hyper::{Body, Request, Response};
 
 use crate::protocol::message::*;
 use std::collections::HashMap;
@@ -40,8 +40,9 @@ impl RpcClient {
         &mut self,
         service_path: String,
         service_method: String,
-        metadata: &Metadata
-    ) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>
+        metadata: &Metadata,
+        payload: Vec<u8>
+    ) -> std::result::Result<Response<Body>, Box<dyn std::error::Error + Send + Sync>>
     {
         let mut req = Message::new();
         req.set_version(0);
@@ -50,6 +51,7 @@ impl RpcClient {
         req.set_compress_type(CompressType::Gzip);
         req.service_path = service_path;
         req.service_method = service_method;
+        req.payload = payload;
 
         let mut new_metadata = HashMap::with_capacity(metadata.len());
         for (k, v) in metadata {
@@ -67,9 +69,8 @@ impl RpcClient {
         let body = Body::from(body_data);
         let req = Request::get(uri.clone()).body(body)?;
         let res = svc.call(req).await?;
-        println!("RESPONSE={:?}", res.body());
 
-        Ok(())
+        Ok(res)
     }
 }
 

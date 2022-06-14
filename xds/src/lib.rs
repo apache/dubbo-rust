@@ -17,7 +17,7 @@
 
 pub mod client;
 pub mod server;
-mod protocol;
+pub mod protocol;
 
 #[cfg(test)]
 mod tests {

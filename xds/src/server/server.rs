@@ -70,22 +70,23 @@ impl Service<Request<Body>> for RPCHandler {
     fn call(&mut self, req: Request<Body>) -> Self::Future {
         Box::pin(async move {
             let whole_body = hyper::body::to_bytes(req.into_body()).await.unwrap();
-
             let mut msg = Message::new();
             let mut data = &whole_body[..];
 
+            let mut resp = ready(Ok(Response::new(Body::from("hello world with tower service! \n")))).await;
             match msg.decode(&mut data) {
                 Ok(()) => {
                     let service_path = &msg.service_path;
                     let service_method = &msg.service_method;
                     let key = format!("{}.{}", service_path, service_method);
+                    println!("{:?}", msg.payload);
                     println!("recieved request success, and body message decode key is: {:?}", key);
+                    resp = ready(Ok(Response::new(Body::from(msg.payload)))).await;
                 }
                 Err(err) => {
                     eprintln!("failed to read: {}", err.to_string());
                 }
             }
-            let resp = ready(Ok(Response::new(Body::from("hello world with tower service! \n")))).await;
             resp
         })
     }

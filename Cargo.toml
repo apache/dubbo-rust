@@ -8,4 +8,5 @@ members = [
   "config",
   "examples/protobuf/client",
   "examples/protobuf/server",
+  "examples/protobuf/pb_message",
 ]

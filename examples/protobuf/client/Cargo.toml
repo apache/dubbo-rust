@@ -8,4 +8,7 @@ edition = "2021"
 [dependencies]
 xds = { version = "0.1.0", path = "../../../xds" }
 tokio = {version = "1.9.0", features = ["full"]}
+pb_message =  { version = "0.1.0", path = "../pb_message" }
+prost = "0.10.4"
+hyper = { version = "0.14", features = ["full"] }
 
