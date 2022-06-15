@@ -6,4 +6,5 @@ members = [
   "metadata",
   "common",
   "config",
+  "dubbo-rust-examples",
 ]
