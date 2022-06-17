@@ -6,3 +6,28 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = { version = "0.1.56" }
+serde = { version = "1.0.137", features = ["derive"] }
+serde_json = { version = "1.0.81" }
+tower = { version = "0.4.12" }
+env_logger = "0.9.0"
+log = "0.4.17"
+tokio = { version = "1.19.2", features = ["full"] }
+hyper = { version = "0.14.19", features = ["tcp","client","http1"] }
+
+dubbo-rust-protocol = { path = "../dubbo-rust-protocol" }
+
+
+
+
+#jsonrpc-basic
+
+[[bin]]
+name = "jsonrpc-basic-client"
+path = "src/jsonrpc-basic/client.rs"
+
+
+[[bin]]
+name = "jsonrpc-basic-server"
+path = "src/jsonrpc-basic/server.rs"
+
