@@ -11,7 +11,7 @@ serde_json = { version = "1.0.81" }
 pin-project-lite  = { version = "0.2.9" }
 hyper = { version = "0.14.19", features = ["server","http1","tcp","http2","client"] }
 tokio = "1.19.2"
-tower = "0.4.12"
+tower = { version = "0.4.12", features = ["util"] }
 futures = "0.3.21"
 log = "0.4.17"
 http = "0.2.8"
