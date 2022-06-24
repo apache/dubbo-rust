@@ -27,18 +27,18 @@ pub type StdError = Box<(dyn std::error::Error + Send + Sync + 'static)>;
 pub type BoxFuture<R, E> = Pin<Box<(dyn Future<Output = Result<R, E>> + Send + 'static)>>;
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct AddReq {
+pub struct MutilReq {
     pub numbers: Vec<i32>,
 }
 
-pub type AddResp = i32;
+pub type MutilResp = i32;
 
 #[async_trait]
-pub trait AddService {
-    async fn add(&self, req: AddReq) -> Result<AddResp, StdError>;
+pub trait MutilService {
+    async fn mutil(&self, req: MutilReq) -> Result<MutilResp, StdError>;
 }
 
-pub mod add_service {
+pub mod mutil_service {
     use std::{sync::Arc, task::Poll};
 
     use dubbo_rust_protocol::{
@@ -46,15 +46,15 @@ pub mod add_service {
         NamedService,
     };
 
-    use super::{AddReq, AddService, BoxFuture, StdError};
+    use super::{BoxFuture, MutilReq, MutilService, StdError};
 
     type _Inner<T> = Arc<T>;
 
-    pub struct AddServer<T: AddService> {
+    pub struct MutilServer<T: MutilService> {
         inner: _Inner<T>,
     }
 
-    impl<T: AddService> Clone for AddServer<T> {
+    impl<T: MutilService> Clone for MutilServer<T> {
         fn clone(&self) -> Self {
             Self {
                 inner: self.inner.clone(),
@@ -62,7 +62,7 @@ pub mod add_service {
         }
     }
 
-    impl<T: AddService> AddServer<T> {
+    impl<T: MutilService> MutilServer<T> {
         pub fn new(service: T) -> Self {
             Self {
                 inner: Arc::new(service),
@@ -70,13 +70,13 @@ pub mod add_service {
         }
     }
 
-    impl<T: AddService> NamedService for AddServer<T> {
-        const SERVICE_NAME: &'static str = "AddService";
+    impl<T: MutilService> NamedService for MutilServer<T> {
+        const SERVICE_NAME: &'static str = "MutilService";
     }
 
-    impl<T> tower::Service<Request> for AddServer<T>
+    impl<T> tower::Service<Request> for MutilServer<T>
     where
-        T: AddService + Send + Sync + 'static,
+        T: MutilService + Send + Sync + 'static,
     {
         type Response = Response;
 
@@ -109,9 +109,9 @@ pub mod add_service {
 
             let inner_service = self.inner.clone();
             match req.header.method.as_ref().unwrap().as_str() {
-                "add" => Box::pin(async move {
-                    let params: AddReq = serde_json::from_value(req.params.clone())?;
-                    let result = inner_service.add(params).await?;
+                "mutil" => Box::pin(async move {
+                    let params: MutilReq = serde_json::from_value(req.params.clone())?;
+                    let result = inner_service.mutil(params).await?;
                     Ok(Response::from_request(&req, result)?)
                 }),
                 _ => method_not_found(req),
@@ -120,21 +120,21 @@ pub mod add_service {
     }
 }
 
-pub mod add_client {
+pub mod mutil_client {
     use std::net::SocketAddr;
 
-    use super::{AddReq, AddResp, StdError};
+    use super::{MutilReq, MutilResp, StdError};
     use dubbo_rust_protocol::jsonrpc::Request as JsonRpcRequest;
     use dubbo_rust_protocol::jsonrpc::Response as JsonRpcResponse;
     use hyper::body::HttpBody;
     use hyper::client::HttpConnector;
 
-    pub struct AddClient {
+    pub struct MutilClient {
         addr: SocketAddr,
         http_client: hyper::Client<HttpConnector>,
     }
 
-    impl AddClient {
+    impl MutilClient {
         pub fn new(addr: &SocketAddr) -> Result<Self, StdError> {
             let client = hyper::Client::new();
             Ok(Self {
@@ -143,12 +143,12 @@ pub mod add_client {
             })
         }
 
-        pub async fn add(&mut self, req: AddReq) -> Result<AddResp, StdError> {
-            let req = JsonRpcRequest::new("add", req)?;
+        pub async fn mutil(&mut self, req: MutilReq) -> Result<MutilResp, StdError> {
+            let req = JsonRpcRequest::new("mutil", req)?;
             let req_str = req.to_string()?;
             let http_request = hyper::Request::builder()
                 .method("POST")
-                .uri(format!("http://{}/AddService", self.addr.to_string()))
+                .uri(format!("http://{}/MutilService", self.addr.to_string()))
                 .body(hyper::Body::from(req_str))
                 .expect("request builder");
 

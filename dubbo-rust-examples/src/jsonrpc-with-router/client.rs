@@ -16,25 +16,32 @@
  */
 
 mod addservice;
+mod mutilservice;
 
 use std::{net::SocketAddr, str::FromStr, time::Duration};
 
 use addservice::{add_client::AddClient, AddReq};
+use mutilservice::{mutil_client::MutilClient, MutilReq};
 
 #[tokio::main]
 async fn main() {
-    let addr = SocketAddr::from_str("127.0.0.1:40021").unwrap();
+    let addr = SocketAddr::from_str("127.0.0.1:40022").unwrap();
 
-    let mut client = AddClient::new(&addr).unwrap();
-
+    let mut client_add = AddClient::new(&addr).unwrap();
+    let mut client_mutil = MutilClient::new(&addr).unwrap();
     loop {
-        let req = AddReq {
+        let add_req = AddReq {
             numbers: vec![1, 2, 21],
         };
+        let resp = client_add.add(add_req).await.unwrap();
 
-        let resp = client.add(req).await.unwrap();
+        let mutil_req = MutilReq {
+            numbers: vec![1, 20, 30],
+        };
+        let resp2 = client_mutil.mutil(mutil_req).await.unwrap();
 
-        println!("resp : {:?}", resp);
+        println!("add resp : {:?}", resp);
+        println!("mutil resp : {:?}", resp2);
 
         tokio::time::sleep(Duration::from_millis(100)).await;
     }

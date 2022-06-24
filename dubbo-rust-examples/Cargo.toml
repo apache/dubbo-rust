@@ -31,3 +31,13 @@ path = "src/jsonrpc-basic/client.rs"
 name = "jsonrpc-basic-server"
 path = "src/jsonrpc-basic/server.rs"
 
+#jsonrpc-with-router
+
+[[bin]]
+name = "jsonrpc-with-router-client"
+path = "src/jsonrpc-with-router/client.rs"
+
+
+[[bin]]
+name = "jsonrpc-with-router-server"
+path = "src/jsonrpc-with-router/server.rs"

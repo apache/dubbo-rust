@@ -17,28 +17,31 @@
 
 use dubbo_rust_protocol::jsonrpc::server::{JsonRpcServer, JsonRpcService};
 use log::info;
-use std::{net::SocketAddr, str::FromStr, sync::Mutex};
+use std::{net::SocketAddr, str::FromStr};
 
 mod addservice;
+mod mutilservice;
 
 use addservice::{add_service::AddServer, AddReq, AddResp, AddService, StdError};
-struct MyAdd {
-    times: Mutex<usize>,
-}
+use mutilservice::{mutil_service::MutilServer, MutilReq, MutilResp, MutilService};
+
+struct MyAdd;
 
 #[async_trait::async_trait]
 impl AddService for MyAdd {
     async fn add(&self, req: AddReq) -> Result<AddResp, StdError> {
-        let times = {
-            if let Ok(mut v) = self.times.lock() {
-                *v += 1;
-                *v
-            } else {
-                0
-            }
-        };
-        info!("get request {:?} this is no.{} call", req, times);
+        info!("get request {:?}", req);
         Ok(req.numbers.iter().sum())
+    }
+}
+
+struct MyMutil;
+
+#[async_trait::async_trait]
+impl MutilService for MyMutil {
+    async fn mutil(&self, req: MutilReq) -> Result<MutilResp, StdError> {
+        info!("get request {:?}", req);
+        Ok(req.numbers.iter().fold(1, |ret, v| ret * v))
     }
 }
 
@@ -49,14 +52,15 @@ async fn main() {
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    let addr = SocketAddr::from_str("0.0.0.0:40021").unwrap();
+    let addr = SocketAddr::from_str("0.0.0.0:40022").unwrap();
     let rt = tokio::runtime::Handle::current();
 
-    let service_impl = JsonRpcService::new(AddServer::new(MyAdd {
-        times: Mutex::new(0),
-    }));
+    let mut builder = JsonRpcService::builder();
+    builder.add_service(AddServer::new(MyAdd)).unwrap();
+    builder.add_service(MutilServer::new(MyMutil)).unwrap();
+    let service = builder.build().unwrap();
 
-    let server = JsonRpcServer::new(&addr, rt, service_impl);
+    let server = JsonRpcServer::new(&addr, rt, service);
 
     info!("Server start at {}", addr.to_string());
 
