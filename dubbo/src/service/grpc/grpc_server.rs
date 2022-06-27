@@ -32,12 +32,12 @@ pub trait DubboGrpcService<T>
 
 pub struct ServiceDesc {
     service_name: String,
-    methods: HashMap<String, String> // "/Greeter/hello": "unary"
+    // methods: HashMap<String, String> // "/Greeter/hello": "unary"
 }
 
 impl  ServiceDesc {
-    pub fn new(service_name: String, methods: HashMap<String, String>) -> Self {
-        Self { service_name, methods }
+    pub fn new(service_name: String, _methods: HashMap<String, String>) -> Self {
+        Self { service_name }
     }
 
     pub fn get_service_name(&self) -> String {

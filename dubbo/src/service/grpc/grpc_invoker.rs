@@ -53,18 +53,18 @@ impl Invoker for GrpcInvoker {
         let (metadata, _) = req.into_parts();
 
         let resp = invocation::Response::new("string");
-        let (resp_meta, msg) = resp.into_parts();
+        let (_resp_meta, msg) = resp.into_parts();
  
         invocation::Response::from_parts(metadata, msg.to_string())
     }
 }
 
-impl<T> invocation::Request<T> {
+// impl<T> invocation::Request<T> {
 
-    pub(crate) fn to_tonic_req(self) -> tonic::Request<T> {
-        tonic::Request::new(self.message)
-    }
-}
+//     pub(crate) fn to_tonic_req(self) -> tonic::Request<T> {
+//         tonic::Request::new(self.message)
+//     }
+// }
 
 impl Clone for GrpcInvoker {
     fn clone(&self) -> Self {

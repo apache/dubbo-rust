@@ -7,7 +7,7 @@ pub struct GrpcExporter<T> {
 }
 
 impl<T> GrpcExporter<T> {
-    pub fn new(key: String, invoker: T) -> GrpcExporter<T> {
+    pub fn new(_key: String, invoker: T) -> GrpcExporter<T> {
         Self { invoker }
     }
 }
