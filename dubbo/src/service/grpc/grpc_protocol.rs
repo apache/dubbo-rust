@@ -1,15 +1,14 @@
-
 use std::collections::HashMap;
 
-use super::grpc_invoker::GrpcInvoker;
 use super::grpc_exporter::GrpcExporter;
+use super::grpc_invoker::GrpcInvoker;
+use super::grpc_server::GrpcServer;
 use crate::common::url::Url;
 use crate::service::protocol::Protocol;
-use super::grpc_server::GrpcServer;
 
 pub struct GrpcProtocol {
     server_map: HashMap<String, GrpcServer>,
-    export_map: HashMap<String, GrpcExporter<GrpcInvoker>>
+    export_map: HashMap<String, GrpcExporter<GrpcInvoker>>,
 }
 
 impl GrpcProtocol {
@@ -28,8 +27,7 @@ impl Default for GrpcProtocol {
 }
 
 #[async_trait::async_trait]
-impl Protocol for GrpcProtocol
-{
+impl Protocol for GrpcProtocol {
     type Invoker = GrpcInvoker;
 
     type Exporter = GrpcExporter<Self::Invoker>;
@@ -45,7 +43,8 @@ impl Protocol for GrpcProtocol
     async fn export(self, url: Url) -> Self::Exporter {
         let service_key = url.service_key.clone();
 
-        let exporter: GrpcExporter<GrpcInvoker> = GrpcExporter::new(service_key.clone(), GrpcInvoker::new(url.clone()));
+        let exporter: GrpcExporter<GrpcInvoker> =
+            GrpcExporter::new(service_key.clone(), GrpcInvoker::new(url.clone()));
         let mut export = self.export_map;
         export.insert(service_key.clone(), exporter.clone());
 

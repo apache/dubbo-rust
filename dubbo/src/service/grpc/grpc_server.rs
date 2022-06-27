@@ -2,20 +2,18 @@ use std::collections::HashMap;
 use std::task::Context;
 use std::task::Poll;
 
-use tonic::transport;
-use tower::Service;
-use tonic::transport::NamedService;
 use tonic::codegen::BoxFuture;
+use tonic::transport;
+use tonic::transport::NamedService;
+use tower::Service;
 
-
+use super::grpc_invoker::GrpcInvoker;
 use crate::common::url::Url;
 use crate::helloworld::helloworld::greeter_server::GreeterServer;
-use super::grpc_invoker::GrpcInvoker;
 use crate::helloworld::helloworld::greeter_server::*;
 use crate::utils::boxed_clone::BoxCloneService;
 
-pub trait DubboGrpcService<T>
-{
+pub trait DubboGrpcService<T> {
     fn set_proxy_impl(&mut self, invoker: T);
     fn service_desc(&self) -> ServiceDesc;
 }
@@ -35,7 +33,7 @@ pub struct ServiceDesc {
     // methods: HashMap<String, String> // "/Greeter/hello": "unary"
 }
 
-impl  ServiceDesc {
+impl ServiceDesc {
     pub fn new(service_name: String, _methods: HashMap<String, String>) -> Self {
         Self { service_name }
     }
@@ -46,7 +44,9 @@ impl  ServiceDesc {
 }
 
 // codegen
-pub fn register_greeter_server<T: Greeter>(server: T) -> (super::GrpcBoxCloneService, super::DubboGrpcBox) {
+pub fn register_greeter_server<T: Greeter>(
+    server: T,
+) -> (super::GrpcBoxCloneService, super::DubboGrpcBox) {
     let hello = GreeterServer::<T, GrpcInvoker>::new(server);
     (BoxCloneService::new(hello.clone()), Box::new(hello.clone()))
 }
@@ -58,36 +58,39 @@ pub struct GrpcServer {
     name: String,
 }
 
-impl GrpcServer
-{
+impl GrpcServer {
     pub fn new(name: String) -> GrpcServer {
         Self {
             inner: transport::Server::builder(),
-            name
+            name,
         }
     }
 
-    pub async fn serve(mut self, url: Url)
-    where
-    {
+    pub async fn serve(mut self, url: Url) {
         let addr = url.url.clone().parse().unwrap();
-        let svc = super::GRPC_SERVICES.read().unwrap().get(self.name.as_str()).unwrap().clone();
+        let svc = super::GRPC_SERVICES
+            .read()
+            .unwrap()
+            .get(self.name.as_str())
+            .unwrap()
+            .clone();
         println!("server{:?} start...", url);
-        self.inner.add_service(MakeSvc::new(svc)).serve(
-            addr
-        ).await.unwrap();
+        self.inner
+            .add_service(MakeSvc::new(svc))
+            .serve(addr)
+            .await
+            .unwrap();
         println!("server{:?} start...", url);
     }
-
 }
 
 struct MakeSvc<T, U, E> {
-    inner: BoxCloneService<T, U, E>
+    inner: BoxCloneService<T, U, E>,
 }
 
 impl<T, U, E> MakeSvc<T, U, E> {
     pub fn new(inner: BoxCloneService<T, U, E>) -> Self {
-        Self { inner}
+        Self { inner }
     }
 }
 
@@ -111,6 +114,8 @@ impl<T, U, E> Service<T> for MakeSvc<T, U, E> {
 
 impl<T, U, E> Clone for MakeSvc<T, U, E> {
     fn clone(&self) -> Self {
-        Self { inner: self.inner.clone() }
+        Self {
+            inner: self.inner.clone(),
+        }
     }
 }

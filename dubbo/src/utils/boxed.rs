@@ -20,7 +20,7 @@ use std::{
 ///
 /// See module level documentation for more details.
 pub struct BoxService<T, U, E> {
-    inner: Box<dyn Service<T, Response = U, Error = E, Future = BoxFuture<U, E>> + Send+ Sync+>,
+    inner: Box<dyn Service<T, Response = U, Error = E, Future = BoxFuture<U, E>> + Send + Sync>,
 }
 
 /// A boxed `Future + Send` trait object.

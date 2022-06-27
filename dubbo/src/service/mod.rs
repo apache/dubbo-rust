@@ -1,4 +1,3 @@
-pub mod protocol;
 pub mod grpc;
 pub mod invocation;
-
+pub mod protocol;

@@ -5,12 +5,11 @@ pub struct Request<T> {
     pub metadata: MetadataMap,
 }
 
-
 impl<T> Request<T> {
     pub fn new(message: T) -> Request<T> {
         Self {
             message,
-            metadata: MetadataMap::new()
+            metadata: MetadataMap::new(),
         }
     }
 
@@ -33,10 +32,7 @@ impl<T> Response<T> {
     }
 
     pub fn from_parts(metadata: MetadataMap, message: T) -> Self {
-        Self {
-            message,
-            metadata,
-        }
+        Self { message, metadata }
     }
 
     pub fn into_parts(self) -> (MetadataMap, T) {

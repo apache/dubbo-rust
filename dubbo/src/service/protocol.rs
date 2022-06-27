@@ -7,12 +7,11 @@ use async_trait::async_trait;
 pub trait Protocol {
     type Invoker;
     type Exporter;
-    
+
     fn destroy(&self);
     async fn export(self, url: Url) -> Self::Exporter;
     async fn refer(&self, url: Url) -> Self::Invoker;
 }
-
 
 pub trait Exporter {
     type InvokerType: Invoker;
