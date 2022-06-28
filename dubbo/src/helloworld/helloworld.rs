@@ -112,9 +112,9 @@ pub mod greeter_client {
 pub mod greeter_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
 
-    use crate::service::grpc::grpc_server::DubboGrpcService;
-    use crate::service::grpc::grpc_server::ServiceDesc;
-    use crate::service::protocol::Invoker;
+    use crate::protocol::server_desc::ServiceDesc;
+    use crate::protocol::DubboGrpcService;
+    use crate::protocol::Invoker;
     use tonic::codegen::*;
 
     ///Generated trait containing gRPC methods that should be implemented for use with GreeterServer.

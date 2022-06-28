@@ -22,8 +22,8 @@ use tonic::transport::Channel;
 use tonic::transport::Endpoint;
 
 use crate::common::url::Url;
-use crate::service::invocation;
-use crate::service::protocol::*;
+use crate::protocol::invocation;
+use crate::protocol::Invoker;
 
 pub struct GrpcInvoker {
     client: Grpc<Channel>,

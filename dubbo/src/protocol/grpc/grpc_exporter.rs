@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use crate::service::protocol::Invoker;
-use crate::service::protocol::*;
+use crate::protocol::{Exporter, Invoker};
 
 pub struct GrpcExporter<T> {
     invoker: T,

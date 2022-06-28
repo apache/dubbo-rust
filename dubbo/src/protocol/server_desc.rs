@@ -15,33 +15,29 @@
  * limitations under the License.
  */
 
-use super::invocation;
-use crate::common::url::Url;
+//type ServiceDesc struct {
+//     ServiceName string
+//     // The pointer to the service interface. Used to check whether the user
+//     // provided implementation satisfies the interface requirements.
+//     HandlerType interface{}
+//     Methods     []MethodDesc
+//     Streams     []StreamDesc
+//     Metadata    interface{}
+// }
 
-use async_trait::async_trait;
+use std::collections::HashMap;
 
-#[async_trait]
-pub trait Protocol {
-    type Invoker;
-    type Exporter;
-
-    fn destroy(&self);
-    async fn export(self, url: Url) -> Self::Exporter;
-    async fn refer(&self, url: Url) -> Self::Invoker;
+pub struct ServiceDesc {
+    service_name: String,
+    // methods: HashMap<String, String> // "/Greeter/hello": "unary"
 }
 
-pub trait Exporter {
-    type InvokerType: Invoker;
+impl ServiceDesc {
+    pub fn new(service_name: String, _methods: HashMap<String, String>) -> Self {
+        Self { service_name }
+    }
 
-    fn unexport(&self);
-    fn get_invoker(&self) -> Self::InvokerType;
-}
-
-pub trait Invoker {
-    fn invoke<M1>(&self, req: invocation::Request<M1>) -> invocation::Response<String>
-    where
-        M1: Send + 'static;
-    fn is_available(&self) -> bool;
-    fn destroy(&self);
-    fn get_url(&self) -> Url;
+    pub fn get_service_name(&self) -> String {
+        self.service_name.clone()
+    }
 }

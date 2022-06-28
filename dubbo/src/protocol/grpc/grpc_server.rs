@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
 use std::task::Context;
 use std::task::Poll;
 
@@ -29,36 +28,6 @@ use crate::common::url::Url;
 use crate::helloworld::helloworld::greeter_server::GreeterServer;
 use crate::helloworld::helloworld::greeter_server::*;
 use crate::utils::boxed_clone::BoxCloneService;
-
-pub trait DubboGrpcService<T> {
-    fn set_proxy_impl(&mut self, invoker: T);
-    fn service_desc(&self) -> ServiceDesc;
-}
-
-//type ServiceDesc struct {
-//     ServiceName string
-//     // The pointer to the service interface. Used to check whether the user
-//     // provided implementation satisfies the interface requirements.
-//     HandlerType interface{}
-//     Methods     []MethodDesc
-//     Streams     []StreamDesc
-//     Metadata    interface{}
-// }
-
-pub struct ServiceDesc {
-    service_name: String,
-    // methods: HashMap<String, String> // "/Greeter/hello": "unary"
-}
-
-impl ServiceDesc {
-    pub fn new(service_name: String, _methods: HashMap<String, String>) -> Self {
-        Self { service_name }
-    }
-
-    pub fn get_service_name(&self) -> String {
-        self.service_name.clone()
-    }
-}
 
 // codegen
 pub fn register_greeter_server<T: Greeter>(

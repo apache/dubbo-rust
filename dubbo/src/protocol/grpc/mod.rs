@@ -26,9 +26,9 @@ use std::sync::RwLock;
 
 use crate::helloworld::helloworld::greeter_server::Greeter;
 use crate::helloworld::helloworld::{HelloReply, HelloRequest};
+use crate::protocol::DubboGrpcService;
 use crate::utils::boxed_clone::BoxCloneService;
 use grpc_invoker::GrpcInvoker;
-use grpc_server::DubboGrpcService;
 
 pub type GrpcBoxCloneService = BoxCloneService<
     http::Request<hyper::Body>,
@@ -48,7 +48,7 @@ lazy_static! {
 #[tokio::test]
 async fn test_hello() {
     use crate::common::url::Url;
-    use crate::service::protocol::Protocol;
+    use crate::protocol::Protocol;
     use grpc_server::register_greeter_server;
 
     let (svc, dubbo_svc) = register_greeter_server(MyGreeter {});

@@ -21,7 +21,7 @@ use super::grpc_exporter::GrpcExporter;
 use super::grpc_invoker::GrpcInvoker;
 use super::grpc_server::GrpcServer;
 use crate::common::url::Url;
-use crate::service::protocol::Protocol;
+use crate::protocol::Protocol;
 
 pub struct GrpcProtocol {
     server_map: HashMap<String, GrpcServer>,

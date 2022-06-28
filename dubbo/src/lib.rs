@@ -17,5 +17,5 @@
 
 pub mod common;
 pub mod helloworld;
-pub mod service;
+pub mod protocol;
 pub mod utils;
