@@ -1,9 +1,9 @@
 [workspace]
 members = [
   "xds",
-  "protocol",
   "registry",
   "metadata",
   "common",
   "config",
+  "dubbo"
 ]
