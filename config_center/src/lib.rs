@@ -19,7 +19,7 @@ mod dynamic_configuration_factory;
 mod configuration_listener;
 mod config_changed_event;
 mod dynamic_configuration;
-mod URL;
+mod url;
 mod etcd_dynamic_configuration;
 
 #[cfg(test)]

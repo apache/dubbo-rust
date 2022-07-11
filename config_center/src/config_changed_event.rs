@@ -24,7 +24,7 @@ pub struct ConfigChangedEvent {
 
     pub content: String,
 
-    pub changeType: ConfigChangeType,
+    pub change_type: ConfigChangeType,
 }
 
 #[derive(Debug)]

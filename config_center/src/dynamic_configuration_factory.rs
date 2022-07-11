@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use crate::URL::URL;
+use crate::url::URL;
 
 pub trait DynamicConfigurationFactory<T> {
 

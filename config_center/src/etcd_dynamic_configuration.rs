@@ -15,14 +15,21 @@
  * limitations under the License.
  */
 
-use crate::URL::URL;
+use std::collections::HashMap;
+use etcd_client::Client;
+use crate::configuration_listener::ConfigurationListener;
+use crate::dynamic_configuration::DynamicConfiguration;
+use crate::url::URL;
+use async_trait::async_trait;
 
 pub struct EtcdDynamicConfiguration {
 
     /**
      * The final root path would be: /$NAME_SPACE/config
      */
-    pub rootPath: String,
+    pub root_path: String,
+
+    pub client: Client,
 }
 
 const CONFIG_NAMESPACE_KEY: &str = "namespace";
@@ -31,12 +38,48 @@ const DEFAULT_GROUP: &str = "dubbo";
 
 impl EtcdDynamicConfiguration {
 
-    pub fn new(&self, url: URL) -> Self {
-        let mut rootPath = String::from("/");
-        rootPath.push_str(url.get_parameter(String::from(CONFIG_NAMESPACE_KEY), String::from(DEFAULT_GROUP)).as_str());
-        rootPath.push_str("/config");
+    pub async fn new(&self, url: URL) -> Self {
+        let client = Client::connect(["localhost:2379"], None).await.unwrap();
+        let mut root_path = String::from("/");
+        root_path.push_str(url.get_parameter(String::from(CONFIG_NAMESPACE_KEY), String::from(DEFAULT_GROUP)).as_str());
+        root_path.push_str("/config");
         EtcdDynamicConfiguration {
-            rootPath,
+            root_path,
+            client,
         }
+    }
+}
+
+#[async_trait]
+impl DynamicConfiguration for EtcdDynamicConfiguration {
+    fn add_listener(&self, key: String, listener: impl ConfigurationListener) {
+        todo!()
+    }
+
+    fn remove_listener(&self, key: String, listener: impl ConfigurationListener) {
+        todo!()
+    }
+
+    async fn get_config(&mut self, key: String, group: String, timeout: i32) -> String {
+        if key.is_empty() {
+            return String::from("");
+        }
+        let resp = self.client.get(key, None).await.unwrap();
+        if let Some(kv) = resp.kvs().first() {
+            return kv.value_str().unwrap().to_string();
+        }
+        return String::from("");
+    }
+
+    fn get_properties(&self, key: String, group: String, timeout: i32) -> String {
+        todo!()
+    }
+
+    fn publish_config(&self, key: String, group: String, content: String) -> bool {
+        todo!()
+    }
+
+    fn get_config_keys(&self, group: String) -> HashMap<String, String> {
+        todo!()
     }
 }

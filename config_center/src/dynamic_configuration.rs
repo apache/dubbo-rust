@@ -17,20 +17,22 @@
 
 use std::collections::HashMap;
 use crate::configuration_listener::ConfigurationListener;
+use async_trait::async_trait;
 
+#[async_trait]
 pub trait DynamicConfiguration {
 
-    fn add_listener(key: String, listener: impl ConfigurationListener);
+    fn add_listener(&self, key: String, listener: impl ConfigurationListener);
 
-    fn remove_listener(key: String, listener: impl ConfigurationListener);
+    fn remove_listener(&self, key: String, listener: impl ConfigurationListener);
 
     // TODO how to override
 
-    fn get_config(key: String, group: String, timeout: i32) -> String;
+    async fn get_config(&mut self, key: String, group: String, timeout: i32) -> String;
 
-    fn get_properties(key: String, group: String, timeout: i32) -> String;
+    fn get_properties(&self, key: String, group: String, timeout: i32) -> String;
 
-    fn publish_config(key: String, group: String, content: String) -> bool;
+    fn publish_config(&self, key: String, group: String, content: String) -> bool;
 
-    fn get_config_keys(group: String) -> HashMap<String, String>;
+    fn get_config_keys(&self, group: String) -> HashMap<String, String>;
 }

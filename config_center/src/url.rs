@@ -23,15 +23,15 @@ pub struct URL {
 
 impl URL {
 
-    pub fn get_parameter(&self, key: String, defaultValue: String) -> String {
+    pub fn get_parameter(&self, key: String, default_value: String) -> String {
         let value = match self.parameters.get(key.as_str()) {
             Some(value) => value.clone(),
             None => {
-                defaultValue.clone()
+                default_value.clone()
             },
         };
         if value.is_empty() {
-            return defaultValue;
+            return default_value;
         }
         value
     }
