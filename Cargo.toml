@@ -1,12 +1,12 @@
 [workspace]
 members = [
   "xds",
+  "dubbo-build",
   "protocol",
   "registry",
   "metadata",
   "common",
   "config",
-  "examples/protobuf/client",
-  "examples/protobuf/server",
-  "examples/protobuf/pb_message",
+  "examples/grpc-gen",
+  "examples/protobuf-transport",
 ]

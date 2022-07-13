@@ -1,0 +1,12 @@
+[package]
+name = "dubbo-build"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+generator-code = ["prost-build"]
+
+
+
+[dependencies]
+prost-build = { version = "0.10.4", optional = true }

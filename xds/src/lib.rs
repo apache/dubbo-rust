@@ -19,6 +19,23 @@ pub mod client;
 pub mod server;
 pub mod protocol;
 
+
+pub mod request;
+pub mod response;
+pub mod wrapper;
+pub mod error;
+pub mod util;
+
+
+
+pub use wrapper::*;
+pub use request::*;
+pub use response::*;
+pub use error::*;
+pub use util::*;
+
+
+
 #[cfg(test)]
 mod tests {
     use crate::client::client::RpcClient;

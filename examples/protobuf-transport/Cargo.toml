@@ -1,0 +1,30 @@
+[package]
+name = "protobuf-transport"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+xds = { version = "0.1.0", path = "../../xds" }
+tokio = {version = "1.9.0", features = ["full"]}
+hyper = { version = "0.14", features = ["full"] }
+futures = "0.3.21"
+prost = "0.10.4"
+
+
+[lib]
+path = "./src/lib.rs"
+
+[[bin]]
+name="server"
+path="./src/server.rs"
+
+[[bin]]
+name="client"
+path="./src/client.rs"
+
+
+[build-dependencies]
+prost-build = "0.10.4"
+dubbo-build = { path = "../../dubbo-build", features = ["generator-code"] }
