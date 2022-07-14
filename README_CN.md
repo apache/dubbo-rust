@@ -23,8 +23,8 @@ Examples can be found in [`examples`]
 
 ### Tutorials
 
-- The [`protobuf-transport`][protobuf-transport] example provides a basic example for testing transport protobuf-message-object-data via HTTP/2.
-- The [`grpc-gen`][grpc-gen] example provides a complete example of using bubbo-rust client/server grpc.
+- The [`protobuf-transport`] example provides a basic example for testing transport protobuf-message-object-data via HTTP/2.
+- The [`grpc-gen`] example provides a complete example of using bubbo-rust client/server grpc.
 
 ### Contribution
 
