@@ -1,4 +1,4 @@
-bubbo-rust
+dubbo-rust
 =========
 
 Rust implementation of [gRPC] protocol for [Dubbo], under development.
@@ -8,7 +8,7 @@ Rust implementation of [gRPC] protocol for [Dubbo], under development.
 
 ## Overview
 
-[`bubbo-rust`] is composed of three main components: the generic gRPC implementation, the gRPC codegen 
+[`dubbo-rust`] is composed of three main components: the generic gRPC implementation, the gRPC codegen 
 implementation with dubbo-build powered by [`prost`]. The transporter layer implementation can support any HTTP/2
 implementation is based on [`hyper`], [`tower`]. The message layer implementation can support any user defined bytes format.
 
