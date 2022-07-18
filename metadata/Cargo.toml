@@ -1,7 +1,13 @@
 [package]
-name = "metadata"
+name = "dubbo-metadata"
 version = "0.1.0"
 edition = "2021"
+description = ""
+documentation = ""
+homepage = "https://dubbo.apache.org/en/"
+repository = "https://github.com/apache/dubbo-rust"
+keywords = ["dubbo", "rpc"]
+license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
