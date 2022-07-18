@@ -15,24 +15,6 @@
  * limitations under the License.
  */
 
-use std::collections::HashSet;
-use crate::configuration_listener::ConfigurationListener;
-use async_trait::async_trait;
+const CONFIG_NAMESPACE_KEY: &str = "config-center.namespace";
 
-#[async_trait]
-pub trait DynamicConfiguration {
-
-    async fn add_listener(mut self, key: String, group: String, listener: impl ConfigurationListener  + std::marker::Send);
-
-    async fn remove_listener(mut self, key: String, group: String, listener: impl ConfigurationListener  + std::marker::Send);
-
-    // TODO how to override
-
-    async fn get_config(&mut self, key: String, group: String, timeout: i32) -> String;
-
-    async fn get_properties(&mut self, key: String, group: String, timeout: i32) -> String;
-
-    async fn publish_config(&mut self, key: String, group: String, content: String) -> bool;
-
-    async fn get_config_keys(&mut self, group: String) -> HashSet<String>;
-}
+const CONFIG_GROUP_KEY: &str = "config-center.group";

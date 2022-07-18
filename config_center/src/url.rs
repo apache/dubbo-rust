@@ -18,7 +18,14 @@
 use std::collections::HashMap;
 
 pub struct URL {
+    pub protocol: String,
+    pub username: String,
+    pub password: String,
+    pub host: String,
+    pub port: u32,
+    pub path: String,
     parameters: HashMap<String, String>,
+    methodParameters: HashMap<String, HashMap<String, String>>,
 }
 
 impl URL {

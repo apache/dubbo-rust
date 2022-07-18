@@ -19,8 +19,9 @@ mod dynamic_configuration_factory;
 mod configuration_listener;
 mod config_changed_event;
 mod dynamic_configuration;
-mod url;
 mod etcd_dynamic_configuration;
+mod key;
+mod url;
 
 #[cfg(test)]
 mod tests {

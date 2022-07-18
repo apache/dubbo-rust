@@ -19,5 +19,7 @@ use crate::config_changed_event::ConfigChangedEvent;
 
 pub trait ConfigurationListener {
 
-    fn process(event: ConfigChangedEvent);
+    fn process(&self, event: ConfigChangedEvent);
+
+    fn get_type(&self) -> String;
 }
