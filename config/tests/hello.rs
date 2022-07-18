@@ -15,6 +15,6 @@
  * limitations under the License.
  */
 #[test]
-fn test(){
+fn test() {
     println!("Hello, this is integration tests");
 }
