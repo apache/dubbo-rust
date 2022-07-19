@@ -15,8 +15,22 @@
  * limitations under the License.
  */
 
-#[derive(Debug, Clone, Default)]
-pub struct Url {
-    pub url: String,
-    pub service_key: String,
+pub mod client;
+pub mod codec;
+pub mod invocation;
+pub mod server;
+pub mod transport;
+
+use http_body::Body;
+
+pub(crate) type Error = Box<dyn std::error::Error + Send + Sync>;
+pub type BoxBody = http_body::combinators::UnsyncBoxBody<bytes::Bytes, tonic::Status>;
+pub fn empty_body() -> BoxBody {
+    http_body::Empty::new()
+        .map_err(|err| match err {})
+        .boxed_unsync()
+}
+
+fn main() {
+    println!("hello, triple");
 }

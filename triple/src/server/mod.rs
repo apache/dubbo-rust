@@ -15,8 +15,11 @@
  * limitations under the License.
  */
 
-#[derive(Debug, Clone, Default)]
-pub struct Url {
-    pub url: String,
-    pub service_key: String,
-}
+pub mod consts;
+pub mod decode;
+pub mod encode;
+pub mod server;
+pub mod service;
+
+pub use decode::Streaming;
+pub use encode::{encode, encode_server};

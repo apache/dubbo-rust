@@ -16,11 +16,18 @@
  */
 
 pub mod common;
+pub mod echo;
 pub mod helloworld;
+pub mod init;
 pub mod protocol;
+pub mod registry;
 pub mod utils;
+
+pub(crate) type Error = Box<dyn std::error::Error + Send + Sync>;
 
 #[tokio::main]
 async fn main() {
     println!("hello, dubbo-rust~")
 }
+
+// Refer service: tri://localhost:20000/helloworld.Greeter?app.version=3.0.0&application=dubbo.io&async=false&bean.name=GreeterClientImpl&cluster=failover&config.tracing=&environment=dev&generic=&group=&interface=helloworld.Greeter&loadbalance=&metadata-type=local&module=sample&name=dubbo.io&organization=dubbo-go&owner=dubbo-go&provided-by=&reference.filter=cshutdown&registry.role=0&release=dubbo-golang-3.0.0&retries=&serialization=&side=consumer&sticky=false&timestamp=1657865138&version=

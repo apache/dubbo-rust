@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-#[derive(Debug, Clone, Default)]
-pub struct Url {
-    pub url: String,
-    pub service_key: String,
-}
+pub const BUFFER_SIZE: usize = 1024 * 8;
+// 5 bytes
+pub const HEADER_SIZE: usize =
+    // compression flag
+    std::mem::size_of::<u8>() +
+    // data length
+    std::mem::size_of::<u32>();

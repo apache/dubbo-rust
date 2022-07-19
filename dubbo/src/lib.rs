@@ -16,6 +16,11 @@
  */
 
 pub mod common;
+pub mod echo;
 pub mod helloworld;
+pub mod init;
 pub mod protocol;
+pub mod registry;
 pub mod utils;
+
+pub(crate) type Error = Box<dyn std::error::Error + Send + Sync>;

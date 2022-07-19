@@ -53,7 +53,7 @@ impl Protocol for GrpcProtocol {
         todo!()
     }
 
-    async fn refer(&self, url: Url) -> Self::Invoker {
+    async fn refer(self, url: Url) -> Self::Invoker {
         GrpcInvoker::new(url)
     }
 

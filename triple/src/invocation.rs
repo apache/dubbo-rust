@@ -46,6 +46,14 @@ impl<T> Request<T> {
             message: body,
         }
     }
+
+    pub fn into_http(self) -> http::Request<T> {
+        let mut http_req = http::Request::new(self.message);
+        *http_req.version_mut() = http::Version::HTTP_2;
+        *http_req.headers_mut() = self.metadata.into_headers();
+
+        http_req
+    }
 }
 
 pub struct Response<T> {
@@ -67,6 +75,14 @@ impl<T> Response<T> {
 
     pub fn into_parts(self) -> (MetadataMap, T) {
         (self.metadata, self.message)
+    }
+
+    pub fn into_http(self) -> http::Response<T> {
+        let mut http_resp = http::Response::new(self.message);
+        *http_resp.version_mut() = http::Version::HTTP_2;
+        *http_resp.headers_mut() = self.metadata.into_headers();
+
+        http_resp
     }
 
     pub fn map<F, U>(self, f: F) -> Response<U>
@@ -91,6 +107,7 @@ pub trait IntoStreamingRequest {
 impl<T> IntoStreamingRequest for T
 where
     T: Stream + Send + 'static,
+    // T::Item: Result<Self::Message, std::convert::Infallible>,
 {
     type Stream = T;
 
@@ -100,3 +117,9 @@ where
         Request::new(self)
     }
 }
+
+// impl<T> sealed::Sealed for T {}
+
+// pub mod sealed {
+//     pub trait Sealed {}
+// }

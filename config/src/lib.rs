@@ -15,6 +15,10 @@
  * limitations under the License.
  */
 
+pub mod config;
+
+pub use config::*;
+
 #[cfg(test)]
 mod tests {
     #[test]

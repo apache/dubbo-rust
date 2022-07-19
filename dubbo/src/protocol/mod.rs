@@ -18,8 +18,11 @@
 pub mod grpc;
 pub mod invocation;
 pub mod server_desc;
+pub mod triple;
 
 use async_trait::async_trait;
+
+use crate::utils::boxed_clone::BoxCloneService;
 
 use crate::common::url::Url;
 
@@ -30,7 +33,7 @@ pub trait Protocol {
 
     fn destroy(&self);
     async fn export(self, url: Url) -> Self::Exporter;
-    async fn refer(&self, url: Url) -> Self::Invoker;
+    async fn refer(self, url: Url) -> Self::Invoker;
 }
 
 pub trait Exporter {
@@ -53,3 +56,9 @@ pub trait DubboGrpcService<T> {
     fn set_proxy_impl(&mut self, invoker: T);
     fn service_desc(&self) -> server_desc::ServiceDesc;
 }
+
+pub type GrpcBoxCloneService = BoxCloneService<
+    http::Request<hyper::Body>,
+    http::Response<hyper::Body>,
+    std::convert::Infallible,
+>;
