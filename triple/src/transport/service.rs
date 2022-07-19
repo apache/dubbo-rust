@@ -48,7 +48,7 @@ pub struct DubboServer {
 impl DubboServer {
     pub fn with_accpet_http1(self, accept_http2: bool) -> Self {
         Self {
-            accept_http2: accept_http2,
+            accept_http2,
             ..self
         }
     }
@@ -170,9 +170,8 @@ where
 impl BusinessConfig for DubboServer {
     fn init() -> Self {
         let conf = config::get_global_config();
-        let server = DubboServer::new()
-            .with_accpet_http1(conf.bool("dubbo.server.accept_http2".to_string()));
-        server
+        DubboServer::new()
+            .with_accpet_http1(conf.bool("dubbo.server.accept_http2".to_string()))
     }
 
     fn load() -> Result<(), std::convert::Infallible> {

@@ -76,8 +76,7 @@ impl<T> Streaming<T> {
         // while self.message().await?.is_some() {}
 
         let trailer = future::poll_fn(|cx| Pin::new(&mut self.body).poll_trailers(cx)).await;
-        let trailer = trailer.map(|data| data.map(MetadataMap::from_headers));
-        trailer
+        trailer.map(|data| data.map(MetadataMap::from_headers))
     }
 
     pub fn decode_chunk(&mut self) -> Result<Option<T>, tonic::Status> {

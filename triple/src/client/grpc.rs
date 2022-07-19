@@ -145,10 +145,10 @@ impl TripleClient {
                 let resp = v.map(|body| Streaming::new(body, codec.decoder()));
 
                 let (_parts, body) = resp.into_parts();
-                return Ok(Response::new(body));
+                Ok(Response::new(body))
             }
             Err(err) => {
-                return Err(tonic::Status::new(tonic::Code::Internal, err.to_string()));
+                Err(tonic::Status::new(tonic::Code::Internal, err.to_string()))
             }
         }
     }

@@ -12,6 +12,12 @@ pub struct TripleProtocol {
     servers: HashMap<String, TripleServer>,
 }
 
+impl Default for TripleProtocol {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TripleProtocol {
     pub fn new() -> Self {
         TripleProtocol {

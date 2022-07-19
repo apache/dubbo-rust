@@ -20,6 +20,7 @@ use std::{any, collections::HashMap};
 /// used to storage all structed config, from some source: cmd, file..;
 /// Impl Config trait, business init by read Config trait
 #[allow(dead_code)]
+#[derive(Debug, Default)]
 pub struct RootConfig {
     name: String,
     data: HashMap<String, Box<dyn any::Any>>,
@@ -53,7 +54,7 @@ impl Config for RootConfig {
             None => false,
             Some(val) => {
                 if let Some(v) = val.downcast_ref::<bool>() {
-                    return *v;
+                    *v
                 } else {
                     false
                 }
@@ -66,7 +67,7 @@ impl Config for RootConfig {
             None => "".to_string(),
             Some(val) => {
                 if let Some(v) = val.downcast_ref::<String>() {
-                    return v.into();
+                    v.into()
                 } else {
                     "".to_string()
                 }

@@ -10,6 +10,12 @@ impl TripleExporter {
     }
 }
 
+impl Default for TripleExporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Exporter for TripleExporter {
     type InvokerType = TripleInvoker;
 
