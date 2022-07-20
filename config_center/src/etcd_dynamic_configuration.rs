@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
 use etcd_client::{Client, GetOptions, Watcher, WatchOptions, WatchStream};
 use crate::configuration_listener::ConfigurationListener;
@@ -85,46 +84,45 @@ impl EtcdDynamicConfiguration {
         }
     }
 
-    pub fn get_path(&self, key: String, group: String) -> String {
-        if key.len() == 0 {
+    pub fn get_path(&self, key: &str, group: &str) -> String {
+        if key.is_empty() {
             return self.build_path(group);
         }
-        self.build_path(group.clone()) + PATH_SEPARATOR + key.as_str()
+        self.build_path(group) + PATH_SEPARATOR + key
     }
 
-    pub fn build_path(&self, mut group: String) -> String {
-        if group.len() == 0 {
-            group = DEFAULT_GROUP.to_string();
+    pub fn build_path(&self, mut group: &str) -> String {
+        if group.is_empty() {
+            group = DEFAULT_GROUP;
         }
-        self.root_path.clone() + PATH_SEPARATOR + group.as_str()
+        self.root_path.clone() + PATH_SEPARATOR + group
     }
 }
 
 #[async_trait]
 impl DynamicConfiguration for EtcdDynamicConfiguration {
 
-    async fn add_listener(mut self, key: String, group: String, listener: impl ConfigurationListener  + std::marker::Send) {
-        let path = key.clone() + group.as_str();
-        let mut rng = rand::thread_rng();
-        let watch_id: i64 = rng.gen();
+    async fn add_listener(mut self, key: &str, group: &str, listener: impl ConfigurationListener  + std::marker::Send) {
+        let path = self.get_path(key, group);
+        let watch_id = rand::thread_rng().gen();
         if !self.watch_listener_map.contains_key(path.as_str()) {
             let mut watcher_map = HashMap::new();
             let listener_type = listener.get_type();
-            let mut etcd_watcher = EtcdConfigWatcher::new(key.clone(), group, self.watcher, self.stream, watch_id, listener);
+            let mut etcd_watcher = EtcdConfigWatcher::new(key.to_string(), group.to_string(), self.watcher, self.stream, watch_id, listener);
             etcd_watcher.watch(watch_id);
             watcher_map.insert(listener_type, etcd_watcher);
             self.watch_listener_map.insert(path, watcher_map);
         } else {
             let watcher_map = self.watch_listener_map.get_mut(path.as_str()).unwrap();
             let listener_type = listener.get_type();
-            let mut etcd_watcher = EtcdConfigWatcher::new(key.clone(), group, self.watcher, self.stream, watch_id, listener);
+            let mut etcd_watcher = EtcdConfigWatcher::new(key.to_string(), group.to_string(), self.watcher, self.stream, watch_id, listener);
             etcd_watcher.watch(watch_id);
             watcher_map.insert(listener_type, etcd_watcher);
         }
     }
 
-    async fn remove_listener(mut self, key: String, group: String, listener: impl ConfigurationListener  + std::marker::Send) {
-        let path = key + group.as_str();
+    async fn remove_listener(mut self, key: &str, group: &str, listener: impl ConfigurationListener  + std::marker::Send) {
+        let path = self.get_path(key, group);
         let watcher_map = self.watch_listener_map.get_mut(path.as_str()).unwrap();
         if !watcher_map.contains_key(listener.get_type().as_str()) {
             return;
@@ -134,7 +132,7 @@ impl DynamicConfiguration for EtcdDynamicConfiguration {
         watcher_map.remove(listener.get_type().as_str());
     }
 
-    async fn get_config(&mut self, key: String, group: String, timeout: i32) -> String {
+    async fn get_config(&mut self, key: &str, group: &str, timeout: i32) -> String {
         if key.is_empty() {
             return String::from("");
         }
@@ -145,12 +143,12 @@ impl DynamicConfiguration for EtcdDynamicConfiguration {
         return String::from("");
     }
 
-    async fn get_properties(&mut self, key: String, group: String, timeout: i32) -> String {
+    async fn get_properties(&mut self, key: &str, group: &str, timeout: i32) -> String {
         let mut path = String::new();
         if group.len() != 0 {
-            path = group + PATH_SEPARATOR + key.as_str();
+            path = group.to_string() + PATH_SEPARATOR + key;
         } else {
-            path = self.url.get_parameter(CONFIG_NAMESPACE_KEY, DEFAULT_GROUP) + PATH_SEPARATOR + key.as_str();
+            path = self.url.get_parameter(CONFIG_NAMESPACE_KEY, DEFAULT_GROUP) + PATH_SEPARATOR + key;
         }
         let resp = self.client.get(key, None).await.unwrap();
         if let Some(kv) = resp.kvs().first() {
@@ -159,7 +157,7 @@ impl DynamicConfiguration for EtcdDynamicConfiguration {
         return String::from("");
     }
 
-    async fn publish_config(&mut self, key: String, group: String, content: String) -> bool {
+    async fn publish_config(&mut self, key: &str, group: &str, content: &str) -> bool {
         let path = self.get_path(key, group);
 
         // TODO need base64 encoding
@@ -170,8 +168,8 @@ impl DynamicConfiguration for EtcdDynamicConfiguration {
         true
     }
 
-    async fn get_config_keys(&mut self, group: String) -> HashSet<String> {
-        let path = self.get_path("".to_string(), group);
+    async fn get_config_keys(&mut self, group: &str) -> HashSet<String> {
+        let path = self.get_path("", group);
         let resp = self.client.get("", Some(GetOptions::new().with_prefix())).await.unwrap();
         let mut result = HashSet::new();
         for kv in resp.kvs() {

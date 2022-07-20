@@ -22,17 +22,17 @@ use async_trait::async_trait;
 #[async_trait]
 pub trait DynamicConfiguration {
 
-    async fn add_listener(mut self, key: String, group: String, listener: impl ConfigurationListener  + std::marker::Send);
+    async fn add_listener(mut self, key: &str, group: &str, listener: impl ConfigurationListener  + std::marker::Send);
 
-    async fn remove_listener(mut self, key: String, group: String, listener: impl ConfigurationListener  + std::marker::Send);
+    async fn remove_listener(mut self, key: &str, group: &str, listener: impl ConfigurationListener  + std::marker::Send);
 
     // TODO how to override
 
-    async fn get_config(&mut self, key: String, group: String, timeout: i32) -> String;
+    async fn get_config(&mut self, key: &str, group: &str, timeout: i32) -> String;
 
-    async fn get_properties(&mut self, key: String, group: String, timeout: i32) -> String;
+    async fn get_properties(&mut self, key: &str, group: &str, timeout: i32) -> String;
 
-    async fn publish_config(&mut self, key: String, group: String, content: String) -> bool;
+    async fn publish_config(&mut self, key: &str, group: &str, content: &str) -> bool;
 
-    async fn get_config_keys(&mut self, group: String) -> HashSet<String>;
+    async fn get_config_keys(&mut self, group: &str) -> HashSet<String>;
 }
