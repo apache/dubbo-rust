@@ -30,16 +30,16 @@ pub struct URL {
 
 impl URL {
 
-    pub fn get_parameter(&self, key: String, default_value: String) -> String {
-        let value = match self.parameters.get(key.as_str()) {
-            Some(value) => value.clone(),
+    pub fn get_parameter(&self, key: &str, default_value: &str) -> String {
+        let value = match self.parameters.get(key) {
+            Some(value) => value,
             None => {
-                default_value.clone()
+                default_value
             },
         };
         if value.is_empty() {
-            return default_value;
+            return String::from(default_value)
         }
-        value
+        String::from(value)
     }
 }

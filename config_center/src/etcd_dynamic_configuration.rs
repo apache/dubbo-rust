@@ -53,7 +53,7 @@ impl EtcdDynamicConfiguration {
     pub async fn new(self, url: URL) -> Self {
         let mut client = Client::connect(["localhost:2379"], None).await.unwrap();
         let mut root_path = String::from(PATH_SEPARATOR);
-        root_path.push_str(url.get_parameter(CONFIG_NAMESPACE_KEY.to_string(), DEFAULT_GROUP.to_string()).as_str());
+        root_path.push_str(url.get_parameter(CONFIG_NAMESPACE_KEY, DEFAULT_GROUP).as_str());
         root_path.push_str("/config");
         let (watcher, stream) = client.watch("/", None).await.unwrap();
         let watch_listener_map = HashMap::new();
@@ -150,7 +150,7 @@ impl DynamicConfiguration for EtcdDynamicConfiguration {
         if group.len() != 0 {
             path = group + PATH_SEPARATOR + key.as_str();
         } else {
-            path = self.url.get_parameter(CONFIG_NAMESPACE_KEY.to_string(), DEFAULT_GROUP.to_string()) + PATH_SEPARATOR + key.as_str();
+            path = self.url.get_parameter(CONFIG_NAMESPACE_KEY, DEFAULT_GROUP) + PATH_SEPARATOR + key.as_str();
         }
         let resp = self.client.get(key, None).await.unwrap();
         if let Some(kv) = resp.kvs().first() {
