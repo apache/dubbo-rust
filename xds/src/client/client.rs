@@ -21,8 +21,21 @@ use hyper::client::service::Connect;
 use hyper::service::Service;
 use hyper::{Body, Request, Response};
 
-use crate::protocol::message::*;
+use crate::protocol::message::{
+    Message as DubboMessage,
+    RpcxMessage,
+    Metadata,
+    MessageType,
+    CompressType,
+    SerializeType
+};
+
 use std::collections::HashMap;
+use prost::{Message};
+
+use crate::request::ServiceRequest;
+use crate::response::ServiceResponse;
+use crate::error::*;
 
 
 pub struct RpcClient {
@@ -36,6 +49,23 @@ impl RpcClient {
         }
     }
 
+    /// Invoke the given request for the given path and return a result of Result<ServiceResponse<O>, DBProstError>
+    pub async fn request<I, O>(&self, message: I, path: String) -> Result<ServiceResponse<O>, DBProstError>
+        where I: Message + Default + 'static,
+              O: Message + Default + 'static {
+
+        let url_str = format!("{}/{}", self.addr.as_str(), path.as_str());
+        let uri = url_str.parse::<hyper::Uri>().unwrap();
+
+        let req = ServiceRequest::new(message, uri.clone());
+        let hyper_req = req.into_encoded_hyper().unwrap();
+
+        let mut connect = Connect::new(HttpConnector::new(), Builder::new());
+        let mut send = connect.call(uri.clone()).await.map_err(DBProstError::HyperError).unwrap();
+        let hyper_resp = send.call(hyper_req).await.map_err(DBProstError::HyperError).unwrap();
+        ServiceResponse::decode_response(hyper_resp).await
+    }
+
     pub async fn call(
         &mut self,
         service_path: String,
@@ -44,7 +74,7 @@ impl RpcClient {
         payload: Vec<u8>
     ) -> std::result::Result<Response<Body>, Box<dyn std::error::Error + Send + Sync>>
     {
-        let mut req = Message::new();
+        let mut req = DubboMessage::new();
         req.set_version(0);
         req.set_message_type(MessageType::Request);
         req.set_serialize_type(SerializeType::Protobuf);

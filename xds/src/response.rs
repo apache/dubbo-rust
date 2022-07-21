@@ -1,6 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 use hyper::{body, Body, Response, Version, header, StatusCode};
 use prost::{Message};
-use crate::util::*;
 use crate::error::*;
 
 
@@ -41,28 +57,23 @@ impl<T> ServiceResponse<T> {
     }
 }
 
-impl<T: Message + Default + 'static> From<T> for ServiceResponse<T> {
-    fn from(v: T) -> ServiceResponse<T> { ServiceResponse::new(v) }
-}
+// impl<T: Message + Default + 'static> From<T> for ServiceResponse<T> {
+//     fn from(v: T) -> ServiceResponse<T> { ServiceResponse::new(v) }
+// }
 
 impl ServiceResponse<Vec<u8>> {
     /// Turn a hyper response to a boxed future of a byte-array service response
-    pub fn from_hyper_raw(resp: Response<Body>) -> BoxFutureResp<Vec<u8>> {
-        Box::pin(async move {
-            let version = resp.version();
-            let headers = resp.headers().clone();
-            let status = resp.status().clone();
-            let future_resp = body::to_bytes(resp.into_body()).await
-                .map_err(DBProstError::HyperError)
-                .map(move |body|
-                    ServiceResponse { version, headers, status, output: body.to_vec() }
-                );
-            future_resp
-        })
+    pub async fn try_from_hyper(resp: Response<Body>) -> Result<ServiceResponse<Vec<u8>>, DBProstError> {
+        let version = resp.version();
+        let headers = resp.headers().clone();
+        let status = resp.status().clone();
+        body::to_bytes(resp.into_body()).await
+            .map_err(DBProstError::HyperError)
+            .map(move |body| ServiceResponse { version, headers, status, output: body.to_vec() })
     }
 
     /// Turn a byte-array service response into a hyper response
-    pub fn to_hyper_raw(&self) -> Response<Body> {
+    pub fn into_hyper(&self) -> Response<Body> {
         let mut resp = Response::builder()
             .status(StatusCode::OK)
             .body(Body::from(self.output.clone())).unwrap();
@@ -74,58 +85,55 @@ impl ServiceResponse<Vec<u8>> {
         resp
     }
 
-    /// Turn a byte-array service response into a `AfterBodyError`-wrapped version of the given error
-    pub fn body_err(&self, err: DBProstError) -> DBProstError {
-        DBProstError::AfterBodyError {
-            body: self.output.clone(),
-            method: None,
-            version: self.version,
-            headers: self.headers.clone(),
-            status: Some(self.status),
-            err: Box::new(err),
-        }
-    }
-
-
     /// Serialize the byte-array service response into a protobuf service response
-    pub fn to_proto<T: Message + Default + 'static>(&self) -> Result<ServiceResponse<T>, DBProstError> {
+    pub fn try_decode<T: Message + Default + 'static>(&self) -> Result<ServiceResponse<T>, DBProstError> {
         if self.status.is_success() {
-            match T::decode(self.output.as_ref()) {
-                Ok(v) => Ok(self.clone_with_output(v)),
-                Err(err) => Err(self.body_err(DBProstError::ProstDecodeError(err)))
-            }
+            T::decode(self.output.as_ref())
+                .map(|v|
+                    ServiceResponse {
+                        version: self.version,
+                        headers: self.headers.clone(),
+                        status: self.status.clone(),
+                        output: v,
+                    })
+                .map_err(|e|
+                    DBProstError::AfterBodyError {
+                        body: self.output.clone(),
+                        method: None,
+                        version: self.version,
+                        headers: self.headers.clone(),
+                        status: Some(self.status),
+                        err: Box::new(DBProstError::ProstDecodeError(e)),
+                    })
         } else {
-            match DBError::from_json_bytes(self.status, &self.output) {
-                Ok(err) => Err(self.body_err(DBProstError::DBWrapError(err))),
-                Err(err) => Err(self.body_err(DBProstError::JsonDecodeError(err)))
-            }
+            let err= DBError::new(self.status.clone(), "internal_err", "Internal Error");
+            Err(DBProstError::DBWrapError(err))
         }
     }
 }
 
 impl<T: Message + Default + 'static> ServiceResponse<T> {
-    /// Turn a protobuf service response into a byte-array service response
-    pub fn to_proto_raw(&self) -> Result<ServiceResponse<Vec<u8>>, DBProstError> {
+    pub fn try_encode(&self) -> Result<ServiceResponse<Vec<u8>>, DBProstError> {
         let mut body = Vec::new();
-        if let Err(err) = self.output.encode(&mut body) {
-            Err(DBProstError::ProstEncodeError(err))
-        } else {
-            Ok(self.clone_with_output(body))
-        }
+        self.output.encode(&mut body)
+            .map(|v|
+                ServiceResponse {
+                    version: self.version,
+                    headers: self.headers.clone(),
+                    status: self.status.clone(),
+                    output: body,
+                })
+            .map_err(|e| DBProstError::ProstEncodeError(e))
     }
-
 
     /// Turn a hyper response into a protobuf service response
-    pub async fn from_hyper_proto(resp: Response<Body>) -> Result<ServiceResponse<T>, DBProstError> {
-        // Box::pin(async move {
-        ServiceResponse::from_hyper_raw(resp).await.and_then(|v| v.to_proto())
-        // })
+    pub async fn decode_response(resp: Response<Body>) -> Result<ServiceResponse<T>, DBProstError> {
+        ServiceResponse::try_from_hyper(resp).await.and_then(|v| v.try_decode())
     }
 
-
     /// Turn a protobuf service response into a hyper response
-    pub fn to_hyper_proto(&self) -> Result<Response<Body>, DBProstError> {
-        self.to_proto_raw().map(|v| v.to_hyper_raw())
+    pub fn into_encoded_hyper(&self) -> Result<Response<Body>, DBProstError> {
+        self.try_encode().map(|v| v.into_hyper())
     }
 }
 

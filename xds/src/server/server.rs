@@ -16,14 +16,11 @@
  */
 
 use std::convert::Infallible;
-use std::env;
-use std::process::Output;
 use std::task::Poll;
-use hyper::client::service;
 use hyper::{Body, Request, Response, Server as hyper_server};
-use hyper::service::{make_service_fn, service_fn};
+use hyper::service::{ make_service_fn, service_fn };
 use tower::Service;
-use futures::future::{ ready, Ready, BoxFuture};
+use futures::future::{ ready, BoxFuture };
 use std::net::SocketAddr;
 use crate::protocol::message::*;
 
@@ -38,8 +35,16 @@ impl RpcServer {
         }
     }
 
-    pub async fn start(&self) {
+    pub async fn start<S>(&self, service: S)
+        where
+            S: Service<Request<Body>, Response = Response<Body>, Error = Infallible>
+            + Clone
+            + Send
+            + 'static,
+            S::Future: Send + 'static,
+    {
         env_logger::init();
+
         let make_service = make_service_fn(|_conn| async {
             let svc = RPCHandler;
             Ok::<_, Infallible>(svc)
