@@ -1,5 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 pub mod echo_client;
 pub mod echo_server;
+pub mod helloworld;
 
 use futures_util::Stream;
 use futures_util::StreamExt;
@@ -21,7 +39,7 @@ async fn test_client() {
     use futures_util::StreamExt;
     use triple::invocation::*;
 
-    let cli = EchoClient::new().with_uri("127.0.0.1:8888".to_string());
+    let cli = EchoClient::new().with_uri("http://127.0.0.1:8888".to_string());
     let resp = cli
         .say_hello(Request::new(HelloRequest {
             name: "message from client".to_string(),
@@ -49,9 +67,8 @@ async fn test_client() {
 
     let bidi_resp = cli.bidirectional_streaming_echo(req).await.unwrap();
 
-    let (_parts, mut body) = bidi_resp.into_parts();
-    // let trailer = body.trailer().await.unwrap();
-    // println!("trailer: {:?}", trailer);
+    let (parts, mut body) = bidi_resp.into_parts();
+    println!("parts: {:?}", parts);
     while let Some(item) = body.next().await {
         match item {
             Ok(v) => {
@@ -97,26 +114,39 @@ async fn test_triple_protocol() {
     use crate::common::url::Url;
     use crate::protocol::triple::triple_protocol::TripleProtocol;
     use crate::protocol::Protocol;
-    use crate::utils::boxed_clone::BoxCloneService;
+    use config::get_global_config;
+    use futures::join;
 
-    // crate::init::init();
+    let conf = get_global_config();
+    let server_name = "echo".to_string();
 
-    let esi = EchoServer::<EchoServerImpl>::new(EchoServerImpl {
-        name: "echo".to_string(),
+    echo_server::register_echo_server(EchoServerImpl {
+        name: server_name.clone(),
     });
+    helloworld::greeter_server::register_greeter_server(GreeterImpl {});
+    println!("root config: {:?}", conf);
+    println!(
+        "register service num: {:?}",
+        crate::protocol::triple::TRIPLE_SERVICES
+            .read()
+            .unwrap()
+            .len()
+    );
 
-    crate::protocol::triple::TRIPLE_SERVICES
-        .write()
-        .unwrap()
-        .insert("echo".to_string(), BoxCloneService::new(esi));
+    let mut urls = Vec::<Url>::new();
+    for (_, proto_conf) in conf.service.protocol_configs.iter() {
+        println!("{:?}", proto_conf);
+        let u = Url {
+            url: proto_conf.to_owned().to_url().clone(),
+            service_key: server_name.clone(),
+        };
+        urls.push(u.clone());
 
-    println!("triple server running, url: 0.0.0.0:8888");
-    let pro = TripleProtocol::new();
-    pro.export(Url {
-        url: "0.0.0.0:8888".to_string(),
-        service_key: "echo".to_string(),
-    })
-    .await;
+        println!("triple server running, url: 0.0.0.0:8888, {:?}", u);
+        let pro = TripleProtocol::new();
+        let tri_fut = pro.export(u.clone());
+        let _res = join!(tri_fut);
+    }
 }
 
 #[allow(dead_code)]
@@ -132,7 +162,7 @@ impl Echo for EchoServerImpl {
         &self,
         req: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, tonic::Status> {
-        println!("EchoServer::hello {:?}", req.message);
+        println!("EchoServer::hello {:?}", req.metadata);
 
         Ok(Response::new(HelloReply {
             reply: "hello, dubbo-rust".to_string(),
@@ -145,7 +175,10 @@ impl Echo for EchoServerImpl {
         &self,
         request: Request<triple::server::Streaming<HelloRequest>>,
     ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, tonic::Status> {
-        println!("EchoServer::bidirectional_streaming_echo");
+        println!(
+            "EchoServer::bidirectional_streaming_echo, grpc header: {:?}",
+            request.metadata
+        );
 
         let mut in_stream = request.into_inner();
         let (tx, rx) = mpsc::channel(128);
@@ -210,5 +243,22 @@ fn match_for_io_error(err_status: &tonic::Status) -> Option<&std::io::Error> {
             Some(err) => err,
             None => return None,
         };
+    }
+}
+
+use helloworld::greeter_server::Greeter;
+
+struct GreeterImpl {}
+
+#[async_trait]
+impl Greeter for GreeterImpl {
+    async fn say_hello(
+        &self,
+        request: Request<helloworld::HelloRequest>,
+    ) -> Result<Response<helloworld::HelloReply>, tonic::Status> {
+        println!("greeter: req: {:?}", request.metadata);
+        Ok(Response::new(helloworld::HelloReply {
+            message: "hello, rust".to_string(),
+        }))
     }
 }

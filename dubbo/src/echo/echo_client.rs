@@ -1,7 +1,21 @@
-use std::str::FromStr;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 use super::echo_server::{HelloReply, HelloRequest};
-use bytes::Buf;
 
 use triple::client::TripleClient;
 use triple::codec::serde_codec::SerdeCodec;
@@ -28,10 +42,8 @@ impl EchoClient {
     }
 
     pub fn with_uri(mut self, uri: String) -> Self {
-        self.uri = uri;
-        self.inner = self
-            .inner
-            .with_authority(http::uri::Authority::from_str(&self.uri).unwrap());
+        self.uri = uri.clone();
+        self.inner = self.inner.with_host(uri);
         self
     }
 
@@ -53,36 +65,9 @@ impl EchoClient {
         &self,
         req: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, tonic::Status> {
-        let (_parts, body) = req.into_parts();
-        let v = serde_json::to_vec(&body).unwrap();
-        let req = hyper::Request::builder()
-            .uri("http://".to_owned() + &self.uri.clone() + "/hello")
-            .method("POST")
-            .body(hyper::Body::from(v))
-            .unwrap();
-
-        println!("request: {:?}", req);
-        let response = hyper::Client::builder().build_http().request(req).await;
-
-        match response {
-            Ok(v) => {
-                println!("{:?}", v);
-                let (_parts, body) = v.into_parts();
-                let req_body = hyper::body::to_bytes(body).await.unwrap();
-                let v = req_body.chunk();
-                // let codec = SerdeCodec::<HelloReply, HelloRequest>::default();
-                let data: HelloReply = match serde_json::from_slice(v) {
-                    Ok(data) => data,
-                    Err(err) => {
-                        return Err(tonic::Status::new(tonic::Code::Internal, err.to_string()))
-                    }
-                };
-                Ok(Response::new(data))
-            }
-            Err(err) => {
-                println!("{}", err);
-                Err(tonic::Status::new(tonic::Code::Internal, err.to_string()))
-            }
-        }
+        let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
+        self.inner
+            .unary(req, codec, http::uri::PathAndQuery::from_static("/hello"))
+            .await
     }
 }

@@ -162,7 +162,6 @@ where
             tonic::Status::ok("")
         };
         let http = status.to_http();
-        println!("status: {:?}", http.headers().clone());
 
         Poll::Ready(Ok(Some(http.headers().to_owned())))
     }

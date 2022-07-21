@@ -15,14 +15,34 @@
  * limitations under the License.
  */
 
-pub mod common;
-pub mod echo;
-pub mod helloworld;
-pub mod protocol;
-pub mod utils;
+use std::collections::HashMap;
 
-use std::future::Future;
-use std::pin::Pin;
+#[derive(Default, Debug, Clone)]
+pub struct ProtocolConfig {
+    pub ip: String,
+    pub port: String,
+    pub name: String,
+    pub params: HashMap<String, String>,
+}
 
-pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;
+impl ProtocolConfig {
+    pub fn name(self, name: String) -> Self {
+        Self { name, ..self }
+    }
+
+    pub fn ip(self, ip: String) -> Self {
+        Self { ip, ..self }
+    }
+
+    pub fn port(self, port: String) -> Self {
+        Self { port, ..self }
+    }
+
+    pub fn params(self, params: HashMap<String, String>) -> Self {
+        Self { params, ..self }
+    }
+
+    pub fn to_url(self) -> String {
+        format!("{}://{}:{}", self.name, self.ip, self.port)
+    }
+}

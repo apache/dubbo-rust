@@ -31,6 +31,7 @@ pin-project = "1.0"
 serde_json = "1.0.82"
 serde = {version="1.0.138", features = ["derive"]}
 tokio-stream = "0.1"
+futures = "0.3"
 
 config = {path = "../config"}
 triple = {path = "../triple"}

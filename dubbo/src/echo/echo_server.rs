@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 use async_trait::async_trait;
 
 use tonic::codegen::BoxFuture;
@@ -50,7 +67,6 @@ pub trait Echo: Send + Sync + 'static {
 
 struct _Inner<T>(Arc<T>);
 
-#[derive(Clone)]
 pub struct EchoServer<T, I = TripleInvoker> {
     inner: _Inner<T>,
     invoker: Option<I>,
@@ -141,23 +157,18 @@ where
 
                 Box::pin(fut)
             }
-            _ => {
-                Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        // .body(hyper::Body::from("implement...").map_err(|err| match err {}).boxed())
-                        // .body(hyper::Body::from("implement...").map_err(|err| std::convert::Infallible).into())
-                        // .body(req.into_body())
-                        .body(
-                            http_body::Empty::new()
-                                .map_err(|err| match err {})
-                                .boxed_unsync(),
-                        )
-                        .unwrap())
-                })
-            }
+            _ => Box::pin(async move {
+                Ok(http::Response::builder()
+                    .status(200)
+                    .header("grpc-status", "12")
+                    .header("content-type", "application/grpc")
+                    .body(
+                        http_body::Empty::new()
+                            .map_err(|err| match err {})
+                            .boxed_unsync(),
+                    )
+                    .unwrap())
+            }),
         }
     }
 }
@@ -185,4 +196,25 @@ impl<T: Debug> Debug for _Inner<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Inner {:?}", self.0)
     }
+}
+
+impl<T: Echo, I: Invoker + Send + Sync + 'static> Clone for EchoServer<T, I> {
+    fn clone(&self) -> Self {
+        let inner = self.inner.clone();
+        Self {
+            inner,
+            invoker: None,
+        }
+    }
+}
+
+pub fn register_echo_server<T: Echo>(server: T) {
+    let s = EchoServer::<_, TripleInvoker>::new(server);
+    crate::protocol::triple::TRIPLE_SERVICES
+        .write()
+        .unwrap()
+        .insert(
+            "echo".to_string(),
+            crate::utils::boxed_clone::BoxCloneService::new(s),
+        );
 }

@@ -15,17 +15,19 @@
  * limitations under the License.
  */
 
-use futures_util::{StreamExt, TryStreamExt};
+use std::str::FromStr;
+
+use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 
 use crate::codec::Codec;
-use crate::invocation::{IntoStreamingRequest, Response};
+use crate::invocation::{IntoStreamingRequest, Request, Response};
 use crate::server::encode::encode;
 use crate::server::Streaming;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
-    host: Option<http::uri::Authority>,
+    host: Option<http::Uri>,
     inner: ConnectionPool,
 }
 
@@ -55,52 +57,42 @@ impl TripleClient {
         }
     }
 
-    pub fn with_authority(self, host: http::uri::Authority) -> Self {
+    /// host: http://0.0.0.0:8888
+    pub fn with_host(self, host: String) -> Self {
+        let uri = http::Uri::from_str(&host).unwrap();
         TripleClient {
-            host: Some(host),
+            host: Some(uri),
             ..self
         }
     }
 }
 
 impl TripleClient {
-    pub async fn bidi_streaming<C, M1, M2>(
-        &mut self,
-        req: impl IntoStreamingRequest<Message = M1>,
-        mut codec: C,
+    fn map_request(
+        &self,
         path: http::uri::PathAndQuery,
-    ) -> Result<Response<Streaming<M2>>, tonic::Status>
-    where
-        C: Codec<Encode = M1, Decode = M2>,
-        M1: Send + Sync + 'static,
-        M2: Send + Sync + 'static,
-    {
-        let req = req.into_streaming_request();
-        let en = encode(codec.encoder(), req.into_inner().map(Ok)).into_stream();
-        let body = hyper::Body::wrap_stream(en);
-
-        let mut parts = http::uri::Parts::default();
+        body: hyper::Body,
+    ) -> http::Request<hyper::Body> {
+        let mut parts = self.host.clone().unwrap().into_parts();
         parts.path_and_query = Some(path);
-        parts.authority = self.host.clone();
-        parts.scheme = Some(http::uri::Scheme::HTTP);
 
         let uri = http::Uri::from_parts(parts).unwrap();
-
         let mut req = hyper::Request::builder()
             .version(http::Version::HTTP_2)
             .uri(uri.clone())
             .method("POST")
             .body(body)
             .unwrap();
+
         *req.version_mut() = http::Version::HTTP_2;
         req.headers_mut()
             .insert("method", HeaderValue::from_static("POST"));
         req.headers_mut().insert(
             "scheme",
-            HeaderValue::from_str(uri.clone().scheme_str().unwrap()).unwrap(),
+            HeaderValue::from_str(uri.scheme_str().unwrap()).unwrap(),
         );
         req.headers_mut()
-            .insert("path", HeaderValue::from_str(uri.clone().path()).unwrap());
+            .insert("path", HeaderValue::from_str(uri.path()).unwrap());
         req.headers_mut().insert(
             "authority",
             HeaderValue::from_str(uri.authority().unwrap().as_str()).unwrap(),
@@ -136,6 +128,67 @@ impl TripleClient {
         //     TripleTraceProtoBin  = "tri-trace-proto-bin"
         //     TripleUnitInfo       = "tri-unit-info"
         // )
+        req
+    }
+
+    pub async fn unary<C, M1, M2>(
+        &self,
+        req: Request<M1>,
+        mut codec: C,
+        path: http::uri::PathAndQuery,
+    ) -> Result<Response<M2>, tonic::Status>
+    where
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
+    {
+        let req = req.map(|m| stream::once(future::ready(m)));
+        let body_stream = encode(codec.encoder(), req.into_inner().map(Ok)).into_stream();
+        let body = hyper::Body::wrap_stream(body_stream);
+
+        let req = self.map_request(path, body);
+        let cli = self.inner.clone().builder();
+        let response = cli.request(req).await;
+
+        match response {
+            Ok(v) => {
+                let resp = v.map(|body| Streaming::new(body, codec.decoder()));
+                let (mut parts, body) = Response::from_http(resp).into_parts();
+
+                futures_util::pin_mut!(body);
+
+                let message = body.try_next().await?.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::Internal, "Missing response message.")
+                })?;
+
+                if let Some(trailers) = body.trailer().await? {
+                    let mut h = parts.into_headers();
+                    h.extend(trailers.into_headers());
+                    parts = tonic::metadata::MetadataMap::from_headers(h);
+                }
+
+                Ok(Response::from_parts(parts, message))
+            }
+            Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
+        }
+    }
+
+    pub async fn bidi_streaming<C, M1, M2>(
+        &mut self,
+        req: impl IntoStreamingRequest<Message = M1>,
+        mut codec: C,
+        path: http::uri::PathAndQuery,
+    ) -> Result<Response<Streaming<M2>>, tonic::Status>
+    where
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
+    {
+        let req = req.into_streaming_request();
+        let en = encode(codec.encoder(), req.into_inner().map(Ok)).into_stream();
+        let body = hyper::Body::wrap_stream(en);
+
+        let req = self.map_request(path, body);
 
         let cli = self.inner.clone().builder();
         let response = cli.request(req).await;
@@ -144,12 +197,9 @@ impl TripleClient {
             Ok(v) => {
                 let resp = v.map(|body| Streaming::new(body, codec.decoder()));
 
-                let (_parts, body) = resp.into_parts();
-                Ok(Response::new(body))
+                Ok(Response::from_http(resp))
             }
-            Err(err) => {
-                Err(tonic::Status::new(tonic::Code::Internal, err.to_string()))
-            }
+            Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
         }
     }
 }

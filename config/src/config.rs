@@ -17,28 +17,48 @@
 
 use std::{any, collections::HashMap};
 
+use super::protocol::ProtocolConfig;
+use super::service::ServiceConfig;
+
 /// used to storage all structed config, from some source: cmd, file..;
 /// Impl Config trait, business init by read Config trait
 #[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct RootConfig {
-    name: String,
-    data: HashMap<String, Box<dyn any::Any>>,
+    pub name: String,
+    pub service: ServiceConfig,
+    pub data: HashMap<String, Box<dyn any::Any>>,
 }
 
 pub fn get_global_config() -> RootConfig {
-    RootConfig::new()
+    let mut c = RootConfig::new();
+    c.load();
+    c
 }
 
 impl RootConfig {
     pub fn new() -> Self {
         Self {
             name: "dubbo".to_string(),
+            service: ServiceConfig::default(),
             data: HashMap::new(),
         }
     }
 
     pub fn load(&mut self) {
+        let service_config = ServiceConfig::default()
+            .group("test".to_string())
+            .serializer("json".to_string())
+            .version("1.0.0".to_string())
+            .name("echo".to_string());
+
+        let triple_config = ProtocolConfig::default()
+            .name("triple".to_string())
+            .ip("0.0.0.0".to_string())
+            .port("8888".to_string());
+
+        let service_config = service_config.add_protocol_configs(triple_config);
+        self.service = service_config;
         // 通过环境变量读取某个文件。加在到内存中
         self.data.insert(
             "dubbo.provider.url".to_string(),

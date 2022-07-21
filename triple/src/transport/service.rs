@@ -125,17 +125,21 @@ impl DubboServer {
             inner: self.services.get(&name).unwrap().clone(),
         };
 
+        let http2_keepalive_timeout = self
+            .http2_keepalive_timeout
+            .unwrap_or_else(|| Duration::new(60, 0));
+
         hyper::Server::bind(&addr)
             .http2_only(self.accept_http2)
             .http2_max_concurrent_streams(self.max_concurrent_streams)
             .http2_initial_connection_window_size(self.init_connection_window_size)
             .http2_initial_stream_window_size(self.init_stream_window_size)
             .http2_keep_alive_interval(self.http2_keepalive_interval)
-            .http2_keep_alive_timeout(self.http2_keepalive_timeout.unwrap())
+            .http2_keep_alive_timeout(http2_keepalive_timeout)
             .http2_max_frame_size(self.max_frame_size)
             .serve(svc)
             .await
-            .map_err(|err| println!("Error: {:?}", err))
+            .map_err(|err| println!("hyper serve, Error: {:?}", err))
             .unwrap();
 
         Ok(())
@@ -170,8 +174,7 @@ where
 impl BusinessConfig for DubboServer {
     fn init() -> Self {
         let conf = config::get_global_config();
-        DubboServer::new()
-            .with_accpet_http1(conf.bool("dubbo.server.accept_http2".to_string()))
+        DubboServer::new().with_accpet_http1(conf.bool("dubbo.server.accept_http2".to_string()))
     }
 
     fn load() -> Result<(), std::convert::Infallible> {

@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-use bytes::{Buf, BytesMut};
+use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http_body::Body;
-use std::fmt::Debug;
 
-use crate::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
+use crate::codec::Codec;
 use crate::invocation::Request;
 use crate::server::encode::encode_server;
 use crate::server::service::{StreamingSvc, UnaryService};
@@ -75,55 +74,30 @@ where
     where
         S: UnaryService<T::Decode, Response = T::Encode>,
         B: Body + Send + 'static,
-        B::Error: Debug,
+        B::Error: Into<crate::Error> + Send,
     {
-        let (_parts, body) = req.into_parts();
-        let req_body = hyper::body::to_bytes(body).await.unwrap();
-        let v = req_body.chunk();
-        let mut req_byte = BytesMut::from(v);
-        let mut de = DecodeBuf::new(&mut req_byte, v.len());
-        let decoder = self
-            .codec
-            .decoder()
-            .decode(&mut de)
-            .map(|v| v.unwrap())
-            .unwrap();
-        let req = Request::new(decoder);
+        let req_stream = req.map(|body| Streaming::new(body, self.codec.decoder()));
+        let (parts, mut body) = Request::from_http(req_stream).into_parts();
+        let msg = body
+            .try_next()
+            .await
+            .unwrap()
+            .ok_or_else(|| tonic::Status::new(tonic::Code::Unknown, "request wrong"));
 
-        let resp = service.call(req).await;
+        let resp = service.call(Request::from_parts(parts, msg.unwrap())).await;
 
-        let resp = match resp {
-            Ok(r) => r,
-            Err(status) => {
-                let (mut parts, _body) = http::Response::new(()).into_parts();
-                parts.headers.insert(
-                    http::header::CONTENT_TYPE,
-                    http::HeaderValue::from_static("application/grpc"),
-                );
-                parts.status = status.to_http().status();
+        let (mut parts, resp_body) = resp.unwrap().into_http().into_parts();
+        let resp_body = encode_server(
+            self.codec.encoder(),
+            stream::once(future::ready(resp_body)).map(Ok).into_stream(),
+        );
 
-                return http::Response::from_parts(parts, crate::empty_body());
-            }
-        };
-        let (mut parts, body) = resp.into_http().into_parts();
-
-        // let data = hyper::body::aggregate(body)
-        // let b = body.size_hint();
-        let mut bytes = BytesMut::with_capacity(100);
-        let mut dst = EncodeBuf::new(&mut bytes);
-        let _res = self.codec.encoder().encode(body, &mut dst);
-        let data = bytes.to_vec();
-
-        let resp_body = hyper::Body::from(data);
-
+        parts.headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("application/grpc"),
+        );
         parts.status = http::StatusCode::OK;
-        // http::Response::from_parts(parts, resp_body.map_err(|err| err.into()).boxed_unsync())
-        http::Response::from_parts(
-            parts,
-            resp_body
-                .map_err(|err| tonic::Status::new(tonic::Code::Internal, err.to_string()))
-                .boxed_unsync(),
-        )
+        http::Response::from_parts(parts, BoxBody::new(resp_body))
     }
 }
 
