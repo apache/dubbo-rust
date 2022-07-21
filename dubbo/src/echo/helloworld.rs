@@ -15,11 +15,6 @@
  * limitations under the License.
  */
 
-
-
-
-
-
 /// The request message containing the user's name.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HelloRequest {
@@ -38,7 +33,7 @@ pub mod greeter_client {
     use triple::client::TripleClient;
     use triple::codec::prost::ProstCodec;
     use triple::invocation::*;
-    
+
     /// The greeting service definition.
     #[derive(Debug, Clone)]
     pub struct GreeterClient {
