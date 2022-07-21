@@ -35,14 +35,7 @@ impl RpcServer {
         }
     }
 
-    pub async fn start<S>(&self, service: S)
-        where
-            S: Service<Request<Body>, Response = Response<Body>, Error = Infallible>
-            + Clone
-            + Send
-            + 'static,
-            S::Future: Send + 'static,
-    {
+    pub async fn start(&self) {
         env_logger::init();
 
         let make_service = make_service_fn(|_conn| async {
