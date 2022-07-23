@@ -15,14 +15,32 @@
  * limitations under the License.
  */
 
-pub mod common;
-pub mod echo;
-pub mod helloworld;
-pub mod protocol;
-pub mod utils;
+use super::triple_invoker::TripleInvoker;
+use crate::protocol::Exporter;
 
-use std::future::Future;
-use std::pin::Pin;
+#[derive(Clone)]
+pub struct TripleExporter {}
 
-pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;
+impl TripleExporter {
+    pub fn new() -> Self {
+        TripleExporter {}
+    }
+}
+
+impl Default for TripleExporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Exporter for TripleExporter {
+    type InvokerType = TripleInvoker;
+
+    fn unexport(&self) {
+        todo!()
+    }
+
+    fn get_invoker(&self) -> Self::InvokerType {
+        todo!()
+    }
+}

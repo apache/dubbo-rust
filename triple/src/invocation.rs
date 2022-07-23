@@ -39,11 +39,34 @@ impl<T> Request<T> {
         (self.metadata, self.message)
     }
 
+    pub fn from_parts(metadata: MetadataMap, message: T) -> Self {
+        Request { message, metadata }
+    }
+
     pub fn from_http(req: http::Request<T>) -> Self {
         let (parts, body) = req.into_parts();
         Request {
             metadata: MetadataMap::from_headers(parts.headers),
             message: body,
+        }
+    }
+
+    pub fn into_http(self) -> http::Request<T> {
+        let mut http_req = http::Request::new(self.message);
+        *http_req.version_mut() = http::Version::HTTP_2;
+        *http_req.headers_mut() = self.metadata.into_headers();
+
+        http_req
+    }
+
+    pub fn map<F, U>(self, f: F) -> Request<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        let m = f(self.message);
+        Request {
+            message: m,
+            metadata: self.metadata,
         }
     }
 }
@@ -69,6 +92,22 @@ impl<T> Response<T> {
         (self.metadata, self.message)
     }
 
+    pub fn into_http(self) -> http::Response<T> {
+        let mut http_resp = http::Response::new(self.message);
+        *http_resp.version_mut() = http::Version::HTTP_2;
+        *http_resp.headers_mut() = self.metadata.into_headers();
+
+        http_resp
+    }
+
+    pub fn from_http(resp: http::Response<T>) -> Self {
+        let (part, body) = resp.into_parts();
+        Response {
+            message: body,
+            metadata: MetadataMap::from_headers(part.headers),
+        }
+    }
+
     pub fn map<F, U>(self, f: F) -> Response<U>
     where
         F: FnOnce(T) -> U,
@@ -91,6 +130,7 @@ pub trait IntoStreamingRequest {
 impl<T> IntoStreamingRequest for T
 where
     T: Stream + Send + 'static,
+    // T::Item: Result<Self::Message, std::convert::Infallible>,
 {
     type Stream = T;
 
@@ -100,3 +140,9 @@ where
         Request::new(self)
     }
 }
+
+// impl<T> sealed::Sealed for T {}
+
+// pub mod sealed {
+//     pub trait Sealed {}
+// }

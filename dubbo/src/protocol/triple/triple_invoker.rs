@@ -15,14 +15,41 @@
  * limitations under the License.
  */
 
-pub mod common;
-pub mod echo;
-pub mod helloworld;
-pub mod protocol;
-pub mod utils;
+use crate::common::url::Url;
+use crate::protocol::Invoker;
 
-use std::future::Future;
-use std::pin::Pin;
+#[allow(dead_code)]
+#[derive(Clone, Default)]
+pub struct TripleInvoker {
+    url: Url,
+}
 
-pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;
+impl TripleInvoker {
+    pub fn new(url: Url) -> TripleInvoker {
+        Self { url }
+    }
+}
+
+impl Invoker for TripleInvoker {
+    fn invoke<M1>(
+        &self,
+        _req: crate::protocol::invocation::Request<M1>,
+    ) -> crate::protocol::invocation::Response<String>
+    where
+        M1: Send + 'static,
+    {
+        todo!()
+    }
+
+    fn is_available(&self) -> bool {
+        todo!()
+    }
+
+    fn destroy(&self) {
+        todo!()
+    }
+
+    fn get_url(&self) -> Url {
+        todo!()
+    }
+}

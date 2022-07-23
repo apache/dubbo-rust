@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Url {
     pub url: String,
     pub service_key: String,
