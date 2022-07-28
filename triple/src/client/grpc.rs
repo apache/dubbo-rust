@@ -22,6 +22,7 @@ use http::HeaderValue;
 
 use crate::codec::Codec;
 use crate::invocation::{IntoStreamingRequest, Request, Response};
+use crate::server::consts::CompressionEncoding;
 use crate::server::encode::encode;
 use crate::server::Streaming;
 
@@ -29,6 +30,7 @@ use crate::server::Streaming;
 pub struct TripleClient {
     host: Option<http::Uri>,
     inner: ConnectionPool,
+    send_compression_encoding: Option<CompressionEncoding>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -54,6 +56,7 @@ impl TripleClient {
         TripleClient {
             host: None,
             inner: ConnectionPool::new(),
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
     }
 
@@ -115,6 +118,10 @@ impl TripleClient {
             "tri-unit-info",
             HeaderValue::from_static("dubbo-rust/1.0.0"),
         );
+        if let Some(_encoding) = self.send_compression_encoding {
+            req.headers_mut()
+                .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+        }
 
         // const (
         //     TripleContentType    = "application/grpc+proto"
@@ -143,7 +150,12 @@ impl TripleClient {
         M2: Send + Sync + 'static,
     {
         let req = req.map(|m| stream::once(future::ready(m)));
-        let body_stream = encode(codec.encoder(), req.into_inner().map(Ok)).into_stream();
+        let body_stream = encode(
+            codec.encoder(),
+            req.into_inner().map(Ok),
+            self.send_compression_encoding,
+        )
+        .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
 
         let req = self.map_request(path, body);
@@ -152,7 +164,9 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| Streaming::new(body, codec.decoder()));
+                let resp = v.map(|body| {
+                    Streaming::new(body, codec.decoder(), self.send_compression_encoding)
+                });
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -185,7 +199,12 @@ impl TripleClient {
         M2: Send + Sync + 'static,
     {
         let req = req.into_streaming_request();
-        let en = encode(codec.encoder(), req.into_inner().map(Ok)).into_stream();
+        let en = encode(
+            codec.encoder(),
+            req.into_inner().map(Ok),
+            self.send_compression_encoding,
+        )
+        .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
         let req = self.map_request(path, body);
@@ -195,7 +214,9 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| Streaming::new(body, codec.decoder()));
+                let resp = v.map(|body| {
+                    Streaming::new(body, codec.decoder(), self.send_compression_encoding)
+                });
 
                 Ok(Response::from_http(resp))
             }

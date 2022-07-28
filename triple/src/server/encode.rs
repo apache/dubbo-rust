@@ -23,10 +23,16 @@ use http_body::Body;
 use pin_project::pin_project;
 use tonic::Status;
 
+use super::compression::compress;
+use super::consts::CompressionEncoding;
 use crate::codec::{EncodeBuf, Encoder};
 
 #[allow(unused_must_use)]
-pub fn encode<E, B>(mut encoder: E, resp_body: B) -> impl TryStream<Ok = Bytes, Error = Status>
+pub fn encode<E, B>(
+    mut encoder: E,
+    resp_body: B,
+    compression_encoding: Option<CompressionEncoding>,
+) -> impl TryStream<Ok = Bytes, Error = Status>
 where
     E: Encoder<Error = Status>,
     B: Stream<Item = Result<E::Item, Status>>,
@@ -34,6 +40,11 @@ where
     async_stream::stream! {
         let mut buf = BytesMut::with_capacity(super::consts::BUFFER_SIZE);
         futures_util::pin_mut!(resp_body);
+
+        let (enable_compress, mut uncompression_buf) = match compression_encoding {
+            Some(CompressionEncoding::Gzip) => (true, BytesMut::with_capacity(super::consts::BUFFER_SIZE)),
+            None => (false, BytesMut::new())
+        };
 
         loop {
             match resp_body.next().await {
@@ -43,7 +54,18 @@ where
                     unsafe {
                         buf.advance_mut(super::consts::HEADER_SIZE);
                     }
-                    encoder.encode(item, &mut EncodeBuf::new(&mut buf)).map_err(|_e| tonic::Status::internal("encode error"));
+
+                    if enable_compress {
+                        uncompression_buf.clear();
+
+                        encoder.encode(item, &mut EncodeBuf::new(&mut uncompression_buf)).map_err(|_e| tonic::Status::internal("encode error"));
+
+                        let len = uncompression_buf.len();
+                        compress(compression_encoding.unwrap(), &mut uncompression_buf, &mut buf, len).map_err(|_| tonic::Status::internal("compress error"));
+                    } else {
+                        encoder.encode(item, &mut EncodeBuf::new(&mut buf)).map_err(|_e| tonic::Status::internal("encode error"));
+                    }
+
 
                     let len = buf.len() - super::consts::HEADER_SIZE;
                     {
@@ -64,24 +86,26 @@ where
 pub fn encode_server<E, B>(
     encoder: E,
     body: B,
+    compression_encoding: Option<CompressionEncoding>,
 ) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
 where
     E: Encoder<Error = Status>,
     B: Stream<Item = Result<E::Item, Status>>,
 {
-    let s = encode(encoder, body).into_stream();
+    let s = encode(encoder, body, compression_encoding).into_stream();
     EncodeBody::new_server(s)
 }
 
 pub fn encode_client<E, B>(
     encoder: E,
     body: B,
+    compression_encoding: Option<CompressionEncoding>,
 ) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
 where
     E: Encoder<Error = Status>,
     B: Stream<Item = E::Item>,
 {
-    let s = encode(encoder, body.map(Ok)).into_stream();
+    let s = encode(encoder, body.map(Ok), compression_encoding).into_stream();
     EncodeBody::new_client(s)
 }
 

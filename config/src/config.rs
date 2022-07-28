@@ -26,7 +26,8 @@ use super::service::ServiceConfig;
 #[derive(Debug, Default)]
 pub struct RootConfig {
     pub name: String,
-    pub service: ServiceConfig,
+    pub service: HashMap<String, ServiceConfig>,
+    pub protocols: HashMap<String, ProtocolConfig>,
     pub data: HashMap<String, Box<dyn any::Any>>,
 }
 
@@ -40,7 +41,8 @@ impl RootConfig {
     pub fn new() -> Self {
         Self {
             name: "dubbo".to_string(),
-            service: ServiceConfig::default(),
+            service: HashMap::new(),
+            protocols: HashMap::new(),
             data: HashMap::new(),
         }
     }
@@ -50,6 +52,7 @@ impl RootConfig {
             .group("test".to_string())
             .serializer("json".to_string())
             .version("1.0.0".to_string())
+            .protocol_names("triple".to_string())
             .name("echo".to_string());
 
         let triple_config = ProtocolConfig::default()
@@ -58,7 +61,23 @@ impl RootConfig {
             .port("8888".to_string());
 
         let service_config = service_config.add_protocol_configs(triple_config);
-        self.service = service_config;
+        self.service.insert("echo".to_string(), service_config);
+        self.service.insert(
+            "helloworld.Greeter".to_string(),
+            ServiceConfig::default()
+                .group("test".to_string())
+                .serializer("json".to_string())
+                .version("1.0.0".to_string())
+                .name("helloworld.Greeter".to_string())
+                .protocol_names("triple".to_string()),
+        );
+        self.protocols.insert(
+            "triple".to_string(),
+            ProtocolConfig::default()
+                .name("triple".to_string())
+                .ip("0.0.0.0".to_string())
+                .port("8889".to_string()),
+        );
         // 通过环境变量读取某个文件。加在到内存中
         self.data.insert(
             "dubbo.provider.url".to_string(),

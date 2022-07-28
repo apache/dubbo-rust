@@ -56,7 +56,7 @@ impl EchoClient {
             .bidi_streaming(
                 req,
                 codec,
-                http::uri::PathAndQuery::from_static("/bidi_stream"),
+                http::uri::PathAndQuery::from_static("/echo/bidi_stream"),
             )
             .await
     }
@@ -67,7 +67,11 @@ impl EchoClient {
     ) -> Result<Response<HelloReply>, tonic::Status> {
         let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
         self.inner
-            .unary(req, codec, http::uri::PathAndQuery::from_static("/hello"))
+            .unary(
+                req,
+                codec,
+                http::uri::PathAndQuery::from_static("/echo/hello"),
+            )
             .await
     }
 }

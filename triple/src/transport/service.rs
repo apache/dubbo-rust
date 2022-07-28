@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
 use std::future;
 use std::net::SocketAddr;
 use std::task::Poll;
@@ -26,12 +25,12 @@ use tokio::time::Duration;
 use tower::ServiceExt;
 use tower_service::Service;
 
+use super::router::DubboRouter;
 use crate::BoxBody;
 use config::BusinessConfig;
 use config::Config;
 
 type BoxService = tower::util::BoxService<Request<Body>, Response<BoxBody>, crate::Error>;
-type BoxCloneService = tower::util::BoxCloneService<Request<Body>, Response<BoxBody>, crate::Error>;
 
 #[derive(Default, Clone)]
 pub struct DubboServer {
@@ -42,7 +41,7 @@ pub struct DubboServer {
     max_frame_size: Option<u32>,
     http2_keepalive_interval: Option<Duration>,
     http2_keepalive_timeout: Option<Duration>,
-    services: HashMap<String, BoxCloneService>,
+    router: DubboRouter,
 }
 
 impl DubboServer {
@@ -103,7 +102,7 @@ impl DubboServer {
             http2_keepalive_interval: None,
             http2_keepalive_timeout: None,
             max_frame_size: None,
-            services: HashMap::new(),
+            router: DubboRouter::new(),
         }
     }
 }
@@ -111,19 +110,19 @@ impl DubboServer {
 impl DubboServer {
     pub fn add_service<S>(mut self, name: String, service: S) -> Self
     where
-        S: Service<Request<Body>, Response = Response<BoxBody>> + Clone + Send + 'static,
+        S: Service<Request<Body>, Response = Response<BoxBody>, Error = std::convert::Infallible>
+            + Clone
+            + Send
+            + 'static,
         S::Future: Send + 'static,
         S::Error: Into<crate::Error> + Send + 'static,
     {
-        self.services
-            .insert(name, service.map_err(|err| err.into()).boxed_clone());
-        Self { ..self }
+        self.router = self.router.add_service(name, service);
+        self
     }
 
-    pub async fn serve(self, name: String, addr: SocketAddr) -> Result<(), crate::Error> {
-        let svc = MakeSvc {
-            inner: self.services.get(&name).unwrap().clone(),
-        };
+    pub async fn serve(self, addr: SocketAddr) -> Result<(), crate::Error> {
+        let svc = MakeSvc { inner: self.router };
 
         let http2_keepalive_timeout = self
             .http2_keepalive_timeout

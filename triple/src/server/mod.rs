@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+pub mod compression;
 pub mod consts;
 pub mod decode;
 pub mod encode;

@@ -31,8 +31,6 @@ pub type GrpcBoxCloneService =
     BoxCloneService<http::Request<hyper::Body>, http::Response<BoxBody>, std::convert::Infallible>;
 
 lazy_static! {
-    // pub static ref DUBBO_GRPC_SERVICES: RwLock<HashMap<String, Box<dyn DubboGrpcService<GrpcInvoker> + Send + Sync + 'static>>> =
-    //     RwLock::new(HashMap::new());
     pub static ref TRIPLE_SERVICES: RwLock<HashMap<String, GrpcBoxCloneService>> =
         RwLock::new(HashMap::new());
 }

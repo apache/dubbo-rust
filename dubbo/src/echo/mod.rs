@@ -100,10 +100,7 @@ async fn test_server() {
     triple::transport::DubboServer::new()
         .add_service(name.clone(), esi)
         .with_http2_keepalive_timeout(Duration::from_secs(60))
-        .serve(
-            name.clone(),
-            "0.0.0.0:8888".to_socket_addrs().unwrap().next().unwrap(),
-        )
+        .serve("0.0.0.0:8888".to_socket_addrs().unwrap().next().unwrap())
         .await
         .unwrap();
     // server.add_service(esi.into());
@@ -112,10 +109,12 @@ async fn test_server() {
 #[tokio::test]
 async fn test_triple_protocol() {
     use crate::common::url::Url;
+    use crate::protocol::triple::triple_exporter::TripleExporter;
     use crate::protocol::triple::triple_protocol::TripleProtocol;
     use crate::protocol::Protocol;
     use config::get_global_config;
-    use futures::join;
+    use futures::future;
+    use futures::Future;
 
     let conf = get_global_config();
     let server_name = "echo".to_string();
@@ -130,23 +129,45 @@ async fn test_triple_protocol() {
         crate::protocol::triple::TRIPLE_SERVICES
             .read()
             .unwrap()
-            .len()
+            .len(),
     );
 
     let mut urls = Vec::<Url>::new();
-    for (_, proto_conf) in conf.service.protocol_configs.iter() {
-        println!("{:?}", proto_conf);
-        let u = Url {
-            url: proto_conf.to_owned().to_url().clone(),
-            service_key: server_name.clone(),
-        };
+    let pro = Box::new(TripleProtocol::new());
+    let mut async_vec: Vec<Pin<Box<dyn Future<Output = TripleExporter> + Send>>> = Vec::new();
+    for (_, c) in conf.service.iter() {
+        let mut u = Url::default();
+        if c.protocol_configs.is_empty() {
+            u = Url {
+                url: conf
+                    .protocols
+                    .get(&c.protocol)
+                    .unwrap()
+                    .clone()
+                    .to_url()
+                    .clone(),
+                service_key: c.name.clone(),
+            };
+        } else {
+            u = Url {
+                url: c
+                    .protocol_configs
+                    .get(&c.protocol)
+                    .unwrap()
+                    .clone()
+                    .to_url()
+                    .clone(),
+                service_key: c.name.clone(),
+            }
+        }
+        println!("url: {:?}", u);
         urls.push(u.clone());
 
-        println!("triple server running, url: 0.0.0.0:8888, {:?}", u);
-        let pro = TripleProtocol::new();
-        let tri_fut = pro.export(u.clone());
-        let _res = join!(tri_fut);
+        let tri_fut = pro.clone().export(u.clone());
+        async_vec.push(tri_fut);
     }
+
+    let _res = future::join_all(async_vec).await;
 }
 
 #[allow(dead_code)]

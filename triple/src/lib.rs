@@ -32,3 +32,12 @@ pub fn empty_body() -> BoxBody {
         .map_err(|err| match err {})
         .boxed_unsync()
 }
+
+pub(crate) fn boxed<B>(body: B) -> BoxBody
+where
+    B: http_body::Body<Data = bytes::Bytes> + Send + 'static,
+    B::Error: Into<crate::Error>,
+{
+    body.map_err(|err| tonic::Status::new(tonic::Code::Internal, format!("{:?}", err.into())))
+        .boxed_unsync()
+}

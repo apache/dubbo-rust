@@ -29,6 +29,7 @@ serde_json = "1.0.82"
 serde = {version="1.0.138", features = ["derive"]}
 async-stream = "0.3"
 tokio-stream = "0.1"
+flate2 = "1.0"
 
 # for test in codegen
 config = {path = "../config"}

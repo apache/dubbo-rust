@@ -23,6 +23,8 @@ use futures_util::{future, ready};
 use http_body::Body;
 use tonic::metadata::MetadataMap;
 
+use super::compression::decompress;
+use super::consts::CompressionEncoding;
 use crate::codec::{DecodeBuf, Decoder};
 
 type BoxBody = http_body::combinators::UnsyncBoxBody<Bytes, tonic::Status>;
@@ -33,17 +35,19 @@ pub struct Streaming<T> {
     decoder: Box<dyn Decoder<Item = T, Error = tonic::Status> + Send + 'static>,
     buf: BytesMut,
     trailers: Option<MetadataMap>,
+    compress: Option<CompressionEncoding>,
+    decompress_buf: BytesMut,
 }
 
 #[derive(PartialEq)]
 enum State {
     ReadHeader,
-    ReadBody { len: usize },
+    ReadBody { len: usize, is_compressed: bool },
     Error,
 }
 
 impl<T> Streaming<T> {
-    pub fn new<B, D>(body: B, decoder: D) -> Self
+    pub fn new<B, D>(body: B, decoder: D, compress: Option<CompressionEncoding>) -> Self
     where
         B: Body + Send + 'static,
         B::Error: Into<crate::Error>,
@@ -58,6 +62,8 @@ impl<T> Streaming<T> {
             decoder: Box::new(decoder),
             buf: BytesMut::with_capacity(super::consts::BUFFER_SIZE),
             trailers: None,
+            compress,
+            decompress_buf: BytesMut::new(),
         }
     }
 
@@ -86,19 +92,54 @@ impl<T> Streaming<T> {
                 return Ok(None);
             }
 
-            let _is_compressed = self.buf.get_u8();
+            let is_compressed = match self.buf.get_u8() {
+                0 => false,
+                1 => {
+                    if self.compress.is_some() {
+                        true
+                    } else {
+                        return Err(tonic::Status::internal(
+                            "set compression flag, but no grpc-encoding specified",
+                        ));
+                    }
+                }
+                v => {
+                    return Err(tonic::Status::internal(format!(
+                        "receive message with compression flag{}, flag should be 0 or 1",
+                        v
+                    )))
+                }
+            };
             let len = self.buf.get_u32() as usize;
             self.buf.reserve(len as usize);
 
-            self.state = State::ReadBody { len }
+            self.state = State::ReadBody { len, is_compressed }
         }
 
-        if let State::ReadBody { len } = self.state {
+        if let State::ReadBody { len, is_compressed } = self.state {
             if self.buf.remaining() < len || self.buf.len() < len {
                 return Ok(None);
             }
 
-            let decoding_result = self.decoder.decode(&mut DecodeBuf::new(&mut self.buf, len));
+            let decoding_result = if is_compressed {
+                self.decompress_buf.clear();
+                if let Err(err) = decompress(
+                    self.compress.unwrap(),
+                    &mut self.buf,
+                    &mut self.decompress_buf,
+                    len,
+                ) {
+                    return Err(tonic::Status::internal(err.to_string()));
+                }
+
+                let decompress_len = self.decompress_buf.len();
+                self.decoder.decode(&mut DecodeBuf::new(
+                    &mut self.decompress_buf,
+                    decompress_len,
+                ))
+            } else {
+                self.decoder.decode(&mut DecodeBuf::new(&mut self.buf, len))
+            };
 
             return match decoding_result {
                 Ok(Some(r)) => {
