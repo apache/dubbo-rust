@@ -22,4 +22,3 @@ pub const HEADER_SIZE: usize =
     std::mem::size_of::<u8>() +
     // data length
     std::mem::size_of::<u32>();
-

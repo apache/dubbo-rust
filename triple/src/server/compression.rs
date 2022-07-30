@@ -48,11 +48,9 @@ impl CompressionEncoding {
             .split(',')
             .map(|s| s.trim())
             .into_iter()
-            .find_map(|s| {
-                match s {
-                    "gzip" => Some(CompressionEncoding::Gzip),
-                    _ => None,
-                }
+            .find_map(|s| match s {
+                "gzip" => Some(CompressionEncoding::Gzip),
+                _ => None,
             })
     }
 
