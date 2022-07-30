@@ -23,8 +23,7 @@ use http_body::Body;
 use pin_project::pin_project;
 use tonic::Status;
 
-use super::compression::compress;
-use super::consts::CompressionEncoding;
+use super::compression::{compress, CompressionEncoding};
 use crate::codec::{EncodeBuf, Encoder};
 
 #[allow(unused_must_use)]
@@ -70,7 +69,7 @@ where
                     let len = buf.len() - super::consts::HEADER_SIZE;
                     {
                         let mut buf = &mut buf[..super::consts::HEADER_SIZE];
-                        buf.put_u8(1);
+                        buf.put_u8(enable_compress as u8);
                         buf.put_u32(len as u32);
                     }
 

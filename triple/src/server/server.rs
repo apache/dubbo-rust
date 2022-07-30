@@ -18,6 +18,7 @@
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http_body::Body;
 
+use super::compression::{CompressionEncoding, COMPRESSIONS};
 use crate::codec::Codec;
 use crate::invocation::Request;
 use crate::server::encode::encode_server;
@@ -31,11 +32,15 @@ pub const GRPC_ENCODING: &str = "grpc-encoding";
 
 pub struct TripleServer<T> {
     codec: T,
+    compression: Option<CompressionEncoding>,
 }
 
 impl<T> TripleServer<T> {
     pub fn new(codec: T) -> Self {
-        Self { codec }
+        Self {
+            codec,
+            compression: None,
+        }
     }
 }
 
@@ -54,22 +59,17 @@ where
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
     {
-        let encoding = req.headers().get(GRPC_ENCODING).unwrap().to_str().unwrap();
-        let compression = match super::consts::COMPRESSIONS.get(encoding) {
-            Some(val) => val.to_owned(),
-            None => {
-                let mut status = tonic::Status::unimplemented(format!(
-                    "grpc-accept-encoding: {} not support!",
-                    encoding
-                ));
+        // Firstly, get grpc_accept_encoding from http_header, get compression
+        // Secondly, if server enable compression and compression is valid, this method should compress response
+        let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+        if self.compression.is_none() || accept_encoding.is_none() {
+            accept_encoding = None;
+        }
 
-                status.metadata_mut().insert(
-                    GRPC_ACCEPT_ENCODING,
-                    tonic::metadata::MetadataValue::from_static("gzip,identity"),
-                );
-
-                return status.to_http();
-            }
+        // Get grpc_encoding from http_header, decompress message.
+        let compression = match self.get_encoding_from_req(req.headers()) {
+            Ok(val) => val,
+            Err(status) => return status.to_http(),
         };
 
         let req_stream = req.map(|body| Streaming::new(body, self.codec.decoder(), compression));
@@ -83,6 +83,11 @@ where
             http::header::CONTENT_TYPE,
             http::HeaderValue::from_static("application/grpc"),
         );
+        if let Some(encoding) = accept_encoding {
+            parts
+                .headers
+                .insert(GRPC_ENCODING, encoding.into_header_value());
+        }
         parts.status = http::StatusCode::OK;
         http::Response::from_parts(parts, BoxBody::new(resp_body))
     }
@@ -97,22 +102,14 @@ where
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
     {
-        let encoding = req.headers().get(GRPC_ENCODING).unwrap().to_str().unwrap();
-        let compression = match super::consts::COMPRESSIONS.get(encoding) {
-            Some(val) => val.to_owned(),
-            None => {
-                let mut status = tonic::Status::unimplemented(format!(
-                    "grpc-accept-encoding: {} not support!",
-                    encoding
-                ));
+        let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+        if self.compression.is_none() || accept_encoding.is_none() {
+            accept_encoding = None;
+        }
 
-                status.metadata_mut().insert(
-                    GRPC_ACCEPT_ENCODING,
-                    tonic::metadata::MetadataValue::from_static("gzip,identity"),
-                );
-
-                return status.to_http();
-            }
+        let compression = match self.get_encoding_from_req(req.headers()) {
+            Ok(val) => val,
+            Err(status) => return status.to_http(),
         };
 
         let req_stream = req.map(|body| Streaming::new(body, self.codec.decoder(), compression));
@@ -129,18 +126,44 @@ where
         let resp_body = encode_server(
             self.codec.encoder(),
             stream::once(future::ready(resp_body)).map(Ok).into_stream(),
-            compression,
+            accept_encoding,
         );
 
         parts.headers.insert(
             http::header::CONTENT_TYPE,
             http::HeaderValue::from_static("application/grpc"),
         );
-        parts
-            .headers
-            .insert(GRPC_ENCODING, http::HeaderValue::from_static("gzip"));
+        if let Some(encoding) = accept_encoding {
+            parts
+                .headers
+                .insert(GRPC_ENCODING, encoding.into_header_value());
+        }
         parts.status = http::StatusCode::OK;
         http::Response::from_parts(parts, BoxBody::new(resp_body))
+    }
+
+    fn get_encoding_from_req(
+        &self,
+        header: &http::HeaderMap,
+    ) -> Result<Option<CompressionEncoding>, tonic::Status> {
+        let encoding = header.get(GRPC_ENCODING).unwrap().to_str().unwrap();
+        let compression = match COMPRESSIONS.get(encoding) {
+            Some(val) => val.to_owned(),
+            None => {
+                let mut status = tonic::Status::unimplemented(format!(
+                    "grpc-accept-encoding: {} not support!",
+                    encoding
+                ));
+
+                status.metadata_mut().insert(
+                    GRPC_ACCEPT_ENCODING,
+                    tonic::metadata::MetadataValue::from_static("gzip,identity"),
+                );
+
+                return Err(status);
+            }
+        };
+        Ok(compression)
     }
 }
 

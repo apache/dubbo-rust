@@ -23,8 +23,7 @@ use futures_util::{future, ready};
 use http_body::Body;
 use tonic::metadata::MetadataMap;
 
-use super::compression::decompress;
-use super::consts::CompressionEncoding;
+use super::compression::{decompress, CompressionEncoding};
 use crate::codec::{DecodeBuf, Decoder};
 
 type BoxBody = http_body::combinators::UnsyncBoxBody<Bytes, tonic::Status>;

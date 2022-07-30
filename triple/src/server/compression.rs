@@ -15,11 +15,53 @@
  * limitations under the License.
  */
 
+use std::collections::HashMap;
+
 use bytes::{Buf, BufMut, BytesMut};
 use flate2::read::{GzDecoder, GzEncoder};
 use flate2::Compression;
+use lazy_static::lazy_static;
 
-use super::consts::CompressionEncoding;
+pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";
+pub const GRPC_ENCODING: &str = "grpc-encoding";
+
+#[derive(Debug, Clone, Copy)]
+pub enum CompressionEncoding {
+    Gzip,
+}
+
+lazy_static! {
+    pub static ref COMPRESSIONS: HashMap<String, Option<CompressionEncoding>> = {
+        let mut v = HashMap::new();
+        v.insert("gzip".to_string(), Some(CompressionEncoding::Gzip));
+        v
+    };
+}
+
+impl CompressionEncoding {
+    pub fn from_accept_encoding(header: &http::HeaderMap) -> Option<CompressionEncoding> {
+        let accept_encoding = header.get(GRPC_ACCEPT_ENCODING)?;
+        let encodings = accept_encoding.to_str().ok()?;
+
+        encodings
+            .trim()
+            .split(',')
+            .map(|s| s.trim())
+            .into_iter()
+            .find_map(|s| {
+                match s {
+                    "gzip" => Some(CompressionEncoding::Gzip),
+                    _ => None,
+                }
+            })
+    }
+
+    pub fn into_header_value(self) -> http::HeaderValue {
+        match self {
+            CompressionEncoding::Gzip => http::HeaderValue::from_static("gzip"),
+        }
+    }
+}
 
 pub fn compress(
     encoding: CompressionEncoding,

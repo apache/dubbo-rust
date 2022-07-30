@@ -22,7 +22,7 @@ use http::HeaderValue;
 
 use crate::codec::Codec;
 use crate::invocation::{IntoStreamingRequest, Request, Response};
-use crate::server::consts::CompressionEncoding;
+use crate::server::compression::CompressionEncoding;
 use crate::server::encode::encode;
 use crate::server::Streaming;
 
@@ -122,6 +122,8 @@ impl TripleClient {
             req.headers_mut()
                 .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
         }
+        req.headers_mut()
+                .insert("grpc-accept-encoding", http::HeaderValue::from_static("gzip"));
 
         // const (
         //     TripleContentType    = "application/grpc+proto"

@@ -23,18 +23,3 @@ pub const HEADER_SIZE: usize =
     // data length
     std::mem::size_of::<u32>();
 
-#[derive(Debug, Clone, Copy)]
-pub enum CompressionEncoding {
-    Gzip,
-}
-
-use lazy_static::lazy_static;
-use std::collections::HashMap;
-
-lazy_static! {
-    pub static ref COMPRESSIONS: HashMap<String, Option<CompressionEncoding>> = {
-        let mut v = HashMap::new();
-        v.insert("gzip".to_string(), Some(CompressionEncoding::Gzip));
-        v
-    };
-}
