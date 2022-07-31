@@ -61,11 +61,8 @@ async fn test_hello() {
 
     // server start, api: 0.0.0.0:8888/helloworld.Greeter/SayHello
     let pro = grpc_protocol::GrpcProtocol::new();
-    pro.export(Url {
-        url: "[::1]:50051".to_string(),
-        service_key: svc_name.clone(),
-    })
-    .await;
+    pro.export(Url::from_url(&format!("[::1]:50051/{}", svc_name.clone())).unwrap())
+        .await;
 }
 
 #[derive(Default)]

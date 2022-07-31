@@ -138,27 +138,29 @@ async fn test_triple_protocol() {
     for (_, c) in conf.service.iter() {
         let mut u = Url::default();
         if c.protocol_configs.is_empty() {
-            u = Url {
-                url: conf
-                    .protocols
+            let protocol_url = format!(
+                "{}/{}",
+                conf.protocols
                     .get(&c.protocol)
                     .unwrap()
                     .clone()
                     .to_url()
                     .clone(),
-                service_key: c.name.clone(),
-            };
+                c.name.clone(),
+            );
+            u = Url::from_url(&protocol_url).unwrap();
         } else {
-            u = Url {
-                url: c
-                    .protocol_configs
+            let protocol_url = format! {
+                "{}/{}",
+                c.protocol_configs
                     .get(&c.protocol)
                     .unwrap()
                     .clone()
                     .to_url()
                     .clone(),
-                service_key: c.name.clone(),
-            }
+                c.name.clone(),
+            };
+            u = Url::from_url(&protocol_url).unwrap();
         }
         println!("url: {:?}", u);
         urls.push(u.clone());
