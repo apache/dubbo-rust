@@ -29,7 +29,7 @@ impl TripleServer {
     pub fn new(name: String) -> TripleServer {
         Self {
             name,
-            ..Default::default()
+            s: DubboServer::new(),
         }
     }
 
@@ -46,7 +46,6 @@ impl TripleServer {
 
         server
             .serve(
-                self.name,
                 uri.authority()
                     .unwrap()
                     .to_string()

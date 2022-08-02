@@ -33,7 +33,7 @@ pub struct GrpcInvoker {
 
 impl GrpcInvoker {
     pub fn new(url: Url) -> GrpcInvoker {
-        let endpoint = Endpoint::new(url.url.clone()).unwrap();
+        let endpoint = Endpoint::new(url.to_url()).unwrap();
         let conn = endpoint.connect_lazy();
         Self {
             url,

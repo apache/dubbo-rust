@@ -53,7 +53,7 @@ impl GrpcServer {
     }
 
     pub async fn serve(mut self, url: Url) {
-        let addr = url.url.clone().parse().unwrap();
+        let addr = url.to_url().parse().unwrap();
         let svc = super::GRPC_SERVICES
             .read()
             .unwrap()

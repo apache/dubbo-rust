@@ -101,7 +101,7 @@ where
     fn call(&mut self, req: http::Request<B>) -> Self::Future {
         let inner = self.inner.clone();
         match req.uri().path() {
-            "/hello" => {
+            "/echo/hello" => {
                 struct UnaryServer<T> {
                     inner: _Inner<T>,
                 }
@@ -127,7 +127,7 @@ where
 
                 Box::pin(fut)
             }
-            "/bidi_stream" => {
+            "/echo/bidi_stream" => {
                 struct StreamingServer<T> {
                     inner: _Inner<T>,
                 }

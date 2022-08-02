@@ -24,8 +24,8 @@ pub struct ServiceConfig {
     pub version: String,
     pub group: String,
     pub name: String,
-    pub protocol_names: Vec<String>,
-    pub registry_names: Vec<String>,
+    pub protocol: String,
+    pub registry: String,
     pub serializer: String,
     pub protocol_configs: HashMap<String, ProtocolConfig>,
 }
@@ -43,11 +43,8 @@ impl ServiceConfig {
         Self { group, ..self }
     }
 
-    pub fn protocol_names(self, protocol_names: Vec<String>) -> Self {
-        Self {
-            protocol_names,
-            ..self
-        }
+    pub fn protocol_names(self, protocol: String) -> Self {
+        Self { protocol, ..self }
     }
 
     pub fn serializer(self, serializer: String) -> Self {

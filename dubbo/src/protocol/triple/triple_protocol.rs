@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+use std::boxed::Box;
 use std::collections::HashMap;
 
 use async_trait::async_trait;
@@ -25,6 +26,7 @@ use super::triple_server::TripleServer;
 use crate::common::url::Url;
 use crate::protocol::Protocol;
 
+#[derive(Clone)]
 pub struct TripleProtocol {
     servers: HashMap<String, TripleServer>,
 }
@@ -57,9 +59,10 @@ impl Protocol for TripleProtocol {
         todo!()
     }
 
-    async fn export(self, url: Url) -> Self::Exporter {
+    async fn export(mut self, url: Url) -> Self::Exporter {
         let server = TripleServer::new(url.service_key.clone());
-        server.serve(url.url.clone()).await;
+        self.servers.insert(url.service_key.clone(), server.clone());
+        server.serve(url.to_url()).await;
 
         TripleExporter::new()
     }

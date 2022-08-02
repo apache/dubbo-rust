@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+pub mod router;
 pub mod service;
 
 pub use service::DubboServer;
