@@ -24,7 +24,7 @@ use crate::codec::Codec;
 use crate::invocation::{IntoStreamingRequest, Request, Response};
 use crate::server::compression::CompressionEncoding;
 use crate::server::encode::encode;
-use crate::server::Streaming;
+use crate::server::Decoding;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
@@ -169,7 +169,7 @@ impl TripleClient {
         match response {
             Ok(v) => {
                 let resp = v.map(|body| {
-                    Streaming::new(body, codec.decoder(), self.send_compression_encoding)
+                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
                 });
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
@@ -196,7 +196,7 @@ impl TripleClient {
         req: impl IntoStreamingRequest<Message = M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
-    ) -> Result<Response<Streaming<M2>>, tonic::Status>
+    ) -> Result<Response<Decoding<M2>>, tonic::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
         M1: Send + Sync + 'static,
@@ -219,7 +219,7 @@ impl TripleClient {
         match response {
             Ok(v) => {
                 let resp = v.map(|body| {
-                    Streaming::new(body, codec.decoder(), self.send_compression_encoding)
+                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
                 });
 
                 Ok(Response::from_http(resp))

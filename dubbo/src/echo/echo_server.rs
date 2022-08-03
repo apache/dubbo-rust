@@ -61,7 +61,7 @@ pub trait Echo: Send + Sync + 'static {
     /// BidirectionalStreamingEcho is bidi streaming.
     async fn bidirectional_streaming_echo(
         &self,
-        request: Request<triple::server::Streaming<HelloRequest>>,
+        request: Request<triple::server::Decoding<HelloRequest>>,
     ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, tonic::Status>;
 }
 
@@ -140,7 +140,7 @@ where
 
                     fn call(
                         &mut self,
-                        req: Request<triple::server::Streaming<HelloRequest>>,
+                        req: Request<triple::server::Decoding<HelloRequest>>,
                     ) -> Self::Future {
                         let inner = self.inner.0.clone();
                         let fut = async move { inner.bidirectional_streaming_echo(req).await };

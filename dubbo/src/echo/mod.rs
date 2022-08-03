@@ -133,7 +133,7 @@ impl Echo for EchoServerImpl {
 
     async fn bidirectional_streaming_echo(
         &self,
-        request: Request<triple::server::Streaming<HelloRequest>>,
+        request: Request<triple::server::Decoding<HelloRequest>>,
     ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, tonic::Status> {
         println!(
             "EchoServer::bidirectional_streaming_echo, grpc header: {:?}",

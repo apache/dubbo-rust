@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use super::decode::Streaming;
+use super::decode::Decoding;
 use crate::invocation::{Request, Response};
 use futures_util::{Future, Stream};
 use tower_service::Service;
@@ -28,12 +28,12 @@ pub trait StreamingSvc<R> {
     // future of stream of proto message
     type Future: Future<Output = Result<Response<Self::ResponseStream>, tonic::Status>>;
 
-    fn call(&mut self, req: Request<Streaming<R>>) -> Self::Future;
+    fn call(&mut self, req: Request<Decoding<R>>) -> Self::Future;
 }
 
 impl<T, S, M1, M2> StreamingSvc<M1> for T
 where
-    T: Service<Request<Streaming<M1>>, Response = Response<S>, Error = tonic::Status>,
+    T: Service<Request<Decoding<M1>>, Response = Response<S>, Error = tonic::Status>,
     S: Stream<Item = Result<M2, tonic::Status>>,
 {
     type Response = M2;
@@ -42,7 +42,7 @@ where
 
     type Future = T::Future;
 
-    fn call(&mut self, req: Request<Streaming<M1>>) -> Self::Future {
+    fn call(&mut self, req: Request<Decoding<M1>>) -> Self::Future {
         Service::call(self, req)
     }
 }

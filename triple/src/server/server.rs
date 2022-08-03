@@ -23,7 +23,7 @@ use crate::codec::Codec;
 use crate::invocation::Request;
 use crate::server::encode::encode_server;
 use crate::server::service::{StreamingSvc, UnaryService};
-use crate::server::Streaming;
+use crate::server::Decoding;
 use crate::BoxBody;
 use config::BusinessConfig;
 
@@ -72,7 +72,7 @@ where
             Err(status) => return status.to_http(),
         };
 
-        let req_stream = req.map(|body| Streaming::new(body, self.codec.decoder(), compression));
+        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
 
         let resp = service.call(Request::from_http(req_stream)).await;
 
@@ -112,7 +112,7 @@ where
             Err(status) => return status.to_http(),
         };
 
-        let req_stream = req.map(|body| Streaming::new(body, self.codec.decoder(), compression));
+        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
         let msg = body
             .try_next()

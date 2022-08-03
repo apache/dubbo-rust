@@ -22,5 +22,5 @@ pub mod encode;
 pub mod server;
 pub mod service;
 
-pub use decode::Streaming;
+pub use decode::Decoding;
 pub use encode::{encode, encode_server};
