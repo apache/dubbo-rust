@@ -46,6 +46,7 @@ impl Service {
     pub fn init(&mut self) {
         let conf = get_global_config();
         for (_, c) in conf.service.iter() {
+            #[allow(unused_assignments)]
             let mut u = Url::default();
             if c.protocol_configs.is_empty() {
                 let protocol_url = format!(
