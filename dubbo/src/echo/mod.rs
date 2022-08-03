@@ -32,6 +32,8 @@ use tonic::async_trait;
 pub use self::echo_server::{Echo, EchoServer, HelloReply, HelloRequest};
 use triple::invocation::*;
 
+type ResponseStream = Pin<Box<dyn Stream<Item = Result<HelloReply, tonic::Status>> + Send>>;
+
 #[tokio::test]
 async fn test_client() {
     use self::echo_client::EchoClient;
@@ -83,46 +85,18 @@ async fn test_client() {
     println!("trailer: {:?}", trailer);
 }
 
-type ResponseStream = Pin<Box<dyn Stream<Item = Result<HelloReply, tonic::Status>> + Send>>;
-
-#[tokio::test]
-async fn test_server() {
-    use std::net::ToSocketAddrs;
-    use tokio::time::Duration;
-
-    let esi = EchoServer::<EchoServerImpl>::new(EchoServerImpl {
-        name: "echo server impl".to_string(),
-    });
-    // esi.set_proxy_impl(TripleInvoker);
-
-    let name = "echoServer".to_string();
-    println!("server listening, 0.0.0.0:8888");
-    triple::transport::DubboServer::new()
-        .add_service(name.clone(), esi)
-        .with_http2_keepalive_timeout(Duration::from_secs(60))
-        .serve("0.0.0.0:8888".to_socket_addrs().unwrap().next().unwrap())
-        .await
-        .unwrap();
-    // server.add_service(esi.into());
-}
-
 #[tokio::test]
 async fn test_triple_protocol() {
-    use crate::common::url::Url;
-    use crate::protocol::triple::triple_exporter::TripleExporter;
-    use crate::protocol::triple::triple_protocol::TripleProtocol;
-    use crate::protocol::Protocol;
+    use crate::service::services::Service;
     use config::get_global_config;
-    use futures::future;
-    use futures::Future;
 
     let conf = get_global_config();
-    let server_name = "echo".to_string();
 
     echo_server::register_echo_server(EchoServerImpl {
-        name: server_name.clone(),
+        name: "echo".to_string(),
     });
     helloworld::greeter_server::register_greeter_server(GreeterImpl {});
+
     println!("root config: {:?}", conf);
     println!(
         "register service num: {:?}",
@@ -132,44 +106,7 @@ async fn test_triple_protocol() {
             .len(),
     );
 
-    let mut urls = Vec::<Url>::new();
-    let pro = Box::new(TripleProtocol::new());
-    let mut async_vec: Vec<Pin<Box<dyn Future<Output = TripleExporter> + Send>>> = Vec::new();
-    for (_, c) in conf.service.iter() {
-        let mut u = Url::default();
-        if c.protocol_configs.is_empty() {
-            let protocol_url = format!(
-                "{}/{}",
-                conf.protocols
-                    .get(&c.protocol)
-                    .unwrap()
-                    .clone()
-                    .to_url()
-                    .clone(),
-                c.name.clone(),
-            );
-            u = Url::from_url(&protocol_url).unwrap();
-        } else {
-            let protocol_url = format! {
-                "{}/{}",
-                c.protocol_configs
-                    .get(&c.protocol)
-                    .unwrap()
-                    .clone()
-                    .to_url()
-                    .clone(),
-                c.name.clone(),
-            };
-            u = Url::from_url(&protocol_url).unwrap();
-        }
-        println!("url: {:?}", u);
-        urls.push(u.clone());
-
-        let tri_fut = pro.clone().export(u.clone());
-        async_vec.push(tri_fut);
-    }
-
-    let _res = future::join_all(async_vec).await;
+    Service::new().start().await;
 }
 
 #[allow(dead_code)]
