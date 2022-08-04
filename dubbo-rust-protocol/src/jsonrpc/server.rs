@@ -30,17 +30,11 @@ use log::trace;
 use pin_project_lite::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use super::super::{wrap_future, OneConnection, SrvFut, StdError};
 use super::Request as JsonRpcRequest;
 use super::Response as JsonRpcResponse;
 use crate::NamedService;
 use tower::util::BoxCloneService;
-
-fn wrap_future<F, R, E>(fut: F) -> SrvFut<R, E>
-where
-    F: Future<Output = Result<R, E>> + Send + 'static,
-{
-    Box::pin(fut)
-}
 
 pin_project! {
    pub struct JsonRpcServer<S> {
@@ -73,35 +67,6 @@ impl<S> JsonRpcServer<S> {
     }
 }
 
-type SrvFut<R, E> = Pin<Box<dyn Future<Output = Result<R, E>> + Send + 'static>>;
-
-pin_project! {
-    struct OneConnection<IO,S>
-    where S: tower::Service<HttpRequest<Body>,Response = HttpResponse<Body>,Error = StdError, Future = SrvFut<HttpResponse<Body>,StdError>>
-    {
-        #[pin]
-        connection: Connection<IO,S>
-    }
-}
-
-impl<IO, S> Future for OneConnection<IO, S>
-where
-    S: tower::Service<
-            HttpRequest<Body>,
-            Response = HttpResponse<Body>,
-            Error = StdError,
-            Future = SrvFut<HttpResponse<Body>, StdError>,
-        > + Unpin,
-    IO: AsyncRead + AsyncWrite + Unpin,
-{
-    type Output = Result<(), hyper::Error>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        self.project().connection.poll_without_shutdown(cx)
-    }
-}
-
-type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 impl<S> Future for JsonRpcServer<S>
 where
     S: tower::Service<
@@ -224,16 +189,7 @@ impl JsonRpcServiceBuilder {
     }
 }
 
-impl tower::Service<HttpRequest<Body>> for JsonRpcService
-// where
-// S: tower::Service<
-//     JsonRpcRequest,
-//     Response = JsonRpcResponse,
-//     Error = StdError,
-//     Future = SrvFut<JsonRpcResponse, StdError>,
-// >,
-// S: Clone + Send + 'static,
-{
+impl tower::Service<HttpRequest<Body>> for JsonRpcService {
     type Response = HttpResponse<Body>;
 
     type Error = StdError;
