@@ -22,7 +22,7 @@ use super::compression::{CompressionEncoding, COMPRESSIONS};
 use crate::codec::Codec;
 use crate::invocation::Request;
 use crate::server::encode::encode_server;
-use crate::server::service::{StreamingSvc, UnaryService};
+use crate::server::service::{ClientStreamingSvc, StreamingSvc, UnaryService};
 use crate::server::Decoding;
 use crate::BoxBody;
 use config::BusinessConfig;
@@ -48,6 +48,50 @@ impl<T> TripleServer<T>
 where
     T: Codec,
 {
+    pub async fn client_streaming<S, B>(
+        &mut self,
+        mut service: S,
+        req: http::Request<B>,
+    ) -> http::Response<BoxBody>
+    where
+        S: ClientStreamingSvc<T::Decode, Response = T::Encode>,
+        B: Body + Send + 'static,
+        B::Error: Into<crate::Error> + Send,
+    {
+        let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+        if self.compression.is_none() || accept_encoding.is_none() {
+            accept_encoding = None;
+        }
+
+        // Get grpc_encoding from http_header, decompress message.
+        let compression = match self.get_encoding_from_req(req.headers()) {
+            Ok(val) => val,
+            Err(status) => return status.to_http(),
+        };
+
+        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
+
+        let resp = service.call(Request::from_http(req_stream)).await;
+
+        let (mut parts, resp_body) = resp.unwrap().into_http().into_parts();
+        let resp_body = encode_server(
+            self.codec.encoder(),
+            stream::once(future::ready(resp_body)).map(Ok).into_stream(),
+            accept_encoding,
+        );
+
+        parts.headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("application/grpc"),
+        );
+        if let Some(encoding) = accept_encoding {
+            parts
+                .headers
+                .insert(GRPC_ENCODING, encoding.into_header_value());
+        }
+        parts.status = http::StatusCode::OK;
+        http::Response::from_parts(parts, BoxBody::new(resp_body))
+    }
     pub async fn bidi_streaming<S, B>(
         &mut self,
         mut service: S,

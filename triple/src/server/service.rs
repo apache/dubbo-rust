@@ -21,11 +21,10 @@ use futures_util::{Future, Stream};
 use tower_service::Service;
 
 pub trait StreamingSvc<R> {
-    // proto response
     type Response;
-    // the stream of proto message
+
     type ResponseStream: Stream<Item = Result<Self::Response, tonic::Status>>;
-    // future of stream of proto message
+
     type Future: Future<Output = Result<Response<Self::ResponseStream>, tonic::Status>>;
 
     fn call(&mut self, req: Request<Decoding<R>>) -> Self::Future;
@@ -63,6 +62,26 @@ where
     type Future = T::Future;
 
     fn call(&mut self, req: Request<M1>) -> Self::Future {
+        T::call(self, req)
+    }
+}
+
+pub trait ClientStreamingSvc<R> {
+    type Response;
+    type Future: Future<Output = Result<Response<Self::Response>, tonic::Status>>;
+
+    fn call(&mut self, req: Request<Decoding<R>>) -> Self::Future;
+}
+
+impl<T, M1, M2> ClientStreamingSvc<M1> for T
+where
+    T: Service<Request<Decoding<M1>>, Response = Response<M2>, Error = tonic::Status>,
+{
+    type Response = M2;
+
+    type Future = T::Future;
+
+    fn call(&mut self, req: Request<Decoding<M1>>) -> Self::Future {
         T::call(self, req)
     }
 }

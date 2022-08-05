@@ -227,4 +227,53 @@ impl TripleClient {
             Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
         }
     }
+
+    pub async fn client_streaming<C, M1, M2>(
+        &mut self,
+        req: impl IntoStreamingRequest<Message = M1>,
+        mut codec: C,
+        path: http::uri::PathAndQuery,
+    ) -> Result<Response<M2>, tonic::Status>
+    where
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
+    {
+        let req = req.into_streaming_request();
+        let en = encode(
+            codec.encoder(),
+            req.into_inner().map(Ok),
+            self.send_compression_encoding,
+        )
+        .into_stream();
+        let body = hyper::Body::wrap_stream(en);
+
+        let req = self.map_request(path, body);
+        let cli = self.inner.clone().builder();
+        let response = cli.request(req).await;
+
+        match response {
+            Ok(v) => {
+                let resp = v.map(|body| {
+                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
+                });
+                let (mut parts, body) = Response::from_http(resp).into_parts();
+
+                futures_util::pin_mut!(body);
+
+                let message = body.try_next().await?.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::Internal, "Missing response message.")
+                })?;
+
+                if let Some(trailers) = body.trailer().await? {
+                    let mut h = parts.into_headers();
+                    h.extend(trailers.into_headers());
+                    parts = tonic::metadata::MetadataMap::from_headers(h);
+                }
+
+                Ok(Response::from_parts(parts, message))
+            }
+            Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
+        }
+    }
 }
