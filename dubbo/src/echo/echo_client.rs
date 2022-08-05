@@ -74,4 +74,18 @@ impl EchoClient {
             )
             .await
     }
+
+    pub async fn client_streaming(
+        &mut self,
+        req: impl IntoStreamingRequest<Message = HelloRequest>,
+    ) -> Result<Response<HelloReply>, tonic::Status> {
+        let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
+        self.inner
+            .client_streaming(
+                req,
+                codec,
+                http::uri::PathAndQuery::from_static("/echo/client_streaming"),
+            )
+            .await
+    }
 }

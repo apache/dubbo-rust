@@ -41,7 +41,7 @@ async fn test_client() {
     use futures_util::StreamExt;
     use triple::invocation::*;
 
-    let cli = EchoClient::new().with_uri("http://127.0.0.1:8888".to_string());
+    let mut cli = EchoClient::new().with_uri("http://127.0.0.1:8888".to_string());
     let resp = cli
         .say_hello(Request::new(HelloRequest {
             name: "message from client".to_string(),
@@ -53,6 +53,26 @@ async fn test_client() {
     };
     let (_parts, body) = resp.into_parts();
     println!("Response: {:?}", body);
+
+    let data = vec![
+        HelloRequest {
+            name: "msg1 from client streaming".to_string(),
+        },
+        HelloRequest {
+            name: "msg2 from client streaming".to_string(),
+        },
+        HelloRequest {
+            name: "msg3 from client streaming".to_string(),
+        },
+    ];
+    let req = futures_util::stream::iter(data);
+    let resp = cli.client_streaming(req).await;
+    let client_streaming_resp = match resp {
+        Ok(resp) => resp,
+        Err(err) => return println!("{:?}", err),
+    };
+    let (_parts, resp_body) = client_streaming_resp.into_parts();
+    println!("client streaming, Response: {:?}", resp_body);
 
     let data = vec![
         HelloRequest {
@@ -126,6 +146,24 @@ impl Echo for EchoServerImpl {
 
         Ok(Response::new(HelloReply {
             reply: "hello, dubbo-rust".to_string(),
+        }))
+    }
+
+    async fn client_streaming_echo(
+        &self,
+        req: Request<triple::server::Decoding<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, tonic::Status> {
+        let mut s = req.into_inner();
+        loop {
+            let result = s.next().await;
+            match result {
+                Some(Ok(val)) => println!("result: {:?}", val),
+                Some(Err(val)) => println!("err: {:?}", val),
+                None => break,
+            }
+        }
+        Ok(Response::new(HelloReply {
+            reply: "hello client streaming".to_string(),
         }))
     }
 
