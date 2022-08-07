@@ -20,15 +20,15 @@ use std::net::SocketAddr;
 use std::task::Poll;
 
 use http::{Request, Response};
-use hyper::{body::Body, server::conn::AddrStream};
+use hyper::body::Body;
+use tokio::net::TcpStream;
 use tokio::time::Duration;
 use tower::ServiceExt;
 use tower_service::Service;
 
+use super::listener::TcpListener;
 use super::router::DubboRouter;
 use crate::BoxBody;
-use config::BusinessConfig;
-use config::Config;
 
 type BoxService = tower::util::BoxService<Request<Body>, Response<BoxBody>, crate::Error>;
 
@@ -128,14 +128,17 @@ impl DubboServer {
             .http2_keepalive_timeout
             .unwrap_or_else(|| Duration::new(60, 0));
 
-        hyper::Server::bind(&addr)
+        let incoming = TcpListener::bind(addr).await.unwrap();
+        let server = hyper::Server::builder(incoming)
             .http2_only(self.accept_http2)
             .http2_max_concurrent_streams(self.max_concurrent_streams)
             .http2_initial_connection_window_size(self.init_connection_window_size)
             .http2_initial_stream_window_size(self.init_stream_window_size)
             .http2_keep_alive_interval(self.http2_keepalive_interval)
             .http2_keep_alive_timeout(http2_keepalive_timeout)
-            .http2_max_frame_size(self.max_frame_size)
+            .http2_max_frame_size(self.max_frame_size);
+
+        server
             .serve(svc)
             .await
             .map_err(|err| println!("hyper serve, Error: {:?}", err))
@@ -149,7 +152,7 @@ struct MakeSvc<S> {
     inner: S,
 }
 
-impl<S> Service<&AddrStream> for MakeSvc<S>
+impl<S> Service<&TcpStream> for MakeSvc<S>
 where
     S: Service<Request<Body>, Response = Response<BoxBody>> + Clone + Send + 'static,
     S::Future: Send + 'static,
@@ -163,20 +166,20 @@ where
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, _conn: &AddrStream) -> Self::Future {
+    fn call(&mut self, _conn: &TcpStream) -> Self::Future {
         let svc = self.inner.clone();
         let s = svc.map_err(|err| err.into()).boxed();
         future::ready(Ok(s))
     }
 }
 
-impl BusinessConfig for DubboServer {
-    fn init() -> Self {
-        let conf = config::get_global_config();
-        DubboServer::new().with_accpet_http1(conf.bool("dubbo.server.accept_http2".to_string()))
-    }
+// impl BusinessConfig for DubboServer {
+//     fn init() -> Self {
+//         let conf = config::get_global_config();
+//         DubboServer::new().with_accpet_http1(conf.bool("dubbo.server.accept_http2".to_string()))
+//     }
 
-    fn load() -> Result<(), std::convert::Infallible> {
-        todo!()
-    }
-}
+//     fn load() -> Result<(), std::convert::Infallible> {
+//         todo!()
+//     }
+// }
