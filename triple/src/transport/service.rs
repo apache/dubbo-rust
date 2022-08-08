@@ -15,22 +15,18 @@
  * limitations under the License.
  */
 
-use std::future;
 use std::net::SocketAddr;
-use std::task::Poll;
 
+use futures_core::Future;
 use http::{Request, Response};
 use hyper::body::Body;
-use tokio::net::TcpStream;
 use tokio::time::Duration;
-use tower::ServiceExt;
 use tower_service::Service;
 
 use super::listener::TcpListener;
 use super::router::DubboRouter;
+use crate::transport::listener::Listener;
 use crate::BoxBody;
-
-type BoxService = tower::util::BoxService<Request<Body>, Response<BoxBody>, crate::Error>;
 
 #[derive(Default, Clone)]
 pub struct DubboServer {
@@ -122,54 +118,57 @@ impl DubboServer {
     }
 
     pub async fn serve(self, addr: SocketAddr) -> Result<(), crate::Error> {
-        let svc = MakeSvc { inner: self.router };
+        self.serve_with_graceful(addr, futures_util::future::pending())
+            .await
+    }
+
+    pub async fn serve_with_graceful(
+        self,
+        addr: SocketAddr,
+        signal: impl Future<Output = ()>,
+    ) -> Result<(), crate::Error> {
+        let svc = self.router.clone();
+        tokio::pin!(signal);
 
         let http2_keepalive_timeout = self
             .http2_keepalive_timeout
             .unwrap_or_else(|| Duration::new(60, 0));
 
-        let incoming = TcpListener::bind(addr).await.unwrap();
-        let server = hyper::Server::builder(incoming)
-            .http2_only(self.accept_http2)
-            .http2_max_concurrent_streams(self.max_concurrent_streams)
-            .http2_initial_connection_window_size(self.init_connection_window_size)
-            .http2_initial_stream_window_size(self.init_stream_window_size)
-            .http2_keep_alive_interval(self.http2_keepalive_interval)
-            .http2_keep_alive_timeout(http2_keepalive_timeout)
-            .http2_max_frame_size(self.max_frame_size);
+        let listener = TcpListener::bind(addr).await.unwrap();
 
-        server
-            .serve(svc)
-            .await
-            .map_err(|err| println!("hyper serve, Error: {:?}", err))
-            .unwrap();
+        loop {
+            tokio::select! {
+                _ = &mut signal => {
+                    println!("graceful shutdown");
+                    break
+                }
+                res = listener.accept() => {
+                    match res {
+                        Ok(conn) => {
+                            let (io, local_addr) = conn;
+                            println!("hyper serve, local address: {:?}", local_addr);
+                            let c = hyper::server::conn::Http::new()
+                                .http2_only(self.accept_http2)
+                                .http2_max_concurrent_streams(self.max_concurrent_streams)
+                                .http2_initial_connection_window_size(self.init_connection_window_size)
+                                .http2_initial_stream_window_size(self.init_stream_window_size)
+                                .http2_keep_alive_interval(self.http2_keepalive_interval)
+                                .http2_keep_alive_timeout(http2_keepalive_timeout)
+                                .http2_max_frame_size(self.max_frame_size)
+                                .serve_connection(io, svc.clone()).with_upgrades();
+
+                            tokio::spawn(c);
+
+                        },
+                        Err(err) => println!("hyper serve, err: {:?}", err),
+                    }
+                }
+            }
+        }
+
+        drop(listener);
 
         Ok(())
-    }
-}
-
-struct MakeSvc<S> {
-    inner: S,
-}
-
-impl<S> Service<&TcpStream> for MakeSvc<S>
-where
-    S: Service<Request<Body>, Response = Response<BoxBody>> + Clone + Send + 'static,
-    S::Future: Send + 'static,
-    S::Error: Into<crate::Error> + Send + 'static,
-{
-    type Response = BoxService;
-    type Error = crate::Error;
-    type Future = future::Ready<Result<Self::Response, Self::Error>>;
-
-    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, _conn: &TcpStream) -> Self::Future {
-        let svc = self.inner.clone();
-        let s = svc.map_err(|err| err.into()).boxed();
-        future::ready(Ok(s))
     }
 }
 
