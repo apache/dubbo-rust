@@ -28,7 +28,7 @@ use crate::codec::{DecodeBuf, Decoder};
 
 type BoxBody = http_body::combinators::UnsyncBoxBody<Bytes, tonic::Status>;
 
-pub struct Streaming<T> {
+pub struct Decoding<T> {
     state: State,
     body: BoxBody,
     decoder: Box<dyn Decoder<Item = T, Error = tonic::Status> + Send + 'static>,
@@ -45,7 +45,7 @@ enum State {
     Error,
 }
 
-impl<T> Streaming<T> {
+impl<T> Decoding<T> {
     pub fn new<B, D>(body: B, decoder: D, compress: Option<CompressionEncoding>) -> Self
     where
         B: Body + Send + 'static,
@@ -154,7 +154,7 @@ impl<T> Streaming<T> {
     }
 }
 
-impl<T> Stream for Streaming<T> {
+impl<T> Stream for Decoding<T> {
     type Item = Result<T, tonic::Status>;
 
     fn poll_next(

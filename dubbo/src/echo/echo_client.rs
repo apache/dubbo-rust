@@ -20,7 +20,7 @@ use super::echo_server::{HelloReply, HelloRequest};
 use triple::client::TripleClient;
 use triple::codec::serde_codec::SerdeCodec;
 use triple::invocation::*;
-use triple::server::Streaming;
+use triple::server::Decoding;
 
 pub struct EchoClient {
     inner: TripleClient,
@@ -50,7 +50,7 @@ impl EchoClient {
     pub async fn bidirectional_streaming_echo(
         mut self,
         req: impl IntoStreamingRequest<Message = HelloRequest>,
-    ) -> Result<Response<Streaming<HelloReply>>, tonic::Status> {
+    ) -> Result<Response<Decoding<HelloReply>>, tonic::Status> {
         let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
         self.inner
             .bidi_streaming(
@@ -71,6 +71,20 @@ impl EchoClient {
                 req,
                 codec,
                 http::uri::PathAndQuery::from_static("/echo/hello"),
+            )
+            .await
+    }
+
+    pub async fn client_streaming(
+        &mut self,
+        req: impl IntoStreamingRequest<Message = HelloRequest>,
+    ) -> Result<Response<HelloReply>, tonic::Status> {
+        let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
+        self.inner
+            .client_streaming(
+                req,
+                codec,
+                http::uri::PathAndQuery::from_static("/echo/client_streaming"),
             )
             .await
     }

@@ -15,12 +15,28 @@
  * limitations under the License.
  */
 
-pub mod compression;
-pub mod consts;
-pub mod decode;
-pub mod encode;
-pub mod server;
-pub mod service;
+#![allow(unused_variables, dead_code, missing_docs)]
+pub mod memory_registry;
 
-pub use decode::Decoding;
-pub use encode::{encode, encode_server};
+use crate::common::url::Url;
+
+pub trait Registry {
+    type NotifyListener;
+
+    fn register(&mut self, url: Url) -> Result<(), crate::StdError>;
+    fn unregister(&mut self, url: Url) -> Result<(), crate::StdError>;
+
+    fn subscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), crate::StdError>;
+    fn unsubscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), crate::StdError>;
+}
+
+pub trait NotifyListener {
+    fn notify(&self, event: ServiceEvent);
+    fn notify_all(&self, event: ServiceEvent);
+}
+
+pub struct ServiceEvent {
+    key: String,
+    action: String,
+    service: Url,
+}

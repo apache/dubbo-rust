@@ -19,6 +19,8 @@ pub mod common;
 pub mod echo;
 pub mod helloworld;
 pub mod protocol;
+pub mod registry;
+pub mod service;
 pub mod utils;
 
 use std::future::Future;
