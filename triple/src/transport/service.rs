@@ -142,7 +142,6 @@ impl DubboServer {
             .http2_keepalive_timeout
             .unwrap_or_else(|| Duration::new(60, 0));
 
-        
         let name = if self.listener.is_some() {
             self.listener.unwrap()
         } else {
@@ -152,7 +151,7 @@ impl DubboServer {
         let listener = match get_listener(name, addr).await {
             Ok(v) => v,
             Err(err) => return Err(err),
-        }; 
+        };
 
         loop {
             tokio::select! {
