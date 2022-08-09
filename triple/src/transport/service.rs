@@ -23,9 +23,8 @@ use hyper::body::Body;
 use tokio::time::Duration;
 use tower_service::Service;
 
-use super::listener::TcpListener;
 use super::router::DubboRouter;
-use crate::transport::listener::ListenerExt;
+use crate::transport::listener::get_listener;
 use crate::BoxBody;
 
 #[derive(Default, Clone)]
@@ -38,6 +37,7 @@ pub struct DubboServer {
     http2_keepalive_interval: Option<Duration>,
     http2_keepalive_timeout: Option<Duration>,
     router: DubboRouter,
+    listener: Option<String>,
 }
 
 impl DubboServer {
@@ -86,6 +86,13 @@ impl DubboServer {
             ..self
         }
     }
+
+    pub fn with_listener(self, name: String) -> Self {
+        Self {
+            listener: Some(name),
+            ..self
+        }
+    }
 }
 
 impl DubboServer {
@@ -99,6 +106,7 @@ impl DubboServer {
             http2_keepalive_timeout: None,
             max_frame_size: None,
             router: DubboRouter::new(),
+            listener: None,
         }
     }
 }
@@ -134,7 +142,17 @@ impl DubboServer {
             .http2_keepalive_timeout
             .unwrap_or_else(|| Duration::new(60, 0));
 
-        let listener = TcpListener::bind(addr).await.unwrap().boxed();
+        
+        let name = if self.listener.is_some() {
+            self.listener.unwrap()
+        } else {
+            return Err(Box::new(tonic::Status::internal("listener name is empty")));
+        };
+
+        let listener = match get_listener(name, addr).await {
+            Ok(v) => v,
+            Err(err) => return Err(err),
+        }; 
 
         loop {
             tokio::select! {

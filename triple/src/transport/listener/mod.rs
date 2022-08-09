@@ -110,3 +110,13 @@ impl<T: Listener> Listener for WrappedListener<T> {
             .map(|(io, addr)| (BoxIO::new(io), addr))
     }
 }
+
+pub async fn get_listener(name: String, addr: SocketAddr) -> Result<BoxListener, crate::Error> {
+    match name.as_str() {
+        "tcp" => Ok(TcpListener::bind(addr).await.unwrap().boxed()),
+        _ => {
+            println!("no support listener: {:?}", name);
+            Err(Box::new(tonic::Status::internal(format!("no support listener: {:?}", name))))
+        }
+    }
+}

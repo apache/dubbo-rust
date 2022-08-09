@@ -47,8 +47,7 @@ impl Service {
         let conf = get_global_config();
         for (_, c) in conf.service.iter() {
             #[allow(unused_assignments)]
-            let mut u = Url::default();
-            if c.protocol_configs.is_empty() {
+            let u = if c.protocol_configs.is_empty() {
                 let protocol_url = format!(
                     "{}/{}",
                     conf.protocols
@@ -59,7 +58,7 @@ impl Service {
                         .clone(),
                     c.name.clone(),
                 );
-                u = Url::from_url(&protocol_url).unwrap();
+                Url::from_url(&protocol_url).unwrap()
             } else {
                 let protocol_url = format! {
                     "{}/{}",
@@ -71,8 +70,8 @@ impl Service {
                         .clone(),
                     c.name.clone(),
                 };
-                u = Url::from_url(&protocol_url).unwrap();
-            }
+                Url::from_url(&protocol_url).unwrap()
+            };
             println!("url: {:?}", u);
 
             if self.protocols.get(&c.protocol).is_some() {
