@@ -18,17 +18,11 @@
 use std::net::SocketAddr;
 use std::task;
 
+use super::Listener;
 use async_trait::async_trait;
 use futures_core::Stream;
 use hyper::server::accept::Accept;
 use tokio::net::{TcpListener as tokioTcpListener, TcpStream};
-
-#[async_trait]
-pub trait Listener {
-    type Conn;
-
-    async fn accept(&self) -> std::io::Result<(Self::Conn, SocketAddr)>;
-}
 
 pub struct TcpListener {
     inner: tokioTcpListener,

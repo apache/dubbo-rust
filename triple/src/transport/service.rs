@@ -25,7 +25,7 @@ use tower_service::Service;
 
 use super::listener::TcpListener;
 use super::router::DubboRouter;
-use crate::transport::listener::Listener;
+use crate::transport::listener::ListenerExt;
 use crate::BoxBody;
 
 #[derive(Default, Clone)]
@@ -134,7 +134,7 @@ impl DubboServer {
             .http2_keepalive_timeout
             .unwrap_or_else(|| Duration::new(60, 0));
 
-        let listener = TcpListener::bind(addr).await.unwrap();
+        let listener = TcpListener::bind(addr).await.unwrap().boxed();
 
         loop {
             tokio::select! {
