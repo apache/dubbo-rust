@@ -115,7 +115,7 @@ async fn test_triple_protocol() {
     echo_server::register_echo_server(EchoServerImpl {
         name: "echo".to_string(),
     });
-    helloworld::greeter_server::register_greeter_server(GreeterImpl {});
+    // helloworld::greeter_server::register_greeter_server(GreeterImpl {});
 
     println!("root config: {:?}", conf);
     println!(
