@@ -63,7 +63,10 @@ impl RootConfig {
                 v
             }
             Err(err) => {
-                println!("error loading config_path: {:?}, use default path: {:?}", err, DUBBO_CONFIG_PATH);
+                println!(
+                    "error loading config_path: {:?}, use default path: {:?}",
+                    err, DUBBO_CONFIG_PATH
+                );
                 DUBBO_CONFIG_PATH.to_string()
             }
         };
