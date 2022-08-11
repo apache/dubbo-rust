@@ -278,7 +278,7 @@ pub mod greeter_server {
         const NAME: &'static str = "helloworld.Greeter";
     }
 
-    pub fn register_greeter_server<T: Greeter>(server: T) {
+    pub fn register_server<T: Greeter>(server: T) {
         let s = GreeterServer::<_, TripleInvoker>::new(server);
         crate::protocol::triple::TRIPLE_SERVICES
             .write()

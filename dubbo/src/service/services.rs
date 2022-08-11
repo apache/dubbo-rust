@@ -32,12 +32,12 @@ pub type BoxExporter = Box<dyn Exporter<InvokerType = TripleInvoker>>;
 // Invoker是否可以基于hyper写一个通用的
 
 #[derive(Default)]
-pub struct Service {
+pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
 }
 
-impl Service {
-    pub fn new() -> Service {
+impl Dubbo {
+    pub fn new() -> Dubbo {
         Self {
             protocols: HashMap::new(),
         }
