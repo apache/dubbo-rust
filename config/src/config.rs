@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use super::protocol::ProtocolConfig;
 use super::service::ServiceConfig;
 
-pub const DUBBO_CONFIG_PATH: &str = "../dubbo.yaml";
+pub const DUBBO_CONFIG_PATH: &str = "./dubbo.yaml";
 
 /// used to storage all structed config, from some source: cmd, file..;
 /// Impl Config trait, business init by read Config trait
