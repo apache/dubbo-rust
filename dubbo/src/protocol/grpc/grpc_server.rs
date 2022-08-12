@@ -25,17 +25,7 @@ use tower::Service;
 
 use super::grpc_invoker::GrpcInvoker;
 use crate::common::url::Url;
-use crate::helloworld::helloworld::greeter_server::GreeterServer;
-use crate::helloworld::helloworld::greeter_server::*;
 use crate::utils::boxed_clone::BoxCloneService;
-
-// codegen
-pub fn register_greeter_server<T: Greeter>(
-    server: T,
-) -> (super::GrpcBoxCloneService, super::DubboGrpcBox) {
-    let hello = GreeterServer::<T, GrpcInvoker>::new(server);
-    (BoxCloneService::new(hello.clone()), Box::new(hello))
-}
 
 // 每个service对应一个Server
 #[derive(Clone)]
