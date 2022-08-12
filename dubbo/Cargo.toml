@@ -5,10 +5,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[bin]]
-name = "helloworld-client"
-path = "src/helloworld/client.rs"
-
 [dependencies]
 h2 = {version = "0.3", optional = true}
 hyper = { version = "0.14.19", features = ["full"]}
