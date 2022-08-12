@@ -23,7 +23,6 @@ use tonic::transport;
 use tonic::transport::NamedService;
 use tower::Service;
 
-use super::grpc_invoker::GrpcInvoker;
 use crate::common::url::Url;
 use crate::utils::boxed_clone::BoxCloneService;
 
