@@ -17,16 +17,22 @@
 
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use super::protocol::ProtocolConfig;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ServiceConfig {
     pub version: String,
     pub group: String,
+
+    #[serde(skip_serializing, skip_deserializing)]
     pub name: String,
     pub protocol: String,
     pub registry: String,
     pub serializer: String,
+
+    #[serde(skip_serializing, skip_deserializing)]
     pub protocol_configs: HashMap<String, ProtocolConfig>,
 }
 

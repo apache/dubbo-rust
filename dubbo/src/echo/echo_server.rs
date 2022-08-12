@@ -244,7 +244,7 @@ impl<T: Echo, I: Invoker + Send + Sync + 'static> Clone for EchoServer<T, I> {
     }
 }
 
-pub fn register_echo_server<T: Echo>(server: T) {
+pub fn register_server<T: Echo>(server: T) {
     let s = EchoServer::<_, TripleInvoker>::new(server);
     crate::protocol::triple::TRIPLE_SERVICES
         .write()

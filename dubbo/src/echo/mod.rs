@@ -107,26 +107,14 @@ async fn test_client() {
 
 #[tokio::test]
 async fn test_triple_protocol() {
-    use crate::service::services::Service;
-    use config::get_global_config;
+    use crate::service::services::Dubbo;
 
-    let conf = get_global_config();
-
-    echo_server::register_echo_server(EchoServerImpl {
+    echo_server::register_server(EchoServerImpl {
         name: "echo".to_string(),
     });
-    helloworld::greeter_server::register_greeter_server(GreeterImpl {});
+    // helloworld::greeter_server::register_server(GreeterImpl {});
 
-    println!("root config: {:?}", conf);
-    println!(
-        "register service num: {:?}",
-        crate::protocol::triple::TRIPLE_SERVICES
-            .read()
-            .unwrap()
-            .len(),
-    );
-
-    Service::new().start().await;
+    Dubbo::new().start().await;
 }
 
 #[allow(dead_code)]

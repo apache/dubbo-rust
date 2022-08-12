@@ -15,25 +15,34 @@
  * limitations under the License.
  */
 
-use std::{any, collections::HashMap};
+use std::{any, collections::HashMap, env, fs};
+
+use serde::{Deserialize, Serialize};
 
 use super::protocol::ProtocolConfig;
 use super::service::ServiceConfig;
 
+pub const DUBBO_CONFIG_PATH: &str = "../dubbo.yaml";
+
 /// used to storage all structed config, from some source: cmd, file..;
 /// Impl Config trait, business init by read Config trait
 #[allow(dead_code)]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct RootConfig {
     pub name: String,
     pub service: HashMap<String, ServiceConfig>,
     pub protocols: HashMap<String, ProtocolConfig>,
+
+    #[serde(skip_serializing, skip_deserializing)]
     pub data: HashMap<String, Box<dyn any::Any>>,
 }
 
 pub fn get_global_config() -> RootConfig {
-    let mut c = RootConfig::new();
-    c.load();
+    println!("current path: {:?}", env::current_dir());
+    let c = match RootConfig::new().load() {
+        Ok(v) => v,
+        Err(err) => panic!("Error loading global config, error: {}", err),
+    };
     c
 }
 
@@ -47,7 +56,31 @@ impl RootConfig {
         }
     }
 
-    pub fn load(&mut self) {
+    pub fn load(&self) -> std::io::Result<Self> {
+        let config_path = match env::var("DUBBO_CONFIG_PATH") {
+            Ok(v) => {
+                println!("read config_path from env: {:?}", v);
+                v
+            }
+            Err(err) => {
+                println!(
+                    "error loading config_path: {:?}, use default path: {:?}",
+                    err, DUBBO_CONFIG_PATH
+                );
+                DUBBO_CONFIG_PATH.to_string()
+            }
+        };
+
+        let data = fs::read(config_path)?;
+        let mut conf: RootConfig = serde_yaml::from_slice(&data).unwrap();
+        println!("config data: {:?}", conf);
+        for (name, svc) in conf.service.iter_mut() {
+            svc.name = name.to_string();
+        }
+        Ok(conf)
+    }
+
+    pub fn test_config(&mut self) {
         let service_config = ServiceConfig::default()
             .group("test".to_string())
             .serializer("json".to_string())
@@ -123,4 +156,35 @@ pub trait BusinessConfig {
 pub trait Config {
     fn bool(&self, key: String) -> bool;
     fn string(&self, key: String) -> String;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load() {
+        // case 1: read config yaml from default path
+        println!("current path: {:?}", env::current_dir());
+        let r = RootConfig::new();
+        r.load();
+    }
+
+    #[test]
+    fn test_load1() {
+        // case 2: read config yaml from path in env
+        println!("current path: {:?}", env::current_dir());
+        let r = RootConfig::new();
+        r.load();
+    }
+
+    #[test]
+    fn test_write_yaml() {
+        let mut r = RootConfig::new();
+        r.test_config();
+        let yaml = serde_yaml::to_string(&r).unwrap();
+        println!("config data: {:?}", yaml);
+
+        fs::write("./test_dubbo.yaml", yaml);
+    }
 }

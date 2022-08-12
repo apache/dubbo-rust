@@ -190,7 +190,11 @@ where
         &self,
         header: &http::HeaderMap,
     ) -> Result<Option<CompressionEncoding>, tonic::Status> {
-        let encoding = header.get(GRPC_ENCODING).unwrap().to_str().unwrap();
+        let encoding = match header.get(GRPC_ENCODING) {
+            Some(val) => val.to_str().unwrap(),
+            None => return Ok(None),
+        };
+
         let compression = match COMPRESSIONS.get(encoding) {
             Some(val) => val.to_owned(),
             None => {

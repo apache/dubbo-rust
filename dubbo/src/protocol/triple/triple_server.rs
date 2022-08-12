@@ -42,9 +42,9 @@ impl TripleServer {
         }
 
         let uri = http::Uri::from_str(&url.clone()).unwrap();
-        let server = self.s.clone();
 
-        server
+        self.s
+            .with_listener("tcp".to_string())
             .serve(
                 uri.authority()
                     .unwrap()
