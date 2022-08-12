@@ -103,6 +103,28 @@ async fn test_client() {
     }
     let trailer = body.trailer().await.unwrap();
     println!("trailer: {:?}", trailer);
+
+    let resp = cli
+        .server_streaming(Request::new(HelloRequest {
+            name: "server streaming req".to_string(),
+        }))
+        .await
+        .unwrap();
+
+    let (parts, mut body) = resp.into_parts();
+    println!("parts: {:?}", parts);
+    while let Some(item) = body.next().await {
+        match item {
+            Ok(v) => {
+                println!("reply: {:?}", v);
+            }
+            Err(err) => {
+                println!("err: {:?}", err);
+            }
+        }
+    }
+    let trailer = body.trailer().await.unwrap();
+    println!("trailer: {:?}", trailer);
 }
 
 #[tokio::test]
@@ -153,6 +175,29 @@ impl Echo for EchoServerImpl {
         Ok(Response::new(HelloReply {
             reply: "hello client streaming".to_string(),
         }))
+    }
+
+    type ServerStreamingEchoStream = ResponseStream;
+    async fn server_streaming_echo(
+        &self,
+        req: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerStreamingEchoStream>, tonic::Status> {
+        println!("server_streaming_echo: {:?}", req.into_inner());
+
+        let data = vec![
+            Result::<_, tonic::Status>::Ok(HelloReply {
+                reply: "msg1 from server".to_string(),
+            }),
+            Result::<_, tonic::Status>::Ok(HelloReply {
+                reply: "msg2 from server".to_string(),
+            }),
+            Result::<_, tonic::Status>::Ok(HelloReply {
+                reply: "msg3 from server".to_string(),
+            }),
+        ];
+        let resp = futures_util::stream::iter(data);
+
+        Ok(Response::new(Box::pin(resp)))
     }
 
     type BidirectionalStreamingEchoStream = ResponseStream;

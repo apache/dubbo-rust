@@ -46,14 +46,14 @@ where
     }
 }
 
-pub trait UnaryService<R> {
+pub trait UnarySvc<R> {
     type Response;
     type Future: Future<Output = Result<Response<Self::Response>, tonic::Status>>;
 
     fn call(&mut self, req: Request<R>) -> Self::Future;
 }
 
-impl<T, M1, M2> UnaryService<M1> for T
+impl<T, M1, M2> UnarySvc<M1> for T
 where
     T: Service<Request<M1>, Response = Response<M2>, Error = tonic::Status>,
 {
@@ -83,5 +83,31 @@ where
 
     fn call(&mut self, req: Request<Decoding<M1>>) -> Self::Future {
         T::call(self, req)
+    }
+}
+
+pub trait ServerStreamingSvc<R> {
+    type Response;
+
+    type ResponseStream: Stream<Item = Result<Self::Response, tonic::Status>>;
+
+    type Future: Future<Output = Result<Response<Self::ResponseStream>, tonic::Status>>;
+
+    fn call(&mut self, req: Request<R>) -> Self::Future;
+}
+
+impl<T, S, M1, M2> ServerStreamingSvc<M1> for T
+where
+    T: Service<Request<M1>, Response = Response<S>, Error = tonic::Status>,
+    S: Stream<Item = Result<M2, tonic::Status>>,
+{
+    type Response = M2;
+
+    type ResponseStream = S;
+
+    type Future = T::Future;
+
+    fn call(&mut self, req: Request<M1>) -> Self::Future {
+        Service::call(self, req)
     }
 }

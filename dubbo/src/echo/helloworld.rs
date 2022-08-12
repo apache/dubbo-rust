@@ -127,7 +127,7 @@ pub mod greeter_server {
     use triple::empty_body;
     use triple::invocation::{Request, Response};
     use triple::server::server::TripleServer;
-    use triple::server::service::UnaryService;
+    use triple::server::service::UnarySvc;
 
     ///Generated trait containing gRPC methods that should be implemented for use with GreeterServer.
     #[async_trait]
@@ -197,7 +197,7 @@ pub mod greeter_server {
                 "/helloworld.Greeter/SayHello" => {
                     #[allow(non_camel_case_types)]
                     struct SayHelloSvc<T: Greeter>(pub Arc<T>);
-                    impl<T: Greeter> UnaryService<super::HelloRequest> for SayHelloSvc<T> {
+                    impl<T: Greeter> UnarySvc<super::HelloRequest> for SayHelloSvc<T> {
                         type Response = super::HelloReply;
                         type Future = BoxFuture<Response<Self::Response>, tonic::Status>;
                         fn call(&mut self, request: Request<super::HelloRequest>) -> Self::Future {

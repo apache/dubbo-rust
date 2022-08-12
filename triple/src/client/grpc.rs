@@ -276,4 +276,41 @@ impl TripleClient {
             Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
         }
     }
+
+    pub async fn server_streaming<C, M1, M2>(
+        &mut self,
+        req: Request<M1>,
+        mut codec: C,
+        path: http::uri::PathAndQuery,
+    ) -> Result<Response<Decoding<M2>>, tonic::Status>
+    where
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
+    {
+        let req = req.map(|m| stream::once(future::ready(m)));
+        let en = encode(
+            codec.encoder(),
+            req.into_inner().map(Ok),
+            self.send_compression_encoding,
+        )
+        .into_stream();
+        let body = hyper::Body::wrap_stream(en);
+
+        let req = self.map_request(path, body);
+
+        let cli = self.inner.clone().builder();
+        let response = cli.request(req).await;
+
+        match response {
+            Ok(v) => {
+                let resp = v.map(|body| {
+                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
+                });
+
+                Ok(Response::from_http(resp))
+            }
+            Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
+        }
+    }
 }

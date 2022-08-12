@@ -33,7 +33,7 @@ use std::task::Poll;
 use tower_service::Service;
 use triple::invocation::{Request, Response};
 use triple::server::server::TripleServer;
-use triple::server::service::{ClientStreamingSvc, StreamingSvc, UnaryService};
+use triple::server::service::{ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc};
 use triple::BoxBody;
 
 pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -68,6 +68,14 @@ pub trait Echo: Send + Sync + 'static {
         &self,
         request: Request<triple::server::Decoding<HelloRequest>>,
     ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, tonic::Status>;
+
+    type ServerStreamingEchoStream: futures_util::Stream<Item = Result<HelloReply, tonic::Status>>
+        + Send
+        + 'static;
+    async fn server_streaming_echo(
+        &self,
+        req: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerStreamingEchoStream>, tonic::Status>;
 }
 
 struct _Inner<T>(Arc<T>);
@@ -111,7 +119,7 @@ where
                     inner: _Inner<T>,
                 }
 
-                impl<T: Echo> UnaryService<HelloRequest> for UnaryServer<T> {
+                impl<T: Echo> UnarySvc<HelloRequest> for UnaryServer<T> {
                     type Response = HelloReply;
 
                     type Future = BoxFuture<Response<Self::Response>, tonic::Status>;
@@ -157,6 +165,36 @@ where
                         TripleServer::new(SerdeCodec::<HelloReply, HelloRequest>::default());
                     let resp = server
                         .client_streaming(ClientStreamingServer { inner }, req)
+                        .await;
+                    Ok(resp)
+                };
+
+                Box::pin(fut)
+            }
+            "/echo/server_streaming" => {
+                struct ServerStreamingServer<T> {
+                    inner: _Inner<T>,
+                }
+
+                impl<T: Echo> ServerStreamingSvc<HelloRequest> for ServerStreamingServer<T> {
+                    type Response = HelloReply;
+
+                    type ResponseStream = T::ServerStreamingEchoStream;
+
+                    type Future = BoxFuture<Response<Self::ResponseStream>, tonic::Status>;
+
+                    fn call(&mut self, req: Request<HelloRequest>) -> Self::Future {
+                        let inner = self.inner.0.clone();
+                        let fut = async move { inner.server_streaming_echo(req).await };
+                        Box::pin(fut)
+                    }
+                }
+
+                let fut = async move {
+                    let mut server =
+                        TripleServer::new(SerdeCodec::<HelloReply, HelloRequest>::default());
+                    let resp = server
+                        .server_streaming(ServerStreamingServer { inner }, req)
                         .await;
                     Ok(resp)
                 };
