@@ -26,12 +26,12 @@ use tonic::metadata::MetadataMap;
 use super::compression::{decompress, CompressionEncoding};
 use crate::codec::{DecodeBuf, Decoder};
 
-type BoxBody = http_body::combinators::UnsyncBoxBody<Bytes, tonic::Status>;
+type BoxBody = http_body::combinators::UnsyncBoxBody<Bytes, crate::status::Status>;
 
 pub struct Decoding<T> {
     state: State,
     body: BoxBody,
-    decoder: Box<dyn Decoder<Item = T, Error = tonic::Status> + Send + 'static>,
+    decoder: Box<dyn Decoder<Item = T, Error = crate::status::Status> + Send + 'static>,
     buf: BytesMut,
     trailers: Option<MetadataMap>,
     compress: Option<CompressionEncoding>,
@@ -50,13 +50,18 @@ impl<T> Decoding<T> {
     where
         B: Body + Send + 'static,
         B::Error: Into<crate::Error>,
-        D: Decoder<Item = T, Error = tonic::Status> + Send + 'static,
+        D: Decoder<Item = T, Error = crate::status::Status> + Send + 'static,
     {
         Self {
             state: State::ReadHeader,
             body: body
                 .map_data(|mut buf| buf.copy_to_bytes(buf.remaining()))
-                .map_err(|_err| tonic::Status::internal("err"))
+                .map_err(|_err| {
+                    crate::status::Status::new(
+                        crate::status::Code::Internal,
+                        "internal decode err".to_string(),
+                    )
+                })
                 .boxed_unsync(),
             decoder: Box::new(decoder),
             buf: BytesMut::with_capacity(super::consts::BUFFER_SIZE),
@@ -66,7 +71,7 @@ impl<T> Decoding<T> {
         }
     }
 
-    pub async fn message(&mut self) -> Result<Option<T>, tonic::Status> {
+    pub async fn message(&mut self) -> Result<Option<T>, crate::status::Status> {
         match future::poll_fn(|cx| Pin::new(&mut *self).poll_next(cx)).await {
             Some(Ok(res)) => Ok(Some(res)),
             Some(Err(err)) => Err(err),
@@ -74,7 +79,7 @@ impl<T> Decoding<T> {
         }
     }
 
-    pub async fn trailer(&mut self) -> Result<Option<MetadataMap>, tonic::Status> {
+    pub async fn trailer(&mut self) -> Result<Option<MetadataMap>, crate::status::Status> {
         if let Some(t) = self.trailers.take() {
             return Ok(Some(t));
         }
@@ -84,7 +89,7 @@ impl<T> Decoding<T> {
         trailer.map(|data| data.map(MetadataMap::from_headers))
     }
 
-    pub fn decode_chunk(&mut self) -> Result<Option<T>, tonic::Status> {
+    pub fn decode_chunk(&mut self) -> Result<Option<T>, crate::status::Status> {
         if self.state == State::ReadHeader {
             // buffer is full
             if self.buf.remaining() < super::consts::HEADER_SIZE {
@@ -97,16 +102,20 @@ impl<T> Decoding<T> {
                     if self.compress.is_some() {
                         true
                     } else {
-                        return Err(tonic::Status::internal(
-                            "set compression flag, but no grpc-encoding specified",
+                        return Err(crate::status::Status::new(
+                            crate::status::Code::Internal,
+                            "set compression flag, but no grpc-encoding specified".to_string(),
                         ));
                     }
                 }
                 v => {
-                    return Err(tonic::Status::internal(format!(
-                        "receive message with compression flag{}, flag should be 0 or 1",
-                        v
-                    )))
+                    return Err(crate::status::Status::new(
+                        crate::status::Code::Internal,
+                        format!(
+                            "receive message with compression flag{}, flag should be 0 or 1",
+                            v
+                        ),
+                    ))
                 }
             };
             let len = self.buf.get_u32() as usize;
@@ -128,7 +137,10 @@ impl<T> Decoding<T> {
                     &mut self.decompress_buf,
                     len,
                 ) {
-                    return Err(tonic::Status::internal(err.to_string()));
+                    return Err(crate::status::Status::new(
+                        crate::status::Code::Internal,
+                        err.to_string(),
+                    ));
                 }
 
                 let decompress_len = self.decompress_buf.len();
@@ -155,7 +167,7 @@ impl<T> Decoding<T> {
 }
 
 impl<T> Stream for Decoding<T> {
-    type Item = Result<T, tonic::Status>;
+    type Item = Result<T, crate::status::Status>;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
@@ -175,7 +187,10 @@ impl<T> Stream for Decoding<T> {
                 Some(Err(e)) => {
                     let _ = std::mem::replace(&mut self.state, State::Error);
                     let err: crate::Error = e.into();
-                    return Poll::Ready(Some(Err(tonic::Status::internal(err.to_string()))));
+                    return Poll::Ready(Some(Err(crate::status::Status::new(
+                        crate::status::Code::Internal,
+                        err.to_string(),
+                    ))));
                 }
                 None => None,
             };

@@ -16,12 +16,12 @@
  */
 use std::{pin::Pin, task::Poll};
 
+use crate::status::Status;
 use bytes::{BufMut, Bytes, BytesMut};
 use futures_core::{Stream, TryStream};
 use futures_util::{ready, StreamExt, TryStreamExt};
 use http_body::Body;
 use pin_project::pin_project;
-use tonic::Status;
 
 use super::compression::{compress, CompressionEncoding};
 use crate::codec::{EncodeBuf, Encoder};
@@ -57,12 +57,14 @@ where
                     if enable_compress {
                         uncompression_buf.clear();
 
-                        encoder.encode(item, &mut EncodeBuf::new(&mut uncompression_buf)).map_err(|_e| tonic::Status::internal("encode error"));
+                        encoder.encode(item, &mut EncodeBuf::new(&mut uncompression_buf))
+                            .map_err(|_e| crate::status::Status::new(crate::status::Code::Internal, "encode error".to_string()));
 
                         let len = uncompression_buf.len();
-                        compress(compression_encoding.unwrap(), &mut uncompression_buf, &mut buf, len).map_err(|_| tonic::Status::internal("compress error"));
+                        compress(compression_encoding.unwrap(), &mut uncompression_buf, &mut buf, len)
+                            .map_err(|_| crate::status::Status::new(crate::status::Code::Internal, "compress error".to_string()));
                     } else {
-                        encoder.encode(item, &mut EncodeBuf::new(&mut buf)).map_err(|_e| tonic::Status::internal("encode error"));
+                        encoder.encode(item, &mut EncodeBuf::new(&mut buf)).map_err(|_e| crate::status::Status::new(crate::status::Code::Internal, "encode error".to_string()));
                     }
 
 
@@ -119,7 +121,7 @@ pub struct EncodeBody<S> {
     inner: S,
     role: Role,
     is_end_stream: bool,
-    error: Option<tonic::Status>,
+    error: Option<crate::status::Status>,
 }
 
 impl<S> EncodeBody<S> {
@@ -144,11 +146,11 @@ impl<S> EncodeBody<S> {
 
 impl<S> Body for EncodeBody<S>
 where
-    S: Stream<Item = Result<Bytes, tonic::Status>>,
+    S: Stream<Item = Result<Bytes, crate::status::Status>>,
 {
     type Data = Bytes;
 
-    type Error = tonic::Status;
+    type Error = crate::status::Status;
 
     fn is_end_stream(&self) -> bool {
         self.is_end_stream
@@ -182,7 +184,10 @@ where
             *self_proj.is_end_stream = true;
             status
         } else {
-            tonic::Status::ok("")
+            crate::status::Status::new(
+                crate::status::Code::Ok,
+                "poll trailer successfully.".to_string(),
+            )
         };
         let http = status.to_http();
 

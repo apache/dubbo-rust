@@ -18,7 +18,6 @@
 use super::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 use prost::Message;
 use std::marker::PhantomData;
-use tonic::{Code, Status};
 
 /// A [`Codec`] that implements `application/grpc+proto` via the prost library..
 #[derive(Debug, Clone)]
@@ -58,7 +57,7 @@ pub struct ProstEncoder<T>(PhantomData<T>);
 
 impl<T: Message> Encoder for ProstEncoder<T> {
     type Item = T;
-    type Error = Status;
+    type Error = crate::status::Status;
 
     fn encode(&mut self, item: Self::Item, buf: &mut EncodeBuf<'_>) -> Result<(), Self::Error> {
         item.encode(buf)
@@ -74,7 +73,7 @@ pub struct ProstDecoder<U>(PhantomData<U>);
 
 impl<U: Message + Default> Decoder for ProstDecoder<U> {
     type Item = U;
-    type Error = Status;
+    type Error = crate::status::Status;
 
     fn decode(&mut self, buf: &mut DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
         let item = Message::decode(buf)
@@ -85,10 +84,10 @@ impl<U: Message + Default> Decoder for ProstDecoder<U> {
     }
 }
 
-fn from_decode_error(error: prost::DecodeError) -> Status {
+fn from_decode_error(error: prost::DecodeError) -> crate::status::Status {
     // Map Protobuf parse errors to an INTERNAL status code, as per
     // https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
-    Status::new(Code::Internal, error.to_string())
+    crate::status::Status::new(crate::status::Code::Internal, error.to_string())
 }
 
 // #[cfg(test)]

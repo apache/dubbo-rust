@@ -16,18 +16,18 @@
  */
 
 use futures_core::Stream;
-use tonic::metadata::MetadataMap;
+use std::{collections::HashMap, str::FromStr};
 
 pub struct Request<T> {
     pub message: T,
-    pub metadata: MetadataMap,
+    pub metadata: Metadata,
 }
 
 impl<T> Request<T> {
     pub fn new(message: T) -> Request<T> {
         Self {
             message,
-            metadata: MetadataMap::new(),
+            metadata: Metadata::new(),
         }
     }
 
@@ -35,18 +35,18 @@ impl<T> Request<T> {
         self.message
     }
 
-    pub fn into_parts(self) -> (MetadataMap, T) {
+    pub fn into_parts(self) -> (Metadata, T) {
         (self.metadata, self.message)
     }
 
-    pub fn from_parts(metadata: MetadataMap, message: T) -> Self {
+    pub fn from_parts(metadata: Metadata, message: T) -> Self {
         Request { message, metadata }
     }
 
     pub fn from_http(req: http::Request<T>) -> Self {
         let (parts, body) = req.into_parts();
         Request {
-            metadata: MetadataMap::from_headers(parts.headers),
+            metadata: Metadata::from_headers(parts.headers),
             message: body,
         }
     }
@@ -73,22 +73,22 @@ impl<T> Request<T> {
 
 pub struct Response<T> {
     message: T,
-    metadata: MetadataMap,
+    metadata: Metadata,
 }
 
 impl<T> Response<T> {
     pub fn new(message: T) -> Response<T> {
         Self {
             message,
-            metadata: MetadataMap::new(),
+            metadata: Metadata::new(),
         }
     }
 
-    pub fn from_parts(metadata: MetadataMap, message: T) -> Self {
+    pub fn from_parts(metadata: Metadata, message: T) -> Self {
         Self { message, metadata }
     }
 
-    pub fn into_parts(self) -> (MetadataMap, T) {
+    pub fn into_parts(self) -> (Metadata, T) {
         (self.metadata, self.message)
     }
 
@@ -104,7 +104,7 @@ impl<T> Response<T> {
         let (part, body) = resp.into_parts();
         Response {
             message: body,
-            metadata: MetadataMap::from_headers(part.headers),
+            metadata: Metadata::from_headers(part.headers),
         }
     }
 
@@ -146,3 +146,39 @@ where
 // pub mod sealed {
 //     pub trait Sealed {}
 // }
+
+#[derive(Debug, Clone, Default)]
+pub struct Metadata {
+    inner: HashMap<String, String>,
+}
+
+impl Metadata {
+    pub fn new() -> Self {
+        Metadata {
+            inner: HashMap::new(),
+        }
+    }
+
+    pub fn from_headers(headers: http::HeaderMap) -> Self {
+        let mut h: HashMap<String, String> = HashMap::new();
+        for (k, v) in headers.into_iter() {
+            if let Some(name) = k {
+                h.insert(name.to_string(), v.to_str().unwrap().to_string());
+            }
+        }
+
+        Metadata { inner: h }
+    }
+
+    pub fn into_headers(&self) -> http::HeaderMap {
+        let mut header = http::HeaderMap::new();
+        for (k, v) in self.inner.clone().into_iter() {
+            header.insert(
+                http::header::HeaderName::from_str(k.as_str()).unwrap(),
+                http::HeaderValue::from_str(v.as_str()).unwrap(),
+            );
+        }
+
+        header
+    }
+}

@@ -95,10 +95,10 @@ pub mod greeter_client {
         pub async fn say_hello(
             &mut self,
             request: Request<super::HelloRequest>,
-        ) -> Result<Response<super::HelloReply>, tonic::Status> {
+        ) -> Result<Response<super::HelloReply>, triple::status::Status> {
             // self.inner.ready().await.map_err(|e| {
-            //     tonic::Status::new(
-            //         tonic::Code::Unknown,
+            //     crate::status::Status::new(
+            //         crate::status::Code::Unknown,
             //         format!("Service was not ready: {}", e.into()),
             //     )
             // })?;
@@ -136,7 +136,7 @@ pub mod greeter_server {
         async fn say_hello(
             &self,
             request: Request<super::HelloRequest>,
-        ) -> Result<Response<super::HelloReply>, tonic::Status>;
+        ) -> Result<Response<super::HelloReply>, triple::status::Status>;
     }
     /// The greeting service definition.
     #[derive(Debug)]
@@ -185,7 +185,7 @@ pub mod greeter_server {
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
-        type Response = http::Response<tonic::body::BoxBody>;
+        type Response = http::Response<triple::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
         fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -199,7 +199,7 @@ pub mod greeter_server {
                     struct SayHelloSvc<T: Greeter>(pub Arc<T>);
                     impl<T: Greeter> UnarySvc<super::HelloRequest> for SayHelloSvc<T> {
                         type Response = super::HelloReply;
-                        type Future = BoxFuture<Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
                         fn call(&mut self, request: Request<super::HelloRequest>) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { (*inner).say_hello(request).await };

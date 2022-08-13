@@ -23,17 +23,17 @@ use tower_service::Service;
 pub trait StreamingSvc<R> {
     type Response;
 
-    type ResponseStream: Stream<Item = Result<Self::Response, tonic::Status>>;
+    type ResponseStream: Stream<Item = Result<Self::Response, crate::status::Status>>;
 
-    type Future: Future<Output = Result<Response<Self::ResponseStream>, tonic::Status>>;
+    type Future: Future<Output = Result<Response<Self::ResponseStream>, crate::status::Status>>;
 
     fn call(&mut self, req: Request<Decoding<R>>) -> Self::Future;
 }
 
 impl<T, S, M1, M2> StreamingSvc<M1> for T
 where
-    T: Service<Request<Decoding<M1>>, Response = Response<S>, Error = tonic::Status>,
-    S: Stream<Item = Result<M2, tonic::Status>>,
+    T: Service<Request<Decoding<M1>>, Response = Response<S>, Error = crate::status::Status>,
+    S: Stream<Item = Result<M2, crate::status::Status>>,
 {
     type Response = M2;
 
@@ -48,14 +48,14 @@ where
 
 pub trait UnarySvc<R> {
     type Response;
-    type Future: Future<Output = Result<Response<Self::Response>, tonic::Status>>;
+    type Future: Future<Output = Result<Response<Self::Response>, crate::status::Status>>;
 
     fn call(&mut self, req: Request<R>) -> Self::Future;
 }
 
 impl<T, M1, M2> UnarySvc<M1> for T
 where
-    T: Service<Request<M1>, Response = Response<M2>, Error = tonic::Status>,
+    T: Service<Request<M1>, Response = Response<M2>, Error = crate::status::Status>,
 {
     type Response = M2;
 
@@ -68,14 +68,14 @@ where
 
 pub trait ClientStreamingSvc<R> {
     type Response;
-    type Future: Future<Output = Result<Response<Self::Response>, tonic::Status>>;
+    type Future: Future<Output = Result<Response<Self::Response>, crate::status::Status>>;
 
     fn call(&mut self, req: Request<Decoding<R>>) -> Self::Future;
 }
 
 impl<T, M1, M2> ClientStreamingSvc<M1> for T
 where
-    T: Service<Request<Decoding<M1>>, Response = Response<M2>, Error = tonic::Status>,
+    T: Service<Request<Decoding<M1>>, Response = Response<M2>, Error = crate::status::Status>,
 {
     type Response = M2;
 
@@ -89,17 +89,17 @@ where
 pub trait ServerStreamingSvc<R> {
     type Response;
 
-    type ResponseStream: Stream<Item = Result<Self::Response, tonic::Status>>;
+    type ResponseStream: Stream<Item = Result<Self::Response, crate::status::Status>>;
 
-    type Future: Future<Output = Result<Response<Self::ResponseStream>, tonic::Status>>;
+    type Future: Future<Output = Result<Response<Self::ResponseStream>, crate::status::Status>>;
 
     fn call(&mut self, req: Request<R>) -> Self::Future;
 }
 
 impl<T, S, M1, M2> ServerStreamingSvc<M1> for T
 where
-    T: Service<Request<M1>, Response = Response<S>, Error = tonic::Status>,
-    S: Stream<Item = Result<M2, tonic::Status>>,
+    T: Service<Request<M1>, Response = Response<S>, Error = crate::status::Status>,
+    S: Stream<Item = Result<M2, crate::status::Status>>,
 {
     type Response = M2;
 

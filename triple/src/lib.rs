@@ -19,13 +19,17 @@ pub mod client;
 pub mod codec;
 pub mod invocation;
 pub mod server;
+pub mod status;
 pub mod transport;
 
 use http_body::Body;
+use std::future::Future;
+use std::pin::Pin;
 
 pub(crate) type Error = Box<dyn std::error::Error + Send + Sync>;
 
-pub type BoxBody = http_body::combinators::UnsyncBoxBody<bytes::Bytes, tonic::Status>;
+pub type BoxBody = http_body::combinators::UnsyncBoxBody<bytes::Bytes, crate::status::Status>;
+pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;
 
 pub fn empty_body() -> BoxBody {
     http_body::Empty::new()
@@ -38,6 +42,8 @@ where
     B: http_body::Body<Data = bytes::Bytes> + Send + 'static,
     B::Error: Into<crate::Error>,
 {
-    body.map_err(|err| tonic::Status::new(tonic::Code::Internal, format!("{:?}", err.into())))
-        .boxed_unsync()
+    body.map_err(|err| {
+        crate::status::Status::new(crate::status::Code::Internal, format!("{:?}", err.into()))
+    })
+    .boxed_unsync()
 }

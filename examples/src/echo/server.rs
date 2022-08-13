@@ -28,7 +28,8 @@ use dubbo::service::services::Dubbo;
 use examples::protos::echo_server::{register_server, Echo, HelloReply, HelloRequest};
 use triple::invocation::*;
 
-type ResponseStream = Pin<Box<dyn Stream<Item = Result<HelloReply, tonic::Status>> + Send>>;
+type ResponseStream =
+    Pin<Box<dyn Stream<Item = Result<HelloReply, triple::status::Status>> + Send>>;
 
 #[tokio::main]
 async fn main() {
@@ -51,7 +52,7 @@ impl Echo for EchoServerImpl {
     async fn hello(
         &self,
         req: Request<HelloRequest>,
-    ) -> Result<Response<HelloReply>, tonic::Status> {
+    ) -> Result<Response<HelloReply>, triple::status::Status> {
         println!("EchoServer::hello {:?}", req.metadata);
 
         Ok(Response::new(HelloReply {
@@ -62,7 +63,7 @@ impl Echo for EchoServerImpl {
     async fn client_streaming_echo(
         &self,
         req: Request<triple::server::Decoding<HelloRequest>>,
-    ) -> Result<Response<HelloReply>, tonic::Status> {
+    ) -> Result<Response<HelloReply>, triple::status::Status> {
         let mut s = req.into_inner();
         loop {
             let result = s.next().await;
@@ -81,17 +82,17 @@ impl Echo for EchoServerImpl {
     async fn server_streaming_echo(
         &self,
         req: Request<HelloRequest>,
-    ) -> Result<Response<Self::ServerStreamingEchoStream>, tonic::Status> {
+    ) -> Result<Response<Self::ServerStreamingEchoStream>, triple::status::Status> {
         println!("server_streaming_echo: {:?}", req.into_inner());
 
         let data = vec![
-            Result::<_, tonic::Status>::Ok(HelloReply {
+            Result::<_, triple::status::Status>::Ok(HelloReply {
                 reply: "msg1 from server".to_string(),
             }),
-            Result::<_, tonic::Status>::Ok(HelloReply {
+            Result::<_, triple::status::Status>::Ok(HelloReply {
                 reply: "msg2 from server".to_string(),
             }),
-            Result::<_, tonic::Status>::Ok(HelloReply {
+            Result::<_, triple::status::Status>::Ok(HelloReply {
                 reply: "msg3 from server".to_string(),
             }),
         ];
@@ -105,7 +106,7 @@ impl Echo for EchoServerImpl {
     async fn bidirectional_streaming_echo(
         &self,
         request: Request<triple::server::Decoding<HelloRequest>>,
-    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, tonic::Status> {
+    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, triple::status::Status> {
         println!(
             "EchoServer::bidirectional_streaming_echo, grpc header: {:?}",
             request.metadata
@@ -123,7 +124,7 @@ impl Echo for EchoServerImpl {
                 match result {
                     Ok(v) => {
                         // if v.name.starts_with("msg2") {
-                        //     tx.send(Err(tonic::Status::internal(format!("err: args is invalid, {:?}", v.name))
+                        //     tx.send(Err(triple::status::Status::internal(format!("err: args is invalid, {:?}", v.name))
                         //     )).await.expect("working rx");
                         //     continue;
                         // }
@@ -162,7 +163,7 @@ impl Echo for EchoServerImpl {
     }
 }
 
-fn match_for_io_error(err_status: &tonic::Status) -> Option<&std::io::Error> {
+fn match_for_io_error(err_status: &triple::status::Status) -> Option<&std::io::Error> {
     let mut err: &(dyn std::error::Error + 'static) = err_status;
 
     loop {

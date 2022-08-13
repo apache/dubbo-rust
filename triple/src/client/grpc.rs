@@ -147,7 +147,7 @@ impl TripleClient {
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
-    ) -> Result<Response<M2>, tonic::Status>
+    ) -> Result<Response<M2>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
         M1: Send + Sync + 'static,
@@ -176,18 +176,24 @@ impl TripleClient {
                 futures_util::pin_mut!(body);
 
                 let message = body.try_next().await?.ok_or_else(|| {
-                    tonic::Status::new(tonic::Code::Internal, "Missing response message.")
+                    crate::status::Status::new(
+                        crate::status::Code::Internal,
+                        "Missing response message.".to_string(),
+                    )
                 })?;
 
                 if let Some(trailers) = body.trailer().await? {
                     let mut h = parts.into_headers();
                     h.extend(trailers.into_headers());
-                    parts = tonic::metadata::MetadataMap::from_headers(h);
+                    parts = crate::invocation::Metadata::from_headers(h);
                 }
 
                 Ok(Response::from_parts(parts, message))
             }
-            Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
+            Err(err) => Err(crate::status::Status::new(
+                crate::status::Code::Internal,
+                err.to_string(),
+            )),
         }
     }
 
@@ -196,7 +202,7 @@ impl TripleClient {
         req: impl IntoStreamingRequest<Message = M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
-    ) -> Result<Response<Decoding<M2>>, tonic::Status>
+    ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
         M1: Send + Sync + 'static,
@@ -224,7 +230,10 @@ impl TripleClient {
 
                 Ok(Response::from_http(resp))
             }
-            Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
+            Err(err) => Err(crate::status::Status::new(
+                crate::status::Code::Internal,
+                err.to_string(),
+            )),
         }
     }
 
@@ -233,7 +242,7 @@ impl TripleClient {
         req: impl IntoStreamingRequest<Message = M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
-    ) -> Result<Response<M2>, tonic::Status>
+    ) -> Result<Response<M2>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
         M1: Send + Sync + 'static,
@@ -262,18 +271,24 @@ impl TripleClient {
                 futures_util::pin_mut!(body);
 
                 let message = body.try_next().await?.ok_or_else(|| {
-                    tonic::Status::new(tonic::Code::Internal, "Missing response message.")
+                    crate::status::Status::new(
+                        crate::status::Code::Internal,
+                        "Missing response message.".to_string(),
+                    )
                 })?;
 
                 if let Some(trailers) = body.trailer().await? {
                     let mut h = parts.into_headers();
                     h.extend(trailers.into_headers());
-                    parts = tonic::metadata::MetadataMap::from_headers(h);
+                    parts = crate::invocation::Metadata::from_headers(h);
                 }
 
                 Ok(Response::from_parts(parts, message))
             }
-            Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
+            Err(err) => Err(crate::status::Status::new(
+                crate::status::Code::Internal,
+                err.to_string(),
+            )),
         }
     }
 
@@ -282,7 +297,7 @@ impl TripleClient {
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
-    ) -> Result<Response<Decoding<M2>>, tonic::Status>
+    ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
         M1: Send + Sync + 'static,
@@ -310,7 +325,10 @@ impl TripleClient {
 
                 Ok(Response::from_http(resp))
             }
-            Err(err) => Err(tonic::Status::new(tonic::Code::Internal, err.to_string())),
+            Err(err) => Err(crate::status::Status::new(
+                crate::status::Code::Internal,
+                err.to_string(),
+            )),
         }
     }
 }

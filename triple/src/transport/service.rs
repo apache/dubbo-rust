@@ -145,7 +145,10 @@ impl DubboServer {
         let name = if self.listener.is_some() {
             self.listener.unwrap()
         } else {
-            return Err(Box::new(tonic::Status::internal("listener name is empty")));
+            // let err = std:error::Error
+            return Err(Box::new(crate::status::DubboError::new(
+                "listener name is empty".to_string(),
+            )));
         };
 
         let listener = match get_listener(name, addr).await {

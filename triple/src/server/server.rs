@@ -163,11 +163,9 @@ where
 
         let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
-        let msg = body
-            .try_next()
-            .await
-            .unwrap()
-            .ok_or_else(|| tonic::Status::new(tonic::Code::Unknown, "request wrong"));
+        let msg = body.try_next().await.unwrap().ok_or_else(|| {
+            crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
+        });
 
         let resp = service.call(Request::from_parts(parts, msg.unwrap())).await;
 
@@ -209,11 +207,9 @@ where
 
         let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
-        let msg = body
-            .try_next()
-            .await
-            .unwrap()
-            .ok_or_else(|| tonic::Status::new(tonic::Code::Unknown, "request wrong"));
+        let msg = body.try_next().await.unwrap().ok_or_else(|| {
+            crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
+        });
 
         let resp = service.call(Request::from_parts(parts, msg.unwrap())).await;
 
@@ -240,7 +236,7 @@ where
     fn get_encoding_from_req(
         &self,
         header: &http::HeaderMap,
-    ) -> Result<Option<CompressionEncoding>, tonic::Status> {
+    ) -> Result<Option<CompressionEncoding>, crate::status::Status> {
         let encoding = match header.get(GRPC_ENCODING) {
             Some(val) => val.to_str().unwrap(),
             None => return Ok(None),
@@ -249,14 +245,9 @@ where
         let compression = match COMPRESSIONS.get(encoding) {
             Some(val) => val.to_owned(),
             None => {
-                let mut status = tonic::Status::unimplemented(format!(
-                    "grpc-accept-encoding: {} not support!",
-                    encoding
-                ));
-
-                status.metadata_mut().insert(
-                    GRPC_ACCEPT_ENCODING,
-                    tonic::metadata::MetadataValue::from_static("gzip,identity"),
+                let status = crate::status::Status::new(
+                    crate::status::Code::Unimplemented,
+                    format!("grpc-accept-encoding: {} not support!", encoding),
                 );
 
                 return Err(status);

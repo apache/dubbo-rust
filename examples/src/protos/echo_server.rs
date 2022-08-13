@@ -51,29 +51,29 @@ pub trait Echo: Send + Sync + 'static {
     async fn hello(
         &self,
         req: Request<HelloRequest>,
-    ) -> Result<Response<HelloReply>, tonic::Status>;
+    ) -> Result<Response<HelloReply>, triple::status::Status>;
 
     async fn client_streaming_echo(
         &self,
         request: Request<triple::server::Decoding<HelloRequest>>,
-    ) -> Result<Response<HelloReply>, tonic::Status>;
+    ) -> Result<Response<HelloReply>, triple::status::Status>;
 
-    type BidirectionalStreamingEchoStream: futures_util::Stream<Item = Result<HelloReply, tonic::Status>>
+    type BidirectionalStreamingEchoStream: futures_util::Stream<Item = Result<HelloReply, triple::status::Status>>
         + Send
         + 'static;
     /// BidirectionalStreamingEcho is bidi streaming.
     async fn bidirectional_streaming_echo(
         &self,
         request: Request<triple::server::Decoding<HelloRequest>>,
-    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, tonic::Status>;
+    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, triple::status::Status>;
 
-    type ServerStreamingEchoStream: futures_util::Stream<Item = Result<HelloReply, tonic::Status>>
+    type ServerStreamingEchoStream: futures_util::Stream<Item = Result<HelloReply, triple::status::Status>>
         + Send
         + 'static;
     async fn server_streaming_echo(
         &self,
         req: Request<HelloRequest>,
-    ) -> Result<Response<Self::ServerStreamingEchoStream>, tonic::Status>;
+    ) -> Result<Response<Self::ServerStreamingEchoStream>, triple::status::Status>;
 }
 
 struct _Inner<T>(Arc<T>);
@@ -120,7 +120,7 @@ where
                 impl<T: Echo> UnarySvc<HelloRequest> for UnaryServer<T> {
                     type Response = HelloReply;
 
-                    type Future = BoxFuture<Response<Self::Response>, tonic::Status>;
+                    type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
 
                     fn call(&mut self, req: Request<HelloRequest>) -> Self::Future {
                         let inner = self.inner.0.clone();
@@ -146,7 +146,7 @@ where
                 impl<T: Echo> ClientStreamingSvc<HelloRequest> for ClientStreamingServer<T> {
                     type Response = HelloReply;
 
-                    type Future = BoxFuture<Response<Self::Response>, tonic::Status>;
+                    type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
 
                     fn call(
                         &mut self,
@@ -179,7 +179,7 @@ where
 
                     type ResponseStream = T::ServerStreamingEchoStream;
 
-                    type Future = BoxFuture<Response<Self::ResponseStream>, tonic::Status>;
+                    type Future = BoxFuture<Response<Self::ResponseStream>, triple::status::Status>;
 
                     fn call(&mut self, req: Request<HelloRequest>) -> Self::Future {
                         let inner = self.inner.0.clone();
@@ -208,7 +208,7 @@ where
 
                     type ResponseStream = T::BidirectionalStreamingEchoStream;
 
-                    type Future = BoxFuture<Response<Self::ResponseStream>, tonic::Status>;
+                    type Future = BoxFuture<Response<Self::ResponseStream>, triple::status::Status>;
 
                     fn call(
                         &mut self,
