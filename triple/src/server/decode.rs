@@ -21,10 +21,10 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures_util::Stream;
 use futures_util::{future, ready};
 use http_body::Body;
-use tonic::metadata::MetadataMap;
 
 use super::compression::{decompress, CompressionEncoding};
 use crate::codec::{DecodeBuf, Decoder};
+use crate::invocation::Metadata;
 
 type BoxBody = http_body::combinators::UnsyncBoxBody<Bytes, crate::status::Status>;
 
@@ -33,7 +33,7 @@ pub struct Decoding<T> {
     body: BoxBody,
     decoder: Box<dyn Decoder<Item = T, Error = crate::status::Status> + Send + 'static>,
     buf: BytesMut,
-    trailers: Option<MetadataMap>,
+    trailers: Option<Metadata>,
     compress: Option<CompressionEncoding>,
     decompress_buf: BytesMut,
 }
@@ -79,14 +79,14 @@ impl<T> Decoding<T> {
         }
     }
 
-    pub async fn trailer(&mut self) -> Result<Option<MetadataMap>, crate::status::Status> {
+    pub async fn trailer(&mut self) -> Result<Option<Metadata>, crate::status::Status> {
         if let Some(t) = self.trailers.take() {
             return Ok(Some(t));
         }
         // while self.message().await?.is_some() {}
 
         let trailer = future::poll_fn(|cx| Pin::new(&mut self.body).poll_trailers(cx)).await;
-        trailer.map(|data| data.map(MetadataMap::from_headers))
+        trailer.map(|data| data.map(Metadata::from_headers))
     }
 
     pub fn decode_chunk(&mut self) -> Result<Option<T>, crate::status::Status> {
@@ -204,7 +204,7 @@ impl<T> Stream for Decoding<T> {
 
         match ready!(Pin::new(&mut self.body).poll_trailers(cx)) {
             Ok(trailer) => {
-                self.trailers = trailer.map(MetadataMap::from_headers);
+                self.trailers = trailer.map(Metadata::from_headers);
             }
             Err(err) => {
                 tracing::error!("poll_trailers, err: {}", err);
