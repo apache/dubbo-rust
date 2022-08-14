@@ -24,7 +24,7 @@ use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use dubbo::service::services::Dubbo;
+use dubbo::Dubbo;
 use examples::protos::echo_server::{register_server, Echo, HelloReply, HelloRequest};
 use triple::invocation::*;
 
