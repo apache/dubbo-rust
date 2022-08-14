@@ -207,7 +207,7 @@ impl<T> Stream for Decoding<T> {
                 self.trailers = trailer.map(MetadataMap::from_headers);
             }
             Err(err) => {
-                println!("poll_trailers, err: {}", err);
+                tracing::error!("poll_trailers, err: {}", err);
             }
         }
 

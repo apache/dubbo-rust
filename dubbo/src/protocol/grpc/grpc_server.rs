@@ -49,13 +49,12 @@ impl GrpcServer {
             .get(self.name.as_str())
             .unwrap()
             .clone();
-        println!("server{:?} start...", url);
+        tracing::info!("server{:?} start...", url);
         self.inner
             .add_service(MakeSvc::new(svc))
             .serve(addr)
             .await
             .unwrap();
-        println!("server{:?} start...", url);
     }
 }
 

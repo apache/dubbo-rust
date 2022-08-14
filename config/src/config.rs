@@ -38,7 +38,7 @@ pub struct RootConfig {
 }
 
 pub fn get_global_config() -> RootConfig {
-    println!("current path: {:?}", env::current_dir());
+    tracing::debug!("current path: {:?}", env::current_dir());
     let c = match RootConfig::new().load() {
         Ok(v) => v,
         Err(err) => panic!("Error loading global config, error: {}", err),
@@ -59,13 +59,14 @@ impl RootConfig {
     pub fn load(&self) -> std::io::Result<Self> {
         let config_path = match env::var("DUBBO_CONFIG_PATH") {
             Ok(v) => {
-                println!("read config_path from env: {:?}", v);
+                tracing::info!("read config_path from env: {:?}", v);
                 v
             }
             Err(err) => {
-                println!(
+                tracing::error!(
                     "error loading config_path: {:?}, use default path: {:?}",
-                    err, DUBBO_CONFIG_PATH
+                    err,
+                    DUBBO_CONFIG_PATH
                 );
                 DUBBO_CONFIG_PATH.to_string()
             }
@@ -73,7 +74,7 @@ impl RootConfig {
 
         let data = fs::read(config_path)?;
         let mut conf: RootConfig = serde_yaml::from_slice(&data).unwrap();
-        println!("config data: {:?}", conf);
+        tracing::debug!("origin config: {:?}", conf);
         for (name, svc) in conf.service.iter_mut() {
             svc.name = name.to_string();
         }

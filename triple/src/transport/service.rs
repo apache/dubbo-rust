@@ -159,14 +159,14 @@ impl DubboServer {
         loop {
             tokio::select! {
                 _ = &mut signal => {
-                    println!("graceful shutdown");
+                    tracing::info!("graceful shutdown");
                     break
                 }
                 res = listener.accept() => {
                     match res {
                         Ok(conn) => {
                             let (io, local_addr) = conn;
-                            println!("hyper serve, local address: {:?}", local_addr);
+                            tracing::debug!("hyper serve, local address: {:?}", local_addr);
                             let c = hyper::server::conn::Http::new()
                                 .http2_only(self.accept_http2)
                                 .http2_max_concurrent_streams(self.max_concurrent_streams)
@@ -180,7 +180,7 @@ impl DubboServer {
                             tokio::spawn(c);
 
                         },
-                        Err(err) => println!("hyper serve, err: {:?}", err),
+                        Err(err) => tracing::error!("hyper serve, err: {:?}", err),
                     }
                 }
             }
