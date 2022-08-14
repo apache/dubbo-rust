@@ -16,10 +16,10 @@
  */
 
 pub mod common;
+mod framework;
 pub mod protocol;
 pub mod registry;
 pub mod utils;
-mod framework;
 
 use std::future::Future;
 use std::pin::Pin;

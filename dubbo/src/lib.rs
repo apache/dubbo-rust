@@ -16,9 +16,9 @@
  */
 
 pub mod common;
+mod framework;
 pub mod protocol;
 pub mod registry;
-mod framework;
 pub mod utils;
 
 use std::future::Future;

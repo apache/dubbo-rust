@@ -47,9 +47,8 @@ impl Dubbo {
         tracing_subscriber::fmt::init();
 
         let conf = get_global_config();
-        tracing::debug!("all conf: {:?}", conf);
+        tracing::debug!("global conf: {:?}", conf);
         for (_, c) in conf.service.iter() {
-            #[allow(unused_assignments)]
             let u = if c.protocol_configs.is_empty() {
                 let protocol_url = format!(
                     "{}/{}",
