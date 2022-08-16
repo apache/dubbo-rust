@@ -115,8 +115,8 @@ pub async fn get_listener(name: String, addr: SocketAddr) -> Result<BoxListener,
     match name.as_str() {
         "tcp" => Ok(TcpListener::bind(addr).await.unwrap().boxed()),
         _ => {
-            println!("no support listener: {:?}", name);
-            Err(Box::new(tonic::Status::internal(format!(
+            tracing::warn!("no support listener: {:?}", name);
+            Err(Box::new(crate::status::DubboError::new(format!(
                 "no support listener: {:?}",
                 name
             ))))

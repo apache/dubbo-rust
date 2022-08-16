@@ -17,23 +17,21 @@
 
 use async_trait::async_trait;
 
-use tonic::codegen::BoxFuture;
-use triple::codec::serde_codec::SerdeCodec;
-// 定义EchoServer
-// EchoServer 实现了自定义接口，同时可以处理请求分发
-use crate::protocol::triple::triple_invoker::TripleInvoker;
-use crate::protocol::DubboGrpcService;
-use crate::protocol::Invoker;
+use dubbo::protocol::triple::triple_invoker::TripleInvoker;
+use dubbo::protocol::DubboGrpcService;
+use dubbo::protocol::Invoker;
 use http_body::Body;
 use std::fmt::Debug;
 use std::sync::Arc;
+use tonic::codegen::BoxFuture;
+use triple::codec::serde_codec::SerdeCodec;
 
 use serde::{Deserialize, Serialize};
 use std::task::Poll;
 use tower_service::Service;
 use triple::invocation::{Request, Response};
 use triple::server::server::TripleServer;
-use triple::server::service::{ClientStreamingSvc, StreamingSvc, UnaryService};
+use triple::server::service::{ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc};
 use triple::BoxBody;
 
 pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -53,21 +51,29 @@ pub trait Echo: Send + Sync + 'static {
     async fn hello(
         &self,
         req: Request<HelloRequest>,
-    ) -> Result<Response<HelloReply>, tonic::Status>;
+    ) -> Result<Response<HelloReply>, triple::status::Status>;
 
     async fn client_streaming_echo(
         &self,
         request: Request<triple::server::Decoding<HelloRequest>>,
-    ) -> Result<Response<HelloReply>, tonic::Status>;
+    ) -> Result<Response<HelloReply>, triple::status::Status>;
 
-    type BidirectionalStreamingEchoStream: futures_util::Stream<Item = Result<HelloReply, tonic::Status>>
+    type BidirectionalStreamingEchoStream: futures_util::Stream<Item = Result<HelloReply, triple::status::Status>>
         + Send
         + 'static;
     /// BidirectionalStreamingEcho is bidi streaming.
     async fn bidirectional_streaming_echo(
         &self,
         request: Request<triple::server::Decoding<HelloRequest>>,
-    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, tonic::Status>;
+    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, triple::status::Status>;
+
+    type ServerStreamingEchoStream: futures_util::Stream<Item = Result<HelloReply, triple::status::Status>>
+        + Send
+        + 'static;
+    async fn server_streaming_echo(
+        &self,
+        req: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerStreamingEchoStream>, triple::status::Status>;
 }
 
 struct _Inner<T>(Arc<T>);
@@ -111,10 +117,10 @@ where
                     inner: _Inner<T>,
                 }
 
-                impl<T: Echo> UnaryService<HelloRequest> for UnaryServer<T> {
+                impl<T: Echo> UnarySvc<HelloRequest> for UnaryServer<T> {
                     type Response = HelloReply;
 
-                    type Future = BoxFuture<Response<Self::Response>, tonic::Status>;
+                    type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
 
                     fn call(&mut self, req: Request<HelloRequest>) -> Self::Future {
                         let inner = self.inner.0.clone();
@@ -140,7 +146,7 @@ where
                 impl<T: Echo> ClientStreamingSvc<HelloRequest> for ClientStreamingServer<T> {
                     type Response = HelloReply;
 
-                    type Future = BoxFuture<Response<Self::Response>, tonic::Status>;
+                    type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
 
                     fn call(
                         &mut self,
@@ -163,6 +169,36 @@ where
 
                 Box::pin(fut)
             }
+            "/echo/server_streaming" => {
+                struct ServerStreamingServer<T> {
+                    inner: _Inner<T>,
+                }
+
+                impl<T: Echo> ServerStreamingSvc<HelloRequest> for ServerStreamingServer<T> {
+                    type Response = HelloReply;
+
+                    type ResponseStream = T::ServerStreamingEchoStream;
+
+                    type Future = BoxFuture<Response<Self::ResponseStream>, triple::status::Status>;
+
+                    fn call(&mut self, req: Request<HelloRequest>) -> Self::Future {
+                        let inner = self.inner.0.clone();
+                        let fut = async move { inner.server_streaming_echo(req).await };
+                        Box::pin(fut)
+                    }
+                }
+
+                let fut = async move {
+                    let mut server =
+                        TripleServer::new(SerdeCodec::<HelloReply, HelloRequest>::default());
+                    let resp = server
+                        .server_streaming(ServerStreamingServer { inner }, req)
+                        .await;
+                    Ok(resp)
+                };
+
+                Box::pin(fut)
+            }
             "/echo/bidi_stream" => {
                 struct StreamingServer<T> {
                     inner: _Inner<T>,
@@ -172,7 +208,7 @@ where
 
                     type ResponseStream = T::BidirectionalStreamingEchoStream;
 
-                    type Future = BoxFuture<Response<Self::ResponseStream>, tonic::Status>;
+                    type Future = BoxFuture<Response<Self::ResponseStream>, triple::status::Status>;
 
                     fn call(
                         &mut self,
@@ -217,7 +253,7 @@ where
         self.invoker = Some(invoker);
     }
 
-    fn service_desc(&self) -> crate::protocol::server_desc::ServiceDesc {
+    fn service_desc(&self) -> dubbo::protocol::server_desc::ServiceDesc {
         todo!()
     }
 }
@@ -246,11 +282,11 @@ impl<T: Echo, I: Invoker + Send + Sync + 'static> Clone for EchoServer<T, I> {
 
 pub fn register_server<T: Echo>(server: T) {
     let s = EchoServer::<_, TripleInvoker>::new(server);
-    crate::protocol::triple::TRIPLE_SERVICES
+    dubbo::protocol::triple::TRIPLE_SERVICES
         .write()
         .unwrap()
         .insert(
             "echo".to_string(),
-            crate::utils::boxed_clone::BoxCloneService::new(s),
+            dubbo::utils::boxed_clone::BoxCloneService::new(s),
         );
 }

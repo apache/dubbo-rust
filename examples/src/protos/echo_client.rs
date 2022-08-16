@@ -48,9 +48,9 @@ impl EchoClient {
     }
 
     pub async fn bidirectional_streaming_echo(
-        mut self,
+        &mut self,
         req: impl IntoStreamingRequest<Message = HelloRequest>,
-    ) -> Result<Response<Decoding<HelloReply>>, tonic::Status> {
+    ) -> Result<Response<Decoding<HelloReply>>, triple::status::Status> {
         let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
         self.inner
             .bidi_streaming(
@@ -62,9 +62,9 @@ impl EchoClient {
     }
 
     pub async fn say_hello(
-        &self,
+        &mut self,
         req: Request<HelloRequest>,
-    ) -> Result<Response<HelloReply>, tonic::Status> {
+    ) -> Result<Response<HelloReply>, triple::status::Status> {
         let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
         self.inner
             .unary(
@@ -78,13 +78,27 @@ impl EchoClient {
     pub async fn client_streaming(
         &mut self,
         req: impl IntoStreamingRequest<Message = HelloRequest>,
-    ) -> Result<Response<HelloReply>, tonic::Status> {
+    ) -> Result<Response<HelloReply>, triple::status::Status> {
         let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
         self.inner
             .client_streaming(
                 req,
                 codec,
                 http::uri::PathAndQuery::from_static("/echo/client_streaming"),
+            )
+            .await
+    }
+
+    pub async fn server_streaming(
+        &mut self,
+        req: Request<HelloRequest>,
+    ) -> Result<Response<Decoding<HelloReply>>, triple::status::Status> {
+        let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
+        self.inner
+            .server_streaming(
+                req,
+                codec,
+                http::uri::PathAndQuery::from_static("/echo/server_streaming"),
             )
             .await
     }

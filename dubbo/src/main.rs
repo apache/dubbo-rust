@@ -16,15 +16,15 @@
  */
 
 pub mod common;
-pub mod echo;
-pub mod helloworld;
+mod framework;
 pub mod protocol;
 pub mod registry;
-pub mod service;
 pub mod utils;
 
 use std::future::Future;
 use std::pin::Pin;
+
+pub use framework::Dubbo;
 
 pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;

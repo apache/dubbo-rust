@@ -15,104 +15,27 @@
  * limitations under the License.
  */
 
-pub mod echo_client;
-pub mod echo_server;
-pub mod helloworld;
-
-use futures_util::Stream;
-use futures_util::StreamExt;
 use std::io::ErrorKind;
 use std::pin::Pin;
 
+use async_trait::async_trait;
+use futures_util::Stream;
+use futures_util::StreamExt;
 use tokio::sync::mpsc;
-
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::async_trait;
 
-pub use self::echo_server::{Echo, EchoServer, HelloReply, HelloRequest};
+use dubbo::Dubbo;
+use examples::protos::echo_server::{register_server, Echo, HelloReply, HelloRequest};
 use triple::invocation::*;
 
-type ResponseStream = Pin<Box<dyn Stream<Item = Result<HelloReply, tonic::Status>> + Send>>;
+type ResponseStream =
+    Pin<Box<dyn Stream<Item = Result<HelloReply, triple::status::Status>> + Send>>;
 
-#[tokio::test]
-async fn test_client() {
-    use self::echo_client::EchoClient;
-    use self::echo_server::HelloRequest;
-    use futures_util::StreamExt;
-    use triple::invocation::*;
-
-    let mut cli = EchoClient::new().with_uri("http://127.0.0.1:8888".to_string());
-    let resp = cli
-        .say_hello(Request::new(HelloRequest {
-            name: "message from client".to_string(),
-        }))
-        .await;
-    let resp = match resp {
-        Ok(resp) => resp,
-        Err(err) => return println!("{:?}", err),
-    };
-    let (_parts, body) = resp.into_parts();
-    println!("Response: {:?}", body);
-
-    let data = vec![
-        HelloRequest {
-            name: "msg1 from client streaming".to_string(),
-        },
-        HelloRequest {
-            name: "msg2 from client streaming".to_string(),
-        },
-        HelloRequest {
-            name: "msg3 from client streaming".to_string(),
-        },
-    ];
-    let req = futures_util::stream::iter(data);
-    let resp = cli.client_streaming(req).await;
-    let client_streaming_resp = match resp {
-        Ok(resp) => resp,
-        Err(err) => return println!("{:?}", err),
-    };
-    let (_parts, resp_body) = client_streaming_resp.into_parts();
-    println!("client streaming, Response: {:?}", resp_body);
-
-    let data = vec![
-        HelloRequest {
-            name: "msg1 from client".to_string(),
-        },
-        HelloRequest {
-            name: "msg2 from client".to_string(),
-        },
-        HelloRequest {
-            name: "msg3 from client".to_string(),
-        },
-    ];
-    let req = futures_util::stream::iter(data);
-
-    let bidi_resp = cli.bidirectional_streaming_echo(req).await.unwrap();
-
-    let (parts, mut body) = bidi_resp.into_parts();
-    println!("parts: {:?}", parts);
-    while let Some(item) = body.next().await {
-        match item {
-            Ok(v) => {
-                println!("reply: {:?}", v);
-            }
-            Err(err) => {
-                println!("err: {:?}", err);
-            }
-        }
-    }
-    let trailer = body.trailer().await.unwrap();
-    println!("trailer: {:?}", trailer);
-}
-
-#[tokio::test]
-async fn test_triple_protocol() {
-    use crate::service::services::Dubbo;
-
-    echo_server::register_server(EchoServerImpl {
+#[tokio::main]
+async fn main() {
+    register_server(EchoServerImpl {
         name: "echo".to_string(),
     });
-    // helloworld::greeter_server::register_server(GreeterImpl {});
 
     Dubbo::new().start().await;
 }
@@ -129,7 +52,7 @@ impl Echo for EchoServerImpl {
     async fn hello(
         &self,
         req: Request<HelloRequest>,
-    ) -> Result<Response<HelloReply>, tonic::Status> {
+    ) -> Result<Response<HelloReply>, triple::status::Status> {
         println!("EchoServer::hello {:?}", req.metadata);
 
         Ok(Response::new(HelloReply {
@@ -140,7 +63,7 @@ impl Echo for EchoServerImpl {
     async fn client_streaming_echo(
         &self,
         req: Request<triple::server::Decoding<HelloRequest>>,
-    ) -> Result<Response<HelloReply>, tonic::Status> {
+    ) -> Result<Response<HelloReply>, triple::status::Status> {
         let mut s = req.into_inner();
         loop {
             let result = s.next().await;
@@ -155,12 +78,35 @@ impl Echo for EchoServerImpl {
         }))
     }
 
+    type ServerStreamingEchoStream = ResponseStream;
+    async fn server_streaming_echo(
+        &self,
+        req: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerStreamingEchoStream>, triple::status::Status> {
+        println!("server_streaming_echo: {:?}", req.into_inner());
+
+        let data = vec![
+            Result::<_, triple::status::Status>::Ok(HelloReply {
+                reply: "msg1 from server".to_string(),
+            }),
+            Result::<_, triple::status::Status>::Ok(HelloReply {
+                reply: "msg2 from server".to_string(),
+            }),
+            Result::<_, triple::status::Status>::Ok(HelloReply {
+                reply: "msg3 from server".to_string(),
+            }),
+        ];
+        let resp = futures_util::stream::iter(data);
+
+        Ok(Response::new(Box::pin(resp)))
+    }
+
     type BidirectionalStreamingEchoStream = ResponseStream;
 
     async fn bidirectional_streaming_echo(
         &self,
         request: Request<triple::server::Decoding<HelloRequest>>,
-    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, tonic::Status> {
+    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, triple::status::Status> {
         println!(
             "EchoServer::bidirectional_streaming_echo, grpc header: {:?}",
             request.metadata
@@ -178,7 +124,7 @@ impl Echo for EchoServerImpl {
                 match result {
                     Ok(v) => {
                         // if v.name.starts_with("msg2") {
-                        //     tx.send(Err(tonic::Status::internal(format!("err: args is invalid, {:?}", v.name))
+                        //     tx.send(Err(triple::status::Status::internal(format!("err: args is invalid, {:?}", v.name))
                         //     )).await.expect("working rx");
                         //     continue;
                         // }
@@ -217,7 +163,7 @@ impl Echo for EchoServerImpl {
     }
 }
 
-fn match_for_io_error(err_status: &tonic::Status) -> Option<&std::io::Error> {
+fn match_for_io_error(err_status: &triple::status::Status) -> Option<&std::io::Error> {
     let mut err: &(dyn std::error::Error + 'static) = err_status;
 
     loop {
@@ -229,22 +175,5 @@ fn match_for_io_error(err_status: &tonic::Status) -> Option<&std::io::Error> {
             Some(err) => err,
             None => return None,
         };
-    }
-}
-
-use helloworld::greeter_server::Greeter;
-
-struct GreeterImpl {}
-
-#[async_trait]
-impl Greeter for GreeterImpl {
-    async fn say_hello(
-        &self,
-        request: Request<helloworld::HelloRequest>,
-    ) -> Result<Response<helloworld::HelloReply>, tonic::Status> {
-        println!("greeter: req: {:?}", request.metadata);
-        Ok(Response::new(helloworld::HelloReply {
-            message: "hello, rust".to_string(),
-        }))
     }
 }

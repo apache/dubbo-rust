@@ -38,7 +38,7 @@ impl Url {
         let uri = url
             .parse::<http::Uri>()
             .map_err(|err| {
-                println!("fail to parse url({}), err: {:?}", url, err);
+                tracing::error!("fail to parse url({}), err: {:?}", url, err);
             })
             .unwrap();
         Some(Self {

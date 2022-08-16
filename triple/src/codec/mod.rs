@@ -22,7 +22,7 @@ pub mod serde_codec;
 use std::io;
 
 pub use self::buffer::{DecodeBuf, EncodeBuf};
-use tonic::Status;
+use crate::status::Status;
 
 pub trait Codec {
     /// The encodable message.

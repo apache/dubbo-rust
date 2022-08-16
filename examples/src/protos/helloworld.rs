@@ -95,10 +95,10 @@ pub mod greeter_client {
         pub async fn say_hello(
             &mut self,
             request: Request<super::HelloRequest>,
-        ) -> Result<Response<super::HelloReply>, tonic::Status> {
+        ) -> Result<Response<super::HelloReply>, triple::status::Status> {
             // self.inner.ready().await.map_err(|e| {
-            //     tonic::Status::new(
-            //         tonic::Code::Unknown,
+            //     crate::status::Status::new(
+            //         crate::status::Code::Unknown,
             //         format!("Service was not ready: {}", e.into()),
             //     )
             // })?;
@@ -112,12 +112,12 @@ pub mod greeter_client {
 pub mod greeter_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
 
-    use crate::protocol::server_desc::ServiceDesc;
-    use crate::protocol::triple::triple_invoker::TripleInvoker;
-    use crate::protocol::DubboGrpcService;
-    use crate::protocol::Invoker;
-    use crate::{BoxFuture, StdError};
     use async_trait::async_trait;
+    use dubbo::protocol::server_desc::ServiceDesc;
+    use dubbo::protocol::triple::triple_invoker::TripleInvoker;
+    use dubbo::protocol::DubboGrpcService;
+    use dubbo::protocol::Invoker;
+    use dubbo::{BoxFuture, StdError};
     use http_body::Body;
     use std::sync::Arc;
     use std::task::Context;
@@ -127,7 +127,7 @@ pub mod greeter_server {
     use triple::empty_body;
     use triple::invocation::{Request, Response};
     use triple::server::server::TripleServer;
-    use triple::server::service::UnaryService;
+    use triple::server::service::UnarySvc;
 
     ///Generated trait containing gRPC methods that should be implemented for use with GreeterServer.
     #[async_trait]
@@ -136,7 +136,7 @@ pub mod greeter_server {
         async fn say_hello(
             &self,
             request: Request<super::HelloRequest>,
-        ) -> Result<Response<super::HelloReply>, tonic::Status>;
+        ) -> Result<Response<super::HelloReply>, triple::status::Status>;
     }
     /// The greeting service definition.
     #[derive(Debug)]
@@ -185,7 +185,7 @@ pub mod greeter_server {
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
-        type Response = http::Response<tonic::body::BoxBody>;
+        type Response = http::Response<triple::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
         fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -197,9 +197,9 @@ pub mod greeter_server {
                 "/helloworld.Greeter/SayHello" => {
                     #[allow(non_camel_case_types)]
                     struct SayHelloSvc<T: Greeter>(pub Arc<T>);
-                    impl<T: Greeter> UnaryService<super::HelloRequest> for SayHelloSvc<T> {
+                    impl<T: Greeter> UnarySvc<super::HelloRequest> for SayHelloSvc<T> {
                         type Response = super::HelloReply;
-                        type Future = BoxFuture<Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
                         fn call(&mut self, request: Request<super::HelloRequest>) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { (*inner).say_hello(request).await };
@@ -280,12 +280,12 @@ pub mod greeter_server {
 
     pub fn register_server<T: Greeter>(server: T) {
         let s = GreeterServer::<_, TripleInvoker>::new(server);
-        crate::protocol::triple::TRIPLE_SERVICES
+        dubbo::protocol::triple::TRIPLE_SERVICES
             .write()
             .unwrap()
             .insert(
                 "helloworld.Greeter".to_string(),
-                crate::utils::boxed_clone::BoxCloneService::new(s),
+                dubbo::utils::boxed_clone::BoxCloneService::new(s),
             );
     }
 }

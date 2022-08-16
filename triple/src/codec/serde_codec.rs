@@ -61,7 +61,7 @@ pub struct SerdeEncoder<T>(PhantomData<T>);
 impl<T: Serialize> Encoder for SerdeEncoder<T> {
     type Item = T;
 
-    type Error = tonic::Status;
+    type Error = crate::status::Status;
 
     fn encode(&mut self, item: Self::Item, dst: &mut EncodeBuf<'_>) -> Result<(), Self::Error> {
         item.serialize(&mut serde_json::Serializer::new(dst.writer()))
@@ -76,7 +76,7 @@ pub struct SerdeDecoder<U>(PhantomData<U>);
 impl<'a, U: Deserialize<'a>> Decoder for SerdeDecoder<U> {
     type Item = U;
 
-    type Error = tonic::Status;
+    type Error = crate::status::Status;
 
     fn decode(&mut self, src: &mut DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
         let value = src.chunk().to_owned();

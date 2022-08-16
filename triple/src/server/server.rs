@@ -22,7 +22,7 @@ use super::compression::{CompressionEncoding, COMPRESSIONS};
 use crate::codec::Codec;
 use crate::invocation::Request;
 use crate::server::encode::encode_server;
-use crate::server::service::{ClientStreamingSvc, StreamingSvc, UnaryService};
+use crate::server::service::{ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc};
 use crate::server::Decoding;
 use crate::BoxBody;
 use config::BusinessConfig;
@@ -92,6 +92,7 @@ where
         parts.status = http::StatusCode::OK;
         http::Response::from_parts(parts, BoxBody::new(resp_body))
     }
+
     pub async fn bidi_streaming<S, B>(
         &mut self,
         mut service: S,
@@ -136,13 +137,61 @@ where
         http::Response::from_parts(parts, BoxBody::new(resp_body))
     }
 
+    pub async fn server_streaming<S, B>(
+        &mut self,
+        mut service: S,
+        req: http::Request<B>,
+    ) -> http::Response<BoxBody>
+    where
+        S: ServerStreamingSvc<T::Decode, Response = T::Encode>,
+        S::ResponseStream: Send + 'static,
+        B: Body + Send + 'static,
+        B::Error: Into<crate::Error> + Send,
+    {
+        // Firstly, get grpc_accept_encoding from http_header, get compression
+        // Secondly, if server enable compression and compression is valid, this method should compress response
+        let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+        if self.compression.is_none() || accept_encoding.is_none() {
+            accept_encoding = None;
+        }
+
+        // Get grpc_encoding from http_header, decompress message.
+        let compression = match self.get_encoding_from_req(req.headers()) {
+            Ok(val) => val,
+            Err(status) => return status.to_http(),
+        };
+
+        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
+        let (parts, mut body) = Request::from_http(req_stream).into_parts();
+        let msg = body.try_next().await.unwrap().ok_or_else(|| {
+            crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
+        });
+
+        let resp = service.call(Request::from_parts(parts, msg.unwrap())).await;
+
+        let (mut parts, resp_body) = resp.unwrap().into_http().into_parts();
+        let resp_body = encode_server(self.codec.encoder(), resp_body, compression);
+
+        parts.headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("application/grpc"),
+        );
+        if let Some(encoding) = accept_encoding {
+            parts
+                .headers
+                .insert(GRPC_ENCODING, encoding.into_header_value());
+        }
+        parts.status = http::StatusCode::OK;
+        http::Response::from_parts(parts, BoxBody::new(resp_body))
+    }
+
     pub async fn unary<S, B>(
         &mut self,
         mut service: S,
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
     where
-        S: UnaryService<T::Decode, Response = T::Encode>,
+        S: UnarySvc<T::Decode, Response = T::Encode>,
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
     {
@@ -158,11 +207,9 @@ where
 
         let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
-        let msg = body
-            .try_next()
-            .await
-            .unwrap()
-            .ok_or_else(|| tonic::Status::new(tonic::Code::Unknown, "request wrong"));
+        let msg = body.try_next().await.unwrap().ok_or_else(|| {
+            crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
+        });
 
         let resp = service.call(Request::from_parts(parts, msg.unwrap())).await;
 
@@ -189,7 +236,7 @@ where
     fn get_encoding_from_req(
         &self,
         header: &http::HeaderMap,
-    ) -> Result<Option<CompressionEncoding>, tonic::Status> {
+    ) -> Result<Option<CompressionEncoding>, crate::status::Status> {
         let encoding = match header.get(GRPC_ENCODING) {
             Some(val) => val.to_str().unwrap(),
             None => return Ok(None),
@@ -198,14 +245,9 @@ where
         let compression = match COMPRESSIONS.get(encoding) {
             Some(val) => val.to_owned(),
             None => {
-                let mut status = tonic::Status::unimplemented(format!(
-                    "grpc-accept-encoding: {} not support!",
-                    encoding
-                ));
-
-                status.metadata_mut().insert(
-                    GRPC_ACCEPT_ENCODING,
-                    tonic::metadata::MetadataValue::from_static("gzip,identity"),
+                let status = crate::status::Status::new(
+                    crate::status::Code::Unimplemented,
+                    format!("grpc-accept-encoding: {} not support!", encoding),
                 );
 
                 return Err(status);

@@ -44,9 +44,11 @@ impl Dubbo {
     }
 
     pub fn init(&mut self) {
+        tracing_subscriber::fmt::init();
+
         let conf = get_global_config();
+        tracing::debug!("global conf: {:?}", conf);
         for (_, c) in conf.service.iter() {
-            #[allow(unused_assignments)]
             let u = if c.protocol_configs.is_empty() {
                 let protocol_url = format!(
                     "{}/{}",
@@ -72,7 +74,7 @@ impl Dubbo {
                 };
                 Url::from_url(&protocol_url).unwrap()
             };
-            println!("url: {:?}", u);
+            tracing::info!("url: {:?}", u);
 
             if self.protocols.get(&c.protocol).is_some() {
                 self.protocols.get_mut(&c.protocol).unwrap().push(u);
@@ -102,7 +104,7 @@ impl Dubbo {
                     }
                 }
                 _ => {
-                    println!("protocol {:?} not implemented", key);
+                    tracing::error!("protocol {:?} not implemented", key);
                 }
             }
         }

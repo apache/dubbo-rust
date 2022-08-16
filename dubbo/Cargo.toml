@@ -5,10 +5,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[bin]]
-name = "helloworld-client"
-path = "src/helloworld/client.rs"
-
 [dependencies]
 h2 = {version = "0.3", optional = true}
 hyper = { version = "0.14.19", features = ["full"]}
@@ -32,6 +28,8 @@ serde_json = "1.0.82"
 serde = {version="1.0.138", features = ["derive"]}
 tokio-stream = "0.1"
 futures = "0.3"
+tracing = "0.1"
+tracing-subscriber = "0.3.15"
 
 config = {path = "../config"}
 triple = {path = "../triple"}

@@ -145,7 +145,10 @@ impl DubboServer {
         let name = if self.listener.is_some() {
             self.listener.unwrap()
         } else {
-            return Err(Box::new(tonic::Status::internal("listener name is empty")));
+            // let err = std:error::Error
+            return Err(Box::new(crate::status::DubboError::new(
+                "listener name is empty".to_string(),
+            )));
         };
 
         let listener = match get_listener(name, addr).await {
@@ -156,14 +159,14 @@ impl DubboServer {
         loop {
             tokio::select! {
                 _ = &mut signal => {
-                    println!("graceful shutdown");
+                    tracing::info!("graceful shutdown");
                     break
                 }
                 res = listener.accept() => {
                     match res {
                         Ok(conn) => {
                             let (io, local_addr) = conn;
-                            println!("hyper serve, local address: {:?}", local_addr);
+                            tracing::debug!("hyper serve, local address: {:?}", local_addr);
                             let c = hyper::server::conn::Http::new()
                                 .http2_only(self.accept_http2)
                                 .http2_max_concurrent_streams(self.max_concurrent_streams)
@@ -177,7 +180,7 @@ impl DubboServer {
                             tokio::spawn(c);
 
                         },
-                        Err(err) => println!("hyper serve, err: {:?}", err),
+                        Err(err) => tracing::error!("hyper serve, err: {:?}", err),
                     }
                 }
             }
