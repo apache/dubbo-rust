@@ -15,16 +15,22 @@
  * limitations under the License.
  */
 
-pub mod common;
-mod framework;
-pub mod protocol;
-pub mod registry;
-pub mod utils;
+pub mod triple_exporter;
+pub mod triple_invoker;
+pub mod triple_protocol;
+pub mod triple_server;
 
-use std::future::Future;
-use std::pin::Pin;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+use std::sync::RwLock;
 
-pub use framework::Dubbo;
+use crate::utils::boxed_clone::BoxCloneService;
+use triple::BoxBody;
 
-pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;
+pub type GrpcBoxCloneService =
+    BoxCloneService<http::Request<hyper::Body>, http::Response<BoxBody>, std::convert::Infallible>;
+
+lazy_static! {
+    pub static ref TRIPLE_SERVICES: RwLock<HashMap<String, GrpcBoxCloneService>> =
+        RwLock::new(HashMap::new());
+}

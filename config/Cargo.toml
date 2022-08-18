@@ -11,3 +11,6 @@ license = "Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde = {version="1.0.138", features = ["derive"]}
+serde_yaml = "0.9.4"
+tracing = "0.1"

@@ -14,3 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+pub const BUFFER_SIZE: usize = 1024 * 8;
+// 5 bytes
+pub const HEADER_SIZE: usize =
+    // compression flag
+    std::mem::size_of::<u8>() +
+    // data length
+    std::mem::size_of::<u32>();

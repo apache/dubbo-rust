@@ -15,16 +15,28 @@
  * limitations under the License.
  */
 
-pub mod common;
-mod framework;
-pub mod protocol;
-pub mod registry;
-pub mod utils;
+#![allow(unused_variables, dead_code, missing_docs)]
+pub mod memory_registry;
 
-use std::future::Future;
-use std::pin::Pin;
+use crate::common::url::Url;
 
-pub use framework::Dubbo;
+pub trait Registry {
+    type NotifyListener;
 
-pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;
+    fn register(&mut self, url: Url) -> Result<(), crate::StdError>;
+    fn unregister(&mut self, url: Url) -> Result<(), crate::StdError>;
+
+    fn subscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), crate::StdError>;
+    fn unsubscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), crate::StdError>;
+}
+
+pub trait NotifyListener {
+    fn notify(&self, event: ServiceEvent);
+    fn notify_all(&self, event: ServiceEvent);
+}
+
+pub struct ServiceEvent {
+    key: String,
+    action: String,
+    service: Url,
+}

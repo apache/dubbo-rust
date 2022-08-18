@@ -5,5 +5,7 @@ members = [
   "metadata",
   "common",
   "config",
-  "dubbo"
+  "dubbo",
+  "triple",
+  "examples"
 ]

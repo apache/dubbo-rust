@@ -23,19 +23,8 @@ use tonic::transport;
 use tonic::transport::NamedService;
 use tower::Service;
 
-use super::grpc_invoker::GrpcInvoker;
 use crate::common::url::Url;
-use crate::helloworld::helloworld::greeter_server::GreeterServer;
-use crate::helloworld::helloworld::greeter_server::*;
 use crate::utils::boxed_clone::BoxCloneService;
-
-// codegen
-pub fn register_greeter_server<T: Greeter>(
-    server: T,
-) -> (super::GrpcBoxCloneService, super::DubboGrpcBox) {
-    let hello = GreeterServer::<T, GrpcInvoker>::new(server);
-    (BoxCloneService::new(hello.clone()), Box::new(hello.clone()))
-}
 
 // 每个service对应一个Server
 #[derive(Clone)]
@@ -53,20 +42,19 @@ impl GrpcServer {
     }
 
     pub async fn serve(mut self, url: Url) {
-        let addr = url.url.clone().parse().unwrap();
+        let addr = url.to_url().parse().unwrap();
         let svc = super::GRPC_SERVICES
             .read()
             .unwrap()
             .get(self.name.as_str())
             .unwrap()
             .clone();
-        println!("server{:?} start...", url);
+        tracing::info!("server{:?} start...", url);
         self.inner
             .add_service(MakeSvc::new(svc))
             .serve(addr)
             .await
             .unwrap();
-        println!("server{:?} start...", url);
     }
 }
 

@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+use futures_core::Stream;
 use tonic::metadata::MetadataMap;
 
 pub struct Request<T> {
@@ -30,8 +31,20 @@ impl<T> Request<T> {
         }
     }
 
+    pub fn into_inner(self) -> T {
+        self.message
+    }
+
     pub fn into_parts(self) -> (MetadataMap, T) {
         (self.metadata, self.message)
+    }
+
+    pub fn from_http(req: http::Request<T>) -> Self {
+        let (parts, body) = req.into_parts();
+        Request {
+            metadata: MetadataMap::from_headers(parts.headers),
+            message: body,
+        }
     }
 }
 
@@ -54,5 +67,36 @@ impl<T> Response<T> {
 
     pub fn into_parts(self) -> (MetadataMap, T) {
         (self.metadata, self.message)
+    }
+
+    pub fn map<F, U>(self, f: F) -> Response<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        let u = f(self.message);
+        Response {
+            message: u,
+            metadata: self.metadata,
+        }
+    }
+}
+
+pub trait IntoStreamingRequest {
+    type Stream: Stream<Item = Self::Message> + Send + 'static;
+    type Message;
+
+    fn into_streaming_request(self) -> Request<Self::Stream>;
+}
+
+impl<T> IntoStreamingRequest for T
+where
+    T: Stream + Send + 'static,
+{
+    type Stream = T;
+
+    type Message = T::Item;
+
+    fn into_streaming_request(self) -> Request<Self::Stream> {
+        Request::new(self)
     }
 }

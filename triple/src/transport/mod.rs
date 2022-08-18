@@ -15,16 +15,8 @@
  * limitations under the License.
  */
 
-pub mod common;
-mod framework;
-pub mod protocol;
-pub mod registry;
-pub mod utils;
+pub mod listener;
+pub mod router;
+pub mod service;
 
-use std::future::Future;
-use std::pin::Pin;
-
-pub use framework::Dubbo;
-
-pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;
+pub use service::DubboServer;

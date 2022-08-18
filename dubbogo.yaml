@@ -1,0 +1,7 @@
+dubbo:
+  consumer:
+    references:
+      GreeterClientImpl:
+        protocol: tri
+        url: "tri://localhost:8889"
+        interface: helloworld.Greeter
