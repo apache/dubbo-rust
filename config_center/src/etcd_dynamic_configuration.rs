@@ -133,14 +133,12 @@ impl DynamicConfiguration for EtcdDynamicConfiguration {
     }
 
     async fn get_config(&mut self, key: &str, group: &str, timeout: i32) -> String {
-        if key.is_empty() {
-            return String::from("");
-        }
-        let resp = self.client.get(key, None).await.unwrap();
+        let path = self.get_path(key, group);
+        let resp = self.client.get(path, None).await.unwrap();
         if let Some(kv) = resp.kvs().first() {
             return kv.value_str().unwrap().to_string();
         }
-        return String::from("");
+        return String::new();
     }
 
     async fn get_properties(&mut self, key: &str, group: &str, timeout: i32) -> String {
