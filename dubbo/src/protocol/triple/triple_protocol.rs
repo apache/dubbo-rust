@@ -61,7 +61,8 @@ impl Protocol for TripleProtocol {
 
     async fn export(mut self, url: Url) -> Self::Exporter {
         let server = TripleServer::new(url.service_key.clone());
-        self.servers.insert(url.service_key.clone(), server.clone());
+        self.servers
+            .insert(url.service_key.join(","), server.clone());
         server.serve(url.to_url()).await;
 
         TripleExporter::new()

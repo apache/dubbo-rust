@@ -32,7 +32,7 @@ pub struct ServiceConfig {
     pub registry: String,
     pub serializer: String,
 
-    #[serde(skip_serializing, skip_deserializing)]
+    // #[serde(skip_serializing, skip_deserializing)]
     pub protocol_configs: HashMap<String, ProtocolConfig>,
 }
 

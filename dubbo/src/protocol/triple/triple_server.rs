@@ -22,13 +22,13 @@ use triple::transport::DubboServer;
 #[derive(Default, Clone)]
 pub struct TripleServer {
     s: DubboServer,
-    name: String,
+    service_names: Vec<String>,
 }
 
 impl TripleServer {
-    pub fn new(name: String) -> TripleServer {
+    pub fn new(names: Vec<String>) -> TripleServer {
         Self {
-            name,
+            service_names: names,
             s: DubboServer::new(),
         }
     }
@@ -36,9 +36,11 @@ impl TripleServer {
     pub async fn serve(mut self, url: String) {
         {
             let lock = super::TRIPLE_SERVICES.read().unwrap();
-            let svc = lock.get(&self.name).unwrap();
+            for name in self.service_names.iter() {
+                let svc = lock.get(name).unwrap();
 
-            self.s = self.s.add_service(self.name.clone(), svc.clone());
+                self.s = self.s.add_service(name.clone(), svc.clone());
+            }
         }
 
         let uri = http::Uri::from_str(&url.clone()).unwrap();
