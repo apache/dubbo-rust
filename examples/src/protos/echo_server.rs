@@ -95,9 +95,9 @@ impl<T, I> EchoServer<T, I> {
 impl<T: Echo, I, B> Service<http::Request<B>> for EchoServer<T, I>
 where
     B: Body + Send + 'static,
-    B::Error: Into<StdError> + Debug + Send,
-    <B as Body>::Data: Send,
-    I: Invoker + Send,
+    B::Error: Into<StdError> + Send,
+    // <B as Body>::Data: Send,
+    I: Invoker + Send + 'static,
 {
     type Response = http::Response<BoxBody>;
 
@@ -130,8 +130,7 @@ where
                 }
 
                 let fut = async move {
-                    let mut server =
-                        TripleServer::new(SerdeCodec::<HelloReply, HelloRequest>::default());
+                    let mut server = TripleServer::new(SerdeCodec::default());
                     let resp = server.unary(UnaryServer { inner }, req).await;
                     Ok(resp)
                 };
@@ -270,7 +269,7 @@ impl<T: Debug> Debug for _Inner<T> {
     }
 }
 
-impl<T: Echo, I: Invoker + Send + Sync + 'static> Clone for EchoServer<T, I> {
+impl<T: Echo, I: Invoker + Send + 'static> Clone for EchoServer<T, I> {
     fn clone(&self) -> Self {
         let inner = self.inner.clone();
         Self {

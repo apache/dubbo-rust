@@ -65,7 +65,7 @@ impl EchoClient {
         &mut self,
         req: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, triple::status::Status> {
-        let codec = SerdeCodec::<HelloRequest, HelloReply>::default();
+        let codec = SerdeCodec::default();
         self.inner
             .unary(
                 req,

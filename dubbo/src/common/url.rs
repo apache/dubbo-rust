@@ -47,7 +47,12 @@ impl Url {
             ip: uri.authority()?.host().to_string(),
             port: uri.authority()?.port().unwrap().to_string(),
             location: uri.authority()?.to_string(),
-            service_key: uri.path().trim_start_matches('/').split(',').map(|x| x.to_string()).collect::<Vec<_>>(),
+            service_key: uri
+                .path()
+                .trim_start_matches('/')
+                .split(',')
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>(),
             params: HashMap::new(),
         })
     }
