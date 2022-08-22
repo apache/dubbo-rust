@@ -137,7 +137,7 @@ impl ServiceGenerator for SvcGenerator {
                 &svc,
                 true,
                 &self.builder.proto_path,
-                true,
+                self.builder.compile_well_known_types,
                 &self.builder.server_attributes,
             );
             self.servers.extend(server);
@@ -148,7 +148,7 @@ impl ServiceGenerator for SvcGenerator {
                 &svc,
                 true,
                 &self.builder.proto_path,
-                true,
+                self.builder.compile_well_known_types,
                 &self.builder.client_attributes,
             );
             self.clients.extend(client);

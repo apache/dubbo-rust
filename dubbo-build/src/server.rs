@@ -21,7 +21,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{Ident, Lit, LitStr};
 
-pub const CODEC_PATH: &str = "";
+pub const CODEC_PATH: &str = "triple::codec::prost::ProstCodec";
 
 /// Generate service for Server.
 ///
@@ -54,36 +54,9 @@ pub fn generate<T: Service>(
         if package.is_empty() { "" } else { "." },
         service.identifier()
     );
+    let service_name = syn::LitStr::new(&path, proc_macro2::Span::call_site());
     let mod_attributes = attributes.for_mod(package);
     let struct_attributes = attributes.for_struct(&path);
-
-    // let compression_enabled = cfg!(feature = "compression");
-
-    // let compression_config_ty = if compression_enabled {
-    //     quote! { EnabledCompressionEncodings }
-    // } else {
-    //     quote! { () }
-    // };
-
-    // let configure_compression_methods = if compression_enabled {
-    //     quote! {
-    //         /// Enable decompressing requests with `gzip`.
-    //         #[must_use]
-    //         pub fn accept_gzip(mut self) -> Self {
-    //             self.accept_compression_encodings.enable_gzip();
-    //             self
-    //         }
-
-    //         /// Compress responses with `gzip`, if the client supports it.
-    //         #[must_use]
-    //         pub fn send_gzip(mut self) -> Self {
-    //             self.send_compression_encodings.enable_gzip();
-    //             self
-    //         }
-    //     }
-    // } else {
-    //     quote! {}
-    // };
 
     quote! {
         /// Generated server implementations.
@@ -97,9 +70,7 @@ pub fn generate<T: Service>(
                 clippy::let_unit_value,
             )]
             use async_trait::async_trait;
-            use dubbo::protocol::server_desc::ServiceDesc;
             use dubbo::protocol::triple::triple_invoker::TripleInvoker;
-            use dubbo::protocol::DubboGrpcService;
             use dubbo::protocol::Invoker;
             use dubbo::{BoxFuture, StdError};
             use http_body::Body;
@@ -107,7 +78,6 @@ pub fn generate<T: Service>(
             use std::task::Context;
             use std::task::Poll;
             use tower_service::Service;
-            use triple::codec::prost::ProstCodec;
             use triple::empty_body;
             use triple::invocation::{Request, Response};
             use triple::server::server::TripleServer;
@@ -197,7 +167,7 @@ pub fn generate<T: Service>(
                     .write()
                     .unwrap()
                     .insert(
-                        "echo".to_string(),
+                        #service_name.to_string(),
                         dubbo::utils::boxed_clone::BoxCloneService::new(s),
                     );
             }
@@ -265,7 +235,7 @@ fn generate_trait_methods<T: Service>(
 
                 quote! {
                     #stream_doc
-                    type #stream: futures_core::Stream<Item = Result<#res_message, triple::status::Status>> + Send + 'static;
+                    type #stream: futures_util::Stream<Item = Result<#res_message, triple::status::Status>> + Send + 'static;
 
                     #method_doc
                     async fn #name(&self, request: Request<#req_message>)
@@ -281,7 +251,7 @@ fn generate_trait_methods<T: Service>(
 
                 quote! {
                     #stream_doc
-                    type #stream: futures_core::Stream<Item = Result<#res_message, triple::status::Status>> + Send + 'static;
+                    type #stream: futures_util::Stream<Item = Result<#res_message, triple::status::Status>> + Send + 'static;
 
                     #method_doc
                     async fn #name(&self, request: Request<triple::server::Decoding<#req_message>>)
@@ -378,24 +348,27 @@ fn generate_unary<T: Method>(
 
     quote! {
         #[allow(non_camel_case_types)]
-        struct #service_ident<T: #server_trait >(pub Arc<T>);
+        struct #service_ident<T: #server_trait > {
+            inner: _Inner<T>,
+        };
 
         impl<T: #server_trait> UnarySvc<#request> for #service_ident<T> {
             type Response = #response;
             type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
 
             fn call(&mut self, request: Request<#request>) -> Self::Future {
-                let inner = self.0.clone();
+                let inner = self.inner.0.clone();
                 let fut = async move {
-                    (*inner).#method_ident(request).await
+                    inner.#method_ident(request).await
                 };
                 Box::pin(fut)
             }
         }
 
-        let inner = self.inner.clone();
         let fut = async move {
-            let mut server = TripleServer::new(#codec_name::default());
+            let mut server = TripleServer::new(
+                #codec_name::<#response, #request>::default()
+            );
 
             let res = server.unary(#service_ident { inner }, req).await;
             Ok(res)
@@ -422,7 +395,9 @@ fn generate_server_streaming<T: Method>(
 
     quote! {
         #[allow(non_camel_case_types)]
-        struct #service_ident<T: #server_trait >(pub Arc<T>);
+        struct #service_ident<T: #server_trait > {
+            inner: _Inner<T>,
+        };
 
         impl<T: #server_trait> ServerStreamingSvc<#request> for #service_ident<T> {
             type Response = #response;
@@ -430,17 +405,18 @@ fn generate_server_streaming<T: Method>(
             type Future = BoxFuture<Response<Self::ResponseStream>, triple::status::Status>;
 
             fn call(&mut self, request: Request<#request>) -> Self::Future {
-                let inner = self.0.clone();
+                let inner = self.inner.0.clone();
                 let fut = async move {
-                    (*inner).#method_ident(request).await
+                    inner.#method_ident(request).await
                 };
                 Box::pin(fut)
             }
         }
 
-        let inner = self.inner.clone();
         let fut = async move {
-            let mut server = TripleServer::new(#codec_name::default());
+            let mut server = TripleServer::new(
+                #codec_name::<#response, #request>::default()
+            );
 
             let res = server.server_streaming(#service_ident { inner }, req).await;
             Ok(res)
@@ -464,7 +440,9 @@ fn generate_client_streaming<T: Method>(
 
     quote! {
         #[allow(non_camel_case_types)]
-        struct #service_ident<T: #server_trait >(pub Arc<T>);
+        struct #service_ident<T: #server_trait >{
+            inner: _Inner<T>,
+        };
 
         impl<T: #server_trait> ClientStreamingSvc<#request> for #service_ident<T>
         {
@@ -472,18 +450,19 @@ fn generate_client_streaming<T: Method>(
             type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
 
             fn call(&mut self, request: Request<triple::server::Decoding<#request>>) -> Self::Future {
-                let inner = self.0.clone();
+                let inner = self.inner.0.clone();
                 let fut = async move {
-                    (*inner).#method_ident(request).await
+                    inner.#method_ident(request).await
 
                 };
                 Box::pin(fut)
             }
         }
 
-        let inner = self.inner.clone();
         let fut = async move {
-            let mut server = TripleServer::new(#codec_name::default());
+            let mut server = TripleServer::new(
+                #codec_name::<#response, #request>::default()
+            );
 
             let res = server.client_streaming(#service_ident { inner }, req).await;
             Ok(res)
@@ -510,7 +489,9 @@ fn generate_streaming<T: Method>(
 
     quote! {
         #[allow(non_camel_case_types)]
-        struct #service_ident<T: #server_trait>(pub Arc<T>);
+        struct #service_ident<T: #server_trait>{
+            inner: _Inner<T>,
+        };
 
         impl<T: #server_trait> StreamingSvc<#request> for #service_ident<T>
         {
@@ -519,17 +500,18 @@ fn generate_streaming<T: Method>(
             type Future = BoxFuture<Response<Self::ResponseStream>, triple::status::Status>;
 
             fn call(&mut self, request: Request<triple::server::Decoding<#request>>) -> Self::Future {
-                let inner = self.0.clone();
+                let inner = self.inner.0.clone();
                 let fut = async move {
-                    (*inner).#method_ident(request).await
+                    inner.#method_ident(request).await
                 };
                 Box::pin(fut)
             }
         }
 
-        let inner = self.inner.clone();
         let fut = async move {
-            let mut server = TripleServer::new(#codec_name::default());
+            let mut server = TripleServer::new(
+                #codec_name::<#response, #request>::default()
+            );
 
             let res = server.bidi_streaming(#service_ident { inner }, req).await;
             Ok(res)

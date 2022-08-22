@@ -20,7 +20,7 @@ use crate::{Method, Service};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-pub const CODEC_PATH: &str = "";
+pub const CODEC_PATH: &str = "triple::codec::prost::ProstCodec";
 
 /// Generate service for client.
 ///
@@ -62,7 +62,6 @@ pub fn generate<T: Service>(
                 clippy::let_unit_value,
             )]
             use triple::client::TripleClient;
-            use triple::codec::serde_codec::SerdeCodec;
             use triple::invocation::*;
             use triple::server::Decoding;
 
@@ -74,21 +73,23 @@ pub fn generate<T: Service>(
                 uri: String,
             }
 
-            pub fn new() -> Self {
-                Self {
-                    inner: TripleClient::new(),
-                    uri: "".to_string(),
+            impl #service_ident {
+                pub fn new() -> Self {
+                    Self {
+                        inner: TripleClient::new(),
+                        uri: "".to_string(),
+                    }
                 }
+
+                pub fn with_uri(mut self, uri: String) -> Self {
+                    self.uri = uri.clone();
+                    self.inner = self.inner.with_host(uri);
+                    self
+                }
+
+                #methods
+
             }
-
-            pub fn with_uri(mut self, uri: String) -> Self {
-                self.uri = uri.clone();
-                self.inner = self.inner.with_host(uri);
-                self
-            }
-
-            #methods
-
         }
     }
 }
@@ -145,11 +146,11 @@ fn generate_unary<T: Method>(
             &mut self,
             request: Request<#request>,
         ) -> Result<Response<#response>, triple::status::Status> {
-           let codec = #codec_name::default();
+           let codec = #codec_name::<#request, #response>::default();
            let path = http::uri::PathAndQuery::from_static(#path);
            self.inner
             .unary(
-                req,
+                request,
                 codec,
                 path,
             )
@@ -175,7 +176,7 @@ fn generate_server_streaming<T: Method>(
             request: Request<#request>,
         ) -> Result<Response<Decoding<#response>>, triple::status::Status> {
 
-            let codec = #codec_name::default();
+            let codec = #codec_name::<#request, #response>::default();
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.server_streaming(request, codec, path).await
         }
@@ -198,7 +199,7 @@ fn generate_client_streaming<T: Method>(
             &mut self,
             request: impl IntoStreamingRequest<Message = #request>
         ) -> Result<Response<#response>, triple::status::Status> {
-            let codec = #codec_name::default();
+            let codec = #codec_name::<#request, #response>::default();
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.client_streaming(request, codec, path).await
         }
@@ -221,9 +222,9 @@ fn generate_streaming<T: Method>(
             &mut self,
             request: impl IntoStreamingRequest<Message = #request>
         ) -> Result<Response<Decoding<#response>>, triple::status::Status> {
-            let codec = #codec_name::default();
+            let codec = #codec_name::<#request, #response>::default();
             let path = http::uri::PathAndQuery::from_static(#path);
-            self.inner.streaming(request, codec, path).await
+            self.inner.bidi_streaming(request, codec, path).await
         }
     }
 }

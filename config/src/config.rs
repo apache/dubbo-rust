@@ -98,7 +98,7 @@ impl RootConfig {
             .serializer("json".to_string())
             .version("1.0.0".to_string())
             .protocol_names("triple".to_string())
-            .name("echo".to_string());
+            .name("grpc.examples.echo.Echo".to_string());
 
         let triple_config = ProtocolConfig::default()
             .name("triple".to_string())
@@ -106,7 +106,8 @@ impl RootConfig {
             .port("8888".to_string());
 
         let service_config = service_config.add_protocol_configs(triple_config);
-        self.service.insert("echo".to_string(), service_config);
+        self.service
+            .insert("grpc.examples.echo.Echo".to_string(), service_config);
         self.service.insert(
             "helloworld.Greeter".to_string(),
             ServiceConfig::default()

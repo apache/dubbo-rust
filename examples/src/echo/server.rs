@@ -26,11 +26,14 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use config::RootConfig;
 use dubbo::Dubbo;
-use examples::protos::echo_server::{register_server, Echo, HelloReply, HelloRequest};
+use examples::protos::hello_echo::{
+    echo_server::{register_server, Echo},
+    EchoRequest, EchoResponse,
+};
 use triple::invocation::*;
 
 type ResponseStream =
-    Pin<Box<dyn Stream<Item = Result<HelloReply, triple::status::Status>> + Send>>;
+    Pin<Box<dyn Stream<Item = Result<EchoResponse, triple::status::Status>> + Send>>;
 
 #[tokio::main]
 async fn main() {
@@ -58,21 +61,21 @@ struct EchoServerImpl {
 // #[async_trait]
 #[async_trait]
 impl Echo for EchoServerImpl {
-    async fn hello(
+    async fn unary_echo(
         &self,
-        req: Request<HelloRequest>,
-    ) -> Result<Response<HelloReply>, triple::status::Status> {
+        req: Request<EchoRequest>,
+    ) -> Result<Response<EchoResponse>, triple::status::Status> {
         println!("EchoServer::hello {:?}", req.metadata);
 
-        Ok(Response::new(HelloReply {
-            reply: "hello, dubbo-rust".to_string(),
+        Ok(Response::new(EchoResponse {
+            message: "hello, dubbo-rust".to_string(),
         }))
     }
 
     async fn client_streaming_echo(
         &self,
-        req: Request<triple::server::Decoding<HelloRequest>>,
-    ) -> Result<Response<HelloReply>, triple::status::Status> {
+        req: Request<triple::server::Decoding<EchoRequest>>,
+    ) -> Result<Response<EchoResponse>, triple::status::Status> {
         let mut s = req.into_inner();
         loop {
             let result = s.next().await;
@@ -82,27 +85,27 @@ impl Echo for EchoServerImpl {
                 None => break,
             }
         }
-        Ok(Response::new(HelloReply {
-            reply: "hello client streaming".to_string(),
+        Ok(Response::new(EchoResponse {
+            message: "hello client streaming".to_string(),
         }))
     }
 
     type ServerStreamingEchoStream = ResponseStream;
     async fn server_streaming_echo(
         &self,
-        req: Request<HelloRequest>,
+        req: Request<EchoRequest>,
     ) -> Result<Response<Self::ServerStreamingEchoStream>, triple::status::Status> {
         println!("server_streaming_echo: {:?}", req.into_inner());
 
         let data = vec![
-            Result::<_, triple::status::Status>::Ok(HelloReply {
-                reply: "msg1 from server".to_string(),
+            Result::<_, triple::status::Status>::Ok(EchoResponse {
+                message: "msg1 from server".to_string(),
             }),
-            Result::<_, triple::status::Status>::Ok(HelloReply {
-                reply: "msg2 from server".to_string(),
+            Result::<_, triple::status::Status>::Ok(EchoResponse {
+                message: "msg2 from server".to_string(),
             }),
-            Result::<_, triple::status::Status>::Ok(HelloReply {
-                reply: "msg3 from server".to_string(),
+            Result::<_, triple::status::Status>::Ok(EchoResponse {
+                message: "msg3 from server".to_string(),
             }),
         ];
         let resp = futures_util::stream::iter(data);
@@ -114,7 +117,7 @@ impl Echo for EchoServerImpl {
 
     async fn bidirectional_streaming_echo(
         &self,
-        request: Request<triple::server::Decoding<HelloRequest>>,
+        request: Request<triple::server::Decoding<EchoRequest>>,
     ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, triple::status::Status> {
         println!(
             "EchoServer::bidirectional_streaming_echo, grpc header: {:?}",
@@ -137,8 +140,8 @@ impl Echo for EchoServerImpl {
                         //     )).await.expect("working rx");
                         //     continue;
                         // }
-                        tx.send(Ok(HelloReply {
-                            reply: format!("server reply: {:?}", v.name),
+                        tx.send(Ok(EchoResponse {
+                            message: format!("server reply: {:?}", v.message),
                         }))
                         .await
                         .expect("working rx")
