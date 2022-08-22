@@ -26,7 +26,7 @@ use crate::common::url::Url;
 use crate::protocol::triple::triple_invoker::TripleInvoker;
 use crate::protocol::triple::triple_protocol::TripleProtocol;
 use crate::protocol::{Exporter, Protocol};
-use config::get_global_config;
+use config::{get_global_config, RootConfig};
 
 pub type BoxExporter = Box<dyn Exporter<InvokerType = TripleInvoker>>;
 // Invoker是否可以基于hyper写一个通用的
@@ -34,19 +34,30 @@ pub type BoxExporter = Box<dyn Exporter<InvokerType = TripleInvoker>>;
 #[derive(Default)]
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
+    config: Option<RootConfig>,
 }
 
 impl Dubbo {
     pub fn new() -> Dubbo {
         Self {
             protocols: HashMap::new(),
+            config: None,
         }
+    }
+
+    pub fn with_config(mut self, c: RootConfig) -> Self {
+        self.config = Some(c);
+        self
     }
 
     pub fn init(&mut self) {
         tracing_subscriber::fmt::init();
 
-        let conf = get_global_config();
+        if self.config.is_none() {
+            self.config = Some(get_global_config())
+        }
+
+        let conf = self.config.as_ref().unwrap();
         tracing::debug!("global conf: {:?}", conf);
         for (_, c) in conf.service.iter() {
             let u = if c.protocol_configs.is_empty() {

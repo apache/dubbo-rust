@@ -24,6 +24,7 @@ use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
+use config::RootConfig;
 use dubbo::Dubbo;
 use examples::protos::echo_server::{register_server, Echo, HelloReply, HelloRequest};
 use triple::invocation::*;
@@ -37,7 +38,15 @@ async fn main() {
         name: "echo".to_string(),
     });
 
-    Dubbo::new().start().await;
+    // Dubbo::new().start().await;
+    Dubbo::new()
+        .with_config({
+            let mut r = RootConfig::new();
+            r.test_config();
+            r
+        })
+        .start()
+        .await;
 }
 
 #[allow(dead_code)]

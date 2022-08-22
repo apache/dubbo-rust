@@ -33,6 +33,7 @@ tokio-stream = "0.1"
 
 triple = {path = "../triple"}
 dubbo = {path = "../dubbo"}
+config = {path = "../config"}
 
 [build-dependencies]
 dubbo-build = {path = "../dubbo-build"}
