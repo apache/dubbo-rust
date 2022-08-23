@@ -17,7 +17,7 @@
 
 use std::{net::ToSocketAddrs, str::FromStr};
 
-use triple::transport::DubboServer;
+use crate::triple::transport::DubboServer;
 
 #[derive(Default, Clone)]
 pub struct TripleServer {

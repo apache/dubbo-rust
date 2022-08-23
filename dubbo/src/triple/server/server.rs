@@ -22,7 +22,9 @@ use super::compression::{CompressionEncoding, COMPRESSIONS};
 use crate::triple::codec::Codec;
 use crate::triple::invocation::Request;
 use crate::triple::server::encode::encode_server;
-use crate::triple::server::service::{ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc};
+use crate::triple::server::service::{
+    ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc,
+};
 use crate::triple::server::Decoding;
 use crate::BoxBody;
 use config::BusinessConfig;

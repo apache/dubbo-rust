@@ -35,4 +35,3 @@ async-stream = "0.3"
 flate2 = "1.0"
 
 config = {path = "../config"}
-triple = {path = "../triple"}

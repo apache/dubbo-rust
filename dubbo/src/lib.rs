@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
+pub mod codegen;
 pub mod common;
 mod framework;
 pub mod protocol;
 pub mod registry;
-pub mod utils;
-pub mod codegen;
-pub mod triple;
 pub mod status;
+pub mod triple;
+pub mod utils;
 
+use http_body::Body;
 use std::future::Future;
 use std::pin::Pin;
-use http_body::Body;
 
 pub use framework::Dubbo;
 

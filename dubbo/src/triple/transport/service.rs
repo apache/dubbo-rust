@@ -23,8 +23,8 @@ use hyper::body::Body;
 use tokio::time::Duration;
 use tower_service::Service;
 
-use super::router::DubboRouter;
 use super::listener::get_listener;
+use super::router::DubboRouter;
 use crate::BoxBody;
 
 #[derive(Default, Clone)]

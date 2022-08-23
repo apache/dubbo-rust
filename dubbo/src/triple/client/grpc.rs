@@ -21,7 +21,7 @@ use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 
 use crate::triple::codec::Codec;
-use crate::triple::invocation::{IntoStreamingRequest, Request, Response, Metadata};
+use crate::triple::invocation::{IntoStreamingRequest, Metadata, Request, Response};
 use crate::triple::server::compression::CompressionEncoding;
 use crate::triple::server::encode::encode;
 use crate::triple::server::Decoding;
