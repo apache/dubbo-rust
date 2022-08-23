@@ -25,15 +25,15 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use config::RootConfig;
+use dubbo::codegen::*;
 use dubbo::Dubbo;
 use examples::protos::hello_echo::{
     echo_server::{register_server, Echo},
     EchoRequest, EchoResponse,
 };
-use triple::invocation::*;
 
 type ResponseStream =
-    Pin<Box<dyn Stream<Item = Result<EchoResponse, triple::status::Status>> + Send>>;
+    Pin<Box<dyn Stream<Item = Result<EchoResponse, dubbo::status::Status>> + Send>>;
 
 #[tokio::main]
 async fn main() {
@@ -64,7 +64,7 @@ impl Echo for EchoServerImpl {
     async fn unary_echo(
         &self,
         req: Request<EchoRequest>,
-    ) -> Result<Response<EchoResponse>, triple::status::Status> {
+    ) -> Result<Response<EchoResponse>, dubbo::status::Status> {
         println!("EchoServer::hello {:?}", req.metadata);
 
         Ok(Response::new(EchoResponse {
@@ -74,8 +74,8 @@ impl Echo for EchoServerImpl {
 
     async fn client_streaming_echo(
         &self,
-        req: Request<triple::server::Decoding<EchoRequest>>,
-    ) -> Result<Response<EchoResponse>, triple::status::Status> {
+        req: Request<Decoding<EchoRequest>>,
+    ) -> Result<Response<EchoResponse>, dubbo::status::Status> {
         let mut s = req.into_inner();
         loop {
             let result = s.next().await;
@@ -94,17 +94,17 @@ impl Echo for EchoServerImpl {
     async fn server_streaming_echo(
         &self,
         req: Request<EchoRequest>,
-    ) -> Result<Response<Self::ServerStreamingEchoStream>, triple::status::Status> {
+    ) -> Result<Response<Self::ServerStreamingEchoStream>, dubbo::status::Status> {
         println!("server_streaming_echo: {:?}", req.into_inner());
 
         let data = vec![
-            Result::<_, triple::status::Status>::Ok(EchoResponse {
+            Result::<_, dubbo::status::Status>::Ok(EchoResponse {
                 message: "msg1 from server".to_string(),
             }),
-            Result::<_, triple::status::Status>::Ok(EchoResponse {
+            Result::<_, dubbo::status::Status>::Ok(EchoResponse {
                 message: "msg2 from server".to_string(),
             }),
-            Result::<_, triple::status::Status>::Ok(EchoResponse {
+            Result::<_, dubbo::status::Status>::Ok(EchoResponse {
                 message: "msg3 from server".to_string(),
             }),
         ];
@@ -117,8 +117,8 @@ impl Echo for EchoServerImpl {
 
     async fn bidirectional_streaming_echo(
         &self,
-        request: Request<triple::server::Decoding<EchoRequest>>,
-    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, triple::status::Status> {
+        request: Request<Decoding<EchoRequest>>,
+    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, dubbo::status::Status> {
         println!(
             "EchoServer::bidirectional_streaming_echo, grpc header: {:?}",
             request.metadata
@@ -136,7 +136,7 @@ impl Echo for EchoServerImpl {
                 match result {
                     Ok(v) => {
                         // if v.name.starts_with("msg2") {
-                        //     tx.send(Err(triple::status::Status::internal(format!("err: args is invalid, {:?}", v.name))
+                        //     tx.send(Err(dubbo::status::Status::internal(format!("err: args is invalid, {:?}", v.name))
                         //     )).await.expect("working rx");
                         //     continue;
                         // }
@@ -175,7 +175,7 @@ impl Echo for EchoServerImpl {
     }
 }
 
-fn match_for_io_error(err_status: &triple::status::Status) -> Option<&std::io::Error> {
+fn match_for_io_error(err_status: &dubbo::status::Status) -> Option<&std::io::Error> {
     let mut err: &(dyn std::error::Error + 'static) = err_status;
 
     loop {

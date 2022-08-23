@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
+use dubbo::codegen::*;
 use examples::protos::hello_echo::echo_client::EchoClient;
 use examples::protos::hello_echo::EchoRequest;
 use futures_util::StreamExt;
-use triple::invocation::*;
 
 #[tokio::main]
 async fn main() {

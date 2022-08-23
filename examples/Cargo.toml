@@ -14,10 +14,7 @@ name = "echo-client"
 path = "src/echo/client.rs"
 
 [dependencies]
-hyper = { version = "0.14.19", features = ["full"]}
 http = "0.2"
-tonic = {version ="0.7.2", features = ["compression",]}
-tower-service = "0.3.1"
 http-body = "0.4.4"
 futures-util = {version = "0.3", default-features = false}
 tokio = { version = "1.0", features = [ "rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
@@ -25,13 +22,8 @@ prost-derive = {version = "0.10", optional = true}
 prost = "0.10.4"
 prost-types = { version = "0.8", default-features = false }
 async-trait = "0.1.56"
-tower-layer = "0.3"
-bytes = "1.0"
-pin-project = "1.0"
-serde = {version="1.0.138", features = ["derive"]}
 tokio-stream = "0.1"
 
-triple = {path = "../triple"}
 dubbo = {path = "../dubbo"}
 config = {path = "../config"}
 
