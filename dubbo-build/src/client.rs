@@ -20,7 +20,7 @@ use crate::{Method, Service};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-pub const CODEC_PATH: &str = "triple::codec::prost::ProstCodec";
+pub const CODEC_PATH: &str = "dubbo::codegen::ProstCodec";
 
 /// Generate service for client.
 ///
@@ -61,9 +61,7 @@ pub fn generate<T: Service>(
                 // will trigger if compression is disabled
                 clippy::let_unit_value,
             )]
-            use triple::client::TripleClient;
-            use triple::invocation::*;
-            use triple::server::Decoding;
+            use dubbo::codegen::*;
 
             #service_doc
             #(#struct_attributes)*
@@ -145,7 +143,7 @@ fn generate_unary<T: Method>(
         pub async fn #ident(
             &mut self,
             request: Request<#request>,
-        ) -> Result<Response<#response>, triple::status::Status> {
+        ) -> Result<Response<#response>, dubbo::status::Status> {
            let codec = #codec_name::<#request, #response>::default();
            let path = http::uri::PathAndQuery::from_static(#path);
            self.inner
@@ -174,7 +172,7 @@ fn generate_server_streaming<T: Method>(
         pub async fn #ident(
             &mut self,
             request: Request<#request>,
-        ) -> Result<Response<Decoding<#response>>, triple::status::Status> {
+        ) -> Result<Response<Decoding<#response>>, dubbo::status::Status> {
 
             let codec = #codec_name::<#request, #response>::default();
             let path = http::uri::PathAndQuery::from_static(#path);
@@ -198,7 +196,7 @@ fn generate_client_streaming<T: Method>(
         pub async fn #ident(
             &mut self,
             request: impl IntoStreamingRequest<Message = #request>
-        ) -> Result<Response<#response>, triple::status::Status> {
+        ) -> Result<Response<#response>, dubbo::status::Status> {
             let codec = #codec_name::<#request, #response>::default();
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.client_streaming(request, codec, path).await
@@ -221,7 +219,7 @@ fn generate_streaming<T: Method>(
         pub async fn #ident(
             &mut self,
             request: impl IntoStreamingRequest<Message = #request>
-        ) -> Result<Response<Decoding<#response>>, triple::status::Status> {
+        ) -> Result<Response<Decoding<#response>>, dubbo::status::Status> {
             let codec = #codec_name::<#request, #response>::default();
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.bidi_streaming(request, codec, path).await

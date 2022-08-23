@@ -21,7 +21,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{Ident, Lit, LitStr};
 
-pub const CODEC_PATH: &str = "triple::codec::prost::ProstCodec";
+pub const CODEC_PATH: &str = "dubbo::codegen::ProstCodec";
 
 /// Generate service for Server.
 ///
@@ -69,20 +69,7 @@ pub fn generate<T: Service>(
                 // will trigger if compression is disabled
                 clippy::let_unit_value,
             )]
-            use async_trait::async_trait;
-            use dubbo::protocol::triple::triple_invoker::TripleInvoker;
-            use dubbo::protocol::Invoker;
-            use dubbo::{BoxFuture, StdError};
-            use http_body::Body;
-            use std::sync::Arc;
-            use std::task::Context;
-            use std::task::Poll;
-            use tower_service::Service;
-            use triple::empty_body;
-            use triple::invocation::{Request, Response};
-            use triple::server::server::TripleServer;
-            use triple::server::service::{ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc};
-            use triple::BoxBody;
+            use dubbo::codegen::*;
 
             #generated_trait
 
@@ -216,14 +203,14 @@ fn generate_trait_methods<T: Service>(
                 quote! {
                     #method_doc
                     async fn #name(&self, request: Request<#req_message>)
-                        -> Result<Response<#res_message>, triple::status::Status>;
+                        -> Result<Response<#res_message>, dubbo::status::Status>;
                 }
             }
             (true, false) => {
                 quote! {
                     #method_doc
-                    async fn #name(&self, request: Request<triple::server::Decoding<#req_message>>)
-                        -> Result<Response<#res_message>, triple::status::Status>;
+                    async fn #name(&self, request: Request<Decoding<#req_message>>)
+                        -> Result<Response<#res_message>, dubbo::status::Status>;
                 }
             }
             (false, true) => {
@@ -235,11 +222,11 @@ fn generate_trait_methods<T: Service>(
 
                 quote! {
                     #stream_doc
-                    type #stream: futures_util::Stream<Item = Result<#res_message, triple::status::Status>> + Send + 'static;
+                    type #stream: futures_util::Stream<Item = Result<#res_message, dubbo::status::Status>> + Send + 'static;
 
                     #method_doc
                     async fn #name(&self, request: Request<#req_message>)
-                        -> Result<Response<Self::#stream>, triple::status::Status>;
+                        -> Result<Response<Self::#stream>, dubbo::status::Status>;
                 }
             }
             (true, true) => {
@@ -251,11 +238,11 @@ fn generate_trait_methods<T: Service>(
 
                 quote! {
                     #stream_doc
-                    type #stream: futures_util::Stream<Item = Result<#res_message, triple::status::Status>> + Send + 'static;
+                    type #stream: futures_util::Stream<Item = Result<#res_message, dubbo::status::Status>> + Send + 'static;
 
                     #method_doc
-                    async fn #name(&self, request: Request<triple::server::Decoding<#req_message>>)
-                        -> Result<Response<Self::#stream>, triple::status::Status>;
+                    async fn #name(&self, request: Request<Decoding<#req_message>>)
+                        -> Result<Response<Self::#stream>, dubbo::status::Status>;
                 }
             }
         };
@@ -354,7 +341,7 @@ fn generate_unary<T: Method>(
 
         impl<T: #server_trait> UnarySvc<#request> for #service_ident<T> {
             type Response = #response;
-            type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
+            type Future = BoxFuture<Response<Self::Response>, dubbo::status::Status>;
 
             fn call(&mut self, request: Request<#request>) -> Self::Future {
                 let inner = self.inner.0.clone();
@@ -402,7 +389,7 @@ fn generate_server_streaming<T: Method>(
         impl<T: #server_trait> ServerStreamingSvc<#request> for #service_ident<T> {
             type Response = #response;
             type ResponseStream = T::#response_stream;
-            type Future = BoxFuture<Response<Self::ResponseStream>, triple::status::Status>;
+            type Future = BoxFuture<Response<Self::ResponseStream>, dubbo::status::Status>;
 
             fn call(&mut self, request: Request<#request>) -> Self::Future {
                 let inner = self.inner.0.clone();
@@ -447,9 +434,9 @@ fn generate_client_streaming<T: Method>(
         impl<T: #server_trait> ClientStreamingSvc<#request> for #service_ident<T>
         {
             type Response = #response;
-            type Future = BoxFuture<Response<Self::Response>, triple::status::Status>;
+            type Future = BoxFuture<Response<Self::Response>, dubbo::status::Status>;
 
-            fn call(&mut self, request: Request<triple::server::Decoding<#request>>) -> Self::Future {
+            fn call(&mut self, request: Request<Decoding<#request>>) -> Self::Future {
                 let inner = self.inner.0.clone();
                 let fut = async move {
                     inner.#method_ident(request).await
@@ -497,9 +484,9 @@ fn generate_streaming<T: Method>(
         {
             type Response = #response;
             type ResponseStream = T::#response_stream;
-            type Future = BoxFuture<Response<Self::ResponseStream>, triple::status::Status>;
+            type Future = BoxFuture<Response<Self::ResponseStream>, dubbo::status::Status>;
 
-            fn call(&mut self, request: Request<triple::server::Decoding<#request>>) -> Self::Future {
+            fn call(&mut self, request: Request<Decoding<#request>>) -> Self::Future {
                 let inner = self.inner.0.clone();
                 let fut = async move {
                     inner.#method_ident(request).await
