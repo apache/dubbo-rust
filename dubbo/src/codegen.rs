@@ -22,15 +22,15 @@ pub use async_trait::async_trait;
 pub use http_body::Body;
 pub use tower_service::Service;
 
+pub use super::invocation::{IntoStreamingRequest, Request, Response};
 pub use super::protocol::triple::triple_invoker::TripleInvoker;
 pub use super::protocol::Invoker;
 pub use super::triple::client::TripleClient;
 pub use super::triple::codec::prost::ProstCodec;
 pub use super::triple::codec::Codec;
-pub use super::triple::invocation::{IntoStreamingRequest, Request, Response};
-pub use super::triple::server::server::TripleServer;
+pub use super::triple::decode::Decoding;
 pub use super::triple::server::service::{
     ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc,
 };
-pub use super::triple::server::Decoding;
+pub use super::triple::server::TripleServer;
 pub use super::{empty_body, BoxBody, BoxFuture, StdError};

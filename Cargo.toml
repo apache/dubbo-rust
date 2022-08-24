@@ -6,7 +6,6 @@ members = [
   "common",
   "config",
   "dubbo",
-  "triple",
   "examples",
   "dubbo-build"
 ]

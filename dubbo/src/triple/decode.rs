@@ -23,8 +23,8 @@ use futures_util::{future, ready};
 use http_body::Body;
 
 use super::compression::{decompress, CompressionEncoding};
+use crate::invocation::Metadata;
 use crate::triple::codec::{DecodeBuf, Decoder};
-use crate::triple::invocation::Metadata;
 
 type BoxBody = http_body::combinators::UnsyncBoxBody<Bytes, crate::status::Status>;
 

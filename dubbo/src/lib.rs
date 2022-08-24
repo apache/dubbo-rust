@@ -18,6 +18,7 @@
 pub mod codegen;
 pub mod common;
 mod framework;
+pub mod invocation;
 pub mod protocol;
 pub mod registry;
 pub mod status;

@@ -20,11 +20,11 @@ use std::str::FromStr;
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 
+use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
 use crate::triple::codec::Codec;
-use crate::triple::invocation::{IntoStreamingRequest, Metadata, Request, Response};
-use crate::triple::server::compression::CompressionEncoding;
-use crate::triple::server::encode::encode;
-use crate::triple::server::Decoding;
+use crate::triple::compression::CompressionEncoding;
+use crate::triple::decode::Decoding;
+use crate::triple::encode::encode;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {

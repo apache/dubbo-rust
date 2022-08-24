@@ -18,14 +18,14 @@
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http_body::Body;
 
-use super::compression::{CompressionEncoding, COMPRESSIONS};
+use crate::invocation::Request;
 use crate::triple::codec::Codec;
-use crate::triple::invocation::Request;
-use crate::triple::server::encode::encode_server;
+use crate::triple::compression::{CompressionEncoding, COMPRESSIONS};
+use crate::triple::decode::Decoding;
+use crate::triple::encode::encode_server;
 use crate::triple::server::service::{
     ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc,
 };
-use crate::triple::server::Decoding;
 use crate::BoxBody;
 use config::BusinessConfig;
 

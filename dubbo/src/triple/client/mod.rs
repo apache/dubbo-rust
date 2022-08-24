@@ -15,6 +15,6 @@
  * limitations under the License.
  */
 
-pub mod grpc;
+pub mod triple;
 
-pub use grpc::TripleClient;
+pub use triple::TripleClient;
