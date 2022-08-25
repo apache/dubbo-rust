@@ -15,7 +15,7 @@ pub mod echo_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use dubbo::codegen::*;
     /// Echo is the echo service.
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Default)]
     pub struct EchoClient {
         inner: TripleClient,
         uri: String,

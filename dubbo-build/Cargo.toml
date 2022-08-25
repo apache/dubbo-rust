@@ -11,5 +11,4 @@ prettyplease = {version = "0.1"}
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = "1.0"
-
-prost-build = {git="https://github.com/tokio-rs/prost.git"}
+prost-build = "0.11.1"
