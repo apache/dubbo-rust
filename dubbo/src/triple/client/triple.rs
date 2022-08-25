@@ -62,11 +62,14 @@ impl TripleClient {
 
     /// host: http://0.0.0.0:8888
     pub fn with_host(self, host: String) -> Self {
-        let uri = http::Uri::from_str(&host).unwrap();
-        TripleClient {
-            host: Some(uri),
-            ..self
-        }
+        let uri = match http::Uri::from_str(&host) {
+            Ok(v) => Some(v),
+            Err(err) => {
+                tracing::error!("http uri parse error: {}, host: {}", err, host);
+                None
+            }
+        };
+        TripleClient { host: uri, ..self }
     }
 }
 
@@ -76,7 +79,13 @@ impl TripleClient {
         path: http::uri::PathAndQuery,
         body: hyper::Body,
     ) -> http::Request<hyper::Body> {
-        let mut parts = self.host.clone().unwrap().into_parts();
+        let mut parts = match self.host.as_ref() {
+            Some(v) => v.to_owned().into_parts(),
+            None => {
+                tracing::warn!("client host is empty");
+                return http::Request::new(hyper::Body::empty());
+            }
+        };
         parts.path_and_query = Some(path);
 
         let uri = http::Uri::from_parts(parts).unwrap();

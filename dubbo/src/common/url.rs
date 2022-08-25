@@ -45,7 +45,7 @@ impl Url {
             uri: uri.to_string(),
             protocol: uri.scheme_str()?.to_string(),
             ip: uri.authority()?.host().to_string(),
-            port: uri.authority()?.port().unwrap().to_string(),
+            port: uri.authority()?.port()?.to_string(),
             location: uri.authority()?.to_string(),
             service_key: uri
                 .path()

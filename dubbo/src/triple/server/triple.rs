@@ -75,7 +75,11 @@ where
 
         let resp = service.call(Request::from_http(req_stream)).await;
 
-        let (mut parts, resp_body) = resp.unwrap().into_http().into_parts();
+        let (mut parts, resp_body) = match resp {
+            Ok(v) => v.into_http().into_parts(),
+            Err(err) => return err.to_http(),
+        };
+
         let resp_body = encode_server(
             self.codec.encoder(),
             stream::once(future::ready(resp_body)).map(Ok).into_stream(),
@@ -123,7 +127,10 @@ where
 
         let resp = service.call(Request::from_http(req_stream)).await;
 
-        let (mut parts, resp_body) = resp.unwrap().into_http().into_parts();
+        let (mut parts, resp_body) = match resp {
+            Ok(v) => v.into_http().into_parts(),
+            Err(err) => return err.to_http(),
+        };
         let resp_body = encode_server(self.codec.encoder(), resp_body, compression);
 
         parts.headers.insert(
@@ -168,10 +175,17 @@ where
         let msg = body.try_next().await.unwrap().ok_or_else(|| {
             crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
         });
+        let msg = match msg {
+            Ok(v) => v,
+            Err(err) => return err.to_http(),
+        };
 
-        let resp = service.call(Request::from_parts(parts, msg.unwrap())).await;
+        let resp = service.call(Request::from_parts(parts, msg)).await;
 
-        let (mut parts, resp_body) = resp.unwrap().into_http().into_parts();
+        let (mut parts, resp_body) = match resp {
+            Ok(v) => v.into_http().into_parts(),
+            Err(err) => return err.to_http(),
+        };
         let resp_body = encode_server(self.codec.encoder(), resp_body, compression);
 
         parts.headers.insert(
@@ -212,10 +226,17 @@ where
         let msg = body.try_next().await.unwrap().ok_or_else(|| {
             crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
         });
+        let msg = match msg {
+            Ok(v) => v,
+            Err(err) => return err.to_http(),
+        };
 
-        let resp = service.call(Request::from_parts(parts, msg.unwrap())).await;
+        let resp = service.call(Request::from_parts(parts, msg)).await;
 
-        let (mut parts, resp_body) = resp.unwrap().into_http().into_parts();
+        let (mut parts, resp_body) = match resp {
+            Ok(v) => v.into_http().into_parts(),
+            Err(err) => return err.to_http(),
+        };
         let resp_body = encode_server(
             self.codec.encoder(),
             stream::once(future::ready(resp_body)).map(Ok).into_stream(),

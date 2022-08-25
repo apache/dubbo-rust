@@ -61,32 +61,32 @@ impl Dubbo {
         tracing::debug!("global conf: {:?}", conf);
         for (_, c) in conf.service.iter() {
             let u = if c.protocol_configs.is_empty() {
-                let protocol_url = format!(
-                    "{}/{}",
-                    conf.protocols
-                        .get(&c.protocol)
-                        .unwrap()
-                        .clone()
-                        .to_url()
-                        .clone(),
-                    c.name.clone(),
-                );
-                Url::from_url(&protocol_url).unwrap()
-            } else {
-                let protocol_url = format! {
-                    "{}/{}",
-                    c.protocol_configs
-                        .get(&c.protocol)
-                        .unwrap()
-                        .clone()
-                        .to_url()
-                        .clone(),
-                    c.name.clone(),
+                let protocol = match conf.protocols.get(&c.protocol) {
+                    Some(v) => v.to_owned(),
+                    None => {
+                        tracing::warn!("protocol {:?} not exists", c.protocol);
+                        continue;
+                    }
                 };
-                Url::from_url(&protocol_url).unwrap()
+                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
+                Url::from_url(&protocol_url)
+            } else {
+                let protocol = match c.protocol_configs.get(&c.protocol) {
+                    Some(v) => v.to_owned(),
+                    None => {
+                        tracing::warn!("protocol {:?} not exists", c.protocol);
+                        continue;
+                    }
+                };
+                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
+                Url::from_url(&protocol_url)
             };
             tracing::info!("url: {:?}", u);
+            if u.is_none() {
+                continue;
+            }
 
+            let u = u.unwrap();
             if self.protocols.get(&c.protocol).is_some() {
                 self.protocols.get_mut(&c.protocol).unwrap().push(u);
             } else {

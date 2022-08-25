@@ -47,13 +47,26 @@ impl TripleServer {
             }
         }
 
-        let uri = http::Uri::from_str(&url.clone()).unwrap();
+        let uri = match http::Uri::from_str(&url) {
+            Ok(v) => v,
+            Err(err) => {
+                tracing::error!("http uri parse error: {}, url: {:?}", err, &url);
+                return;
+            }
+        };
+
+        let authority = match uri.authority() {
+            Some(v) => v.to_owned(),
+            None => {
+                tracing::error!("http authority is none");
+                return;
+            }
+        };
 
         self.s
             .with_listener("tcp".to_string())
             .serve(
-                uri.authority()
-                    .unwrap()
+                authority
                     .to_string()
                     .to_socket_addrs()
                     .unwrap()
