@@ -40,28 +40,10 @@ impl Attributes {
         generate_attributes(name, &self.structure)
     }
 
-    /// Add an attribute that will be added to `mod` items matching the given pattern.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tonic_build::*;
-    /// let mut attributes = Attributes::default();
-    /// attributes.push_mod("my.proto.package", r#"#[cfg(feature = "server")]"#);
-    /// ```
     pub fn push_mod(&mut self, pattern: impl Into<String>, attr: impl Into<String>) {
         self.module.push((pattern.into(), attr.into()));
     }
 
-    /// Add an attribute that will be added to `struct` items matching the given pattern.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use tonic_build::*;
-    /// let mut attributes = Attributes::default();
-    /// attributes.push_struct("EchoService", "#[derive(PartialEq)]");
-    /// ```
     pub fn push_struct(&mut self, pattern: impl Into<String>, attr: impl Into<String>) {
         self.structure.push((pattern.into(), attr.into()));
     }
