@@ -44,8 +44,10 @@ impl TripleProtocol {
         }
     }
 
-    pub fn get_server(&self, name: String) -> Option<TripleServer> {
-        self.servers.get(&name).map(|data| data.to_owned())
+    pub fn get_server(&self, url: Url) -> Option<TripleServer> {
+        self.servers
+            .get(&url.service_key.join(","))
+            .map(|data| data.to_owned())
     }
 }
 
