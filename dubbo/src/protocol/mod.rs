@@ -16,15 +16,14 @@
  */
 
 pub mod grpc;
-pub mod invocation;
 pub mod server_desc;
 pub mod triple;
 
 use async_trait::async_trait;
 
-use crate::utils::boxed_clone::BoxCloneService;
-
 use crate::common::url::Url;
+use crate::invocation::{Request, Response};
+use crate::utils::boxed_clone::BoxCloneService;
 
 #[async_trait]
 pub trait Protocol {
@@ -44,7 +43,7 @@ pub trait Exporter {
 }
 
 pub trait Invoker {
-    fn invoke<M1>(&self, req: invocation::Request<M1>) -> invocation::Response<String>
+    fn invoke<M1>(&self, req: Request<M1>) -> Response<String>
     where
         M1: Send + 'static;
     fn is_available(&self) -> bool;

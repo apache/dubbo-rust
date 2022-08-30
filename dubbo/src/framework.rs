@@ -26,7 +26,7 @@ use crate::common::url::Url;
 use crate::protocol::triple::triple_invoker::TripleInvoker;
 use crate::protocol::triple::triple_protocol::TripleProtocol;
 use crate::protocol::{Exporter, Protocol};
-use config::get_global_config;
+use config::{get_global_config, RootConfig};
 
 pub type BoxExporter = Box<dyn Exporter<InvokerType = TripleInvoker>>;
 // Invoker是否可以基于hyper写一个通用的
@@ -34,48 +34,59 @@ pub type BoxExporter = Box<dyn Exporter<InvokerType = TripleInvoker>>;
 #[derive(Default)]
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
+    config: Option<RootConfig>,
 }
 
 impl Dubbo {
     pub fn new() -> Dubbo {
         Self {
             protocols: HashMap::new(),
+            config: None,
         }
+    }
+
+    pub fn with_config(mut self, c: RootConfig) -> Self {
+        self.config = Some(c);
+        self
     }
 
     pub fn init(&mut self) {
         tracing_subscriber::fmt::init();
 
-        let conf = get_global_config();
+        if self.config.is_none() {
+            self.config = Some(get_global_config())
+        }
+
+        let conf = self.config.as_ref().unwrap();
         tracing::debug!("global conf: {:?}", conf);
         for (_, c) in conf.service.iter() {
             let u = if c.protocol_configs.is_empty() {
-                let protocol_url = format!(
-                    "{}/{}",
-                    conf.protocols
-                        .get(&c.protocol)
-                        .unwrap()
-                        .clone()
-                        .to_url()
-                        .clone(),
-                    c.name.clone(),
-                );
-                Url::from_url(&protocol_url).unwrap()
-            } else {
-                let protocol_url = format! {
-                    "{}/{}",
-                    c.protocol_configs
-                        .get(&c.protocol)
-                        .unwrap()
-                        .clone()
-                        .to_url()
-                        .clone(),
-                    c.name.clone(),
+                let protocol = match conf.protocols.get(&c.protocol) {
+                    Some(v) => v.to_owned(),
+                    None => {
+                        tracing::warn!("protocol {:?} not exists", c.protocol);
+                        continue;
+                    }
                 };
-                Url::from_url(&protocol_url).unwrap()
+                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
+                Url::from_url(&protocol_url)
+            } else {
+                let protocol = match c.protocol_configs.get(&c.protocol) {
+                    Some(v) => v.to_owned(),
+                    None => {
+                        tracing::warn!("protocol {:?} not exists", c.protocol);
+                        continue;
+                    }
+                };
+                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
+                Url::from_url(&protocol_url)
             };
             tracing::info!("url: {:?}", u);
+            if u.is_none() {
+                continue;
+            }
 
+            let u = u.unwrap();
             if self.protocols.get(&c.protocol).is_some() {
                 self.protocols.get_mut(&c.protocol).unwrap().push(u);
             } else {

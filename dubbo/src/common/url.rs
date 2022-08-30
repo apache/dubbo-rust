@@ -24,7 +24,7 @@ pub struct Url {
     pub location: String,
     pub ip: String,
     pub port: String,
-    pub service_key: String,
+    pub service_key: Vec<String>,
     pub params: HashMap<String, String>,
 }
 
@@ -45,15 +45,20 @@ impl Url {
             uri: uri.to_string(),
             protocol: uri.scheme_str()?.to_string(),
             ip: uri.authority()?.host().to_string(),
-            port: uri.authority()?.port().unwrap().to_string(),
+            port: uri.authority()?.port()?.to_string(),
             location: uri.authority()?.to_string(),
-            service_key: uri.path().trim_start_matches('/').to_string(),
+            service_key: uri
+                .path()
+                .trim_start_matches('/')
+                .split(',')
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>(),
             params: HashMap::new(),
         })
     }
 
-    pub fn get_service_name(&self) -> &str {
-        &self.service_key
+    pub fn get_service_name(&self) -> Vec<String> {
+        self.service_key.clone()
     }
 
     pub fn get_param(&self, key: String) -> Option<String> {

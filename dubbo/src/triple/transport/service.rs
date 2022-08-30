@@ -23,8 +23,8 @@ use hyper::body::Body;
 use tokio::time::Duration;
 use tower_service::Service;
 
+use super::listener::get_listener;
 use super::router::DubboRouter;
-use crate::transport::listener::get_listener;
 use crate::BoxBody;
 
 #[derive(Default, Clone)]
@@ -142,13 +142,13 @@ impl DubboServer {
             .http2_keepalive_timeout
             .unwrap_or_else(|| Duration::new(60, 0));
 
-        let name = if self.listener.is_some() {
-            self.listener.unwrap()
-        } else {
-            // let err = std:error::Error
-            return Err(Box::new(crate::status::DubboError::new(
-                "listener name is empty".to_string(),
-            )));
+        let name = match self.listener {
+            Some(v) => v,
+            None => {
+                return Err(Box::new(crate::status::DubboError::new(
+                    "listener name is empty".to_string(),
+                )))
+            }
         };
 
         let listener = match get_listener(name, addr).await {

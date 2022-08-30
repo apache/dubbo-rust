@@ -15,39 +15,13 @@
  * limitations under the License.
  */
 
-use crate::common::url::Url;
-use crate::invocation::{Request, Response};
-use crate::protocol::Invoker;
+use std::path::PathBuf;
 
-#[allow(dead_code)]
-#[derive(Clone, Default)]
-pub struct TripleInvoker {
-    url: Url,
-}
-
-impl TripleInvoker {
-    pub fn new(url: Url) -> TripleInvoker {
-        Self { url }
-    }
-}
-
-impl Invoker for TripleInvoker {
-    fn invoke<M1>(&self, _req: Request<M1>) -> Response<String>
-    where
-        M1: Send + 'static,
-    {
-        todo!()
-    }
-
-    fn is_available(&self) -> bool {
-        todo!()
-    }
-
-    fn destroy(&self) {
-        todo!()
-    }
-
-    fn get_url(&self) -> Url {
-        todo!()
-    }
+fn main() {
+    let path = PathBuf::from("./src/echo");
+    println!("path: {:?}", path);
+    // dubbo_build::prost::configure()
+    //     .output_dir(path)
+    //     .compile(&["proto/echo/echo.proto"], &["proto/"])
+    //     .unwrap();
 }

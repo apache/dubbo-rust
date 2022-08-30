@@ -24,7 +24,7 @@ use http_body::Body;
 use pin_project::pin_project;
 
 use super::compression::{compress, CompressionEncoding};
-use crate::codec::{EncodeBuf, Encoder};
+use crate::triple::codec::{EncodeBuf, Encoder};
 
 #[allow(unused_must_use)]
 pub fn encode<E, B>(

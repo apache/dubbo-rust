@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-use std::{any, collections::HashMap, env, fs};
+use std::{collections::HashMap, env, fs, sync::RwLock};
 
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 use super::protocol::ProtocolConfig;
@@ -24,26 +25,36 @@ use super::service::ServiceConfig;
 
 pub const DUBBO_CONFIG_PATH: &str = "./dubbo.yaml";
 
+lazy_static! {
+    pub static ref GLOBAL_ROOT_CONFIG: RwLock<Option<RootConfig>> = RwLock::new(None);
+}
+
 /// used to storage all structed config, from some source: cmd, file..;
 /// Impl Config trait, business init by read Config trait
 #[allow(dead_code)]
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct RootConfig {
     pub name: String,
     pub service: HashMap<String, ServiceConfig>,
     pub protocols: HashMap<String, ProtocolConfig>,
 
     #[serde(skip_serializing, skip_deserializing)]
-    pub data: HashMap<String, Box<dyn any::Any>>,
+    pub data: HashMap<String, String>,
 }
 
 pub fn get_global_config() -> RootConfig {
-    tracing::debug!("current path: {:?}", env::current_dir());
-    let c = match RootConfig::new().load() {
-        Ok(v) => v,
-        Err(err) => panic!("Error loading global config, error: {}", err),
-    };
-    c
+    if GLOBAL_ROOT_CONFIG.read().unwrap().as_ref().is_none() {
+        {
+            tracing::debug!("current path: {:?}", env::current_dir());
+            let c = match RootConfig::new().load() {
+                Ok(v) => v,
+                Err(err) => panic!("Failed to load global config, error: {}", err),
+            };
+            *GLOBAL_ROOT_CONFIG.write().unwrap() = Some(c);
+        }
+    }
+
+    return GLOBAL_ROOT_CONFIG.read().unwrap().as_ref().unwrap().clone();
 }
 
 impl RootConfig {
@@ -87,7 +98,7 @@ impl RootConfig {
             .serializer("json".to_string())
             .version("1.0.0".to_string())
             .protocol_names("triple".to_string())
-            .name("echo".to_string());
+            .name("grpc.examples.echo.Echo".to_string());
 
         let triple_config = ProtocolConfig::default()
             .name("triple".to_string())
@@ -95,7 +106,8 @@ impl RootConfig {
             .port("8888".to_string());
 
         let service_config = service_config.add_protocol_configs(triple_config);
-        self.service.insert("echo".to_string(), service_config);
+        self.service
+            .insert("grpc.examples.echo.Echo".to_string(), service_config);
         self.service.insert(
             "helloworld.Greeter".to_string(),
             ServiceConfig::default()
@@ -115,7 +127,7 @@ impl RootConfig {
         // 通过环境变量读取某个文件。加在到内存中
         self.data.insert(
             "dubbo.provider.url".to_string(),
-            Box::new("dubbo://127.0.0.1:8888/?serviceName=hellworld".to_string()),
+            "dubbo://127.0.0.1:8888/?serviceName=hellworld".to_string(),
         );
         // self.data.insert("dubbo.consume.", v)
     }
@@ -125,26 +137,20 @@ impl Config for RootConfig {
     fn bool(&self, key: String) -> bool {
         match self.data.get(&key) {
             None => false,
-            Some(val) => {
-                if let Some(v) = val.downcast_ref::<bool>() {
-                    *v
-                } else {
+            Some(val) => match val.parse::<bool>() {
+                Ok(v) => v,
+                Err(_err) => {
+                    tracing::error!("key: {}, val: {} is not boolean", key, val);
                     false
                 }
-            }
+            },
         }
     }
 
     fn string(&self, key: String) -> String {
         match self.data.get(&key) {
             None => "".to_string(),
-            Some(val) => {
-                if let Some(v) = val.downcast_ref::<String>() {
-                    v.into()
-                } else {
-                    "".to_string()
-                }
-            }
+            Some(val) => val.to_string(),
         }
     }
 }

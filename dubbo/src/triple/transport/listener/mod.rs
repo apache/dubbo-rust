@@ -113,7 +113,7 @@ impl<T: Listener> Listener for WrappedListener<T> {
 
 pub async fn get_listener(name: String, addr: SocketAddr) -> Result<BoxListener, crate::Error> {
     match name.as_str() {
-        "tcp" => Ok(TcpListener::bind(addr).await.unwrap().boxed()),
+        "tcp" => Ok(TcpListener::bind(addr).await?.boxed()),
         _ => {
             tracing::warn!("no support listener: {:?}", name);
             Err(Box::new(crate::status::DubboError::new(format!(

@@ -15,6 +15,4 @@
  * limitations under the License.
  */
 
-pub mod echo_client;
-pub mod echo_server;
-pub mod helloworld;
+pub mod hello_echo;

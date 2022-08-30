@@ -15,12 +15,17 @@
  * limitations under the License.
  */
 
+pub mod codegen;
 pub mod common;
 mod framework;
+pub mod invocation;
 pub mod protocol;
 pub mod registry;
+pub mod status;
+pub mod triple;
 pub mod utils;
 
+use http_body::Body;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -28,3 +33,22 @@ pub use framework::Dubbo;
 
 pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;
+pub(crate) type Error = Box<dyn std::error::Error + Send + Sync>;
+pub type BoxBody = http_body::combinators::UnsyncBoxBody<bytes::Bytes, self::status::Status>;
+
+pub fn empty_body() -> BoxBody {
+    http_body::Empty::new()
+        .map_err(|err| match err {})
+        .boxed_unsync()
+}
+
+pub(crate) fn boxed<B>(body: B) -> BoxBody
+where
+    B: http_body::Body<Data = bytes::Bytes> + Send + 'static,
+    B::Error: Into<self::Error>,
+{
+    body.map_err(|err| {
+        self::status::Status::new(self::status::Code::Internal, format!("{:?}", err.into()))
+    })
+    .boxed_unsync()
+}
