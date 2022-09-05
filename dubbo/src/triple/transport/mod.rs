@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+pub mod connector;
 pub mod listener;
 pub mod router;
 pub mod service;
