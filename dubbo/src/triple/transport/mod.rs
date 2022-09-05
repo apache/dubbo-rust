@@ -18,6 +18,7 @@
 pub mod connector;
 mod io;
 pub mod listener;
+pub mod resolver;
 pub mod router;
 pub mod service;
 
