@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use crate::utils::boxed_clone::BoxCloneService;
-use triple::BoxBody;
+use crate::BoxBody;
 
 pub type GrpcBoxCloneService =
     BoxCloneService<http::Request<hyper::Body>, http::Response<BoxBody>, std::convert::Infallible>;

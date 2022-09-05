@@ -17,18 +17,18 @@
 
 use std::{net::ToSocketAddrs, str::FromStr};
 
-use triple::transport::DubboServer;
+use crate::triple::transport::DubboServer;
 
 #[derive(Default, Clone)]
 pub struct TripleServer {
     s: DubboServer,
-    name: String,
+    service_names: Vec<String>,
 }
 
 impl TripleServer {
-    pub fn new(name: String) -> TripleServer {
+    pub fn new(names: Vec<String>) -> TripleServer {
         Self {
-            name,
+            service_names: names,
             s: DubboServer::new(),
         }
     }
@@ -36,18 +36,37 @@ impl TripleServer {
     pub async fn serve(mut self, url: String) {
         {
             let lock = super::TRIPLE_SERVICES.read().unwrap();
-            let svc = lock.get(&self.name).unwrap();
+            for name in self.service_names.iter() {
+                if lock.get(name).is_none() {
+                    tracing::warn!("service {} not register", name);
+                    continue;
+                }
+                let svc = lock.get(name).unwrap();
 
-            self.s = self.s.add_service(self.name.clone(), svc.clone());
+                self.s = self.s.add_service(name.clone(), svc.clone());
+            }
         }
 
-        let uri = http::Uri::from_str(&url.clone()).unwrap();
+        let uri = match http::Uri::from_str(&url) {
+            Ok(v) => v,
+            Err(err) => {
+                tracing::error!("http uri parse error: {}, url: {:?}", err, &url);
+                return;
+            }
+        };
+
+        let authority = match uri.authority() {
+            Some(v) => v.to_owned(),
+            None => {
+                tracing::error!("http authority is none");
+                return;
+            }
+        };
 
         self.s
             .with_listener("tcp".to_string())
             .serve(
-                uri.authority()
-                    .unwrap()
+                authority
                     .to_string()
                     .to_socket_addrs()
                     .unwrap()

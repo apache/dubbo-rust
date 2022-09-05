@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-use examples::protos::echo_client::EchoClient;
-use examples::protos::echo_server::HelloRequest;
+use dubbo::codegen::*;
+use examples::protos::hello_echo::echo_client::EchoClient;
+use examples::protos::hello_echo::EchoRequest;
 use futures_util::StreamExt;
-use triple::invocation::*;
 
 #[tokio::main]
 async fn main() {
     let mut cli = EchoClient::new().with_uri("http://127.0.0.1:8888".to_string());
     let resp = cli
-        .say_hello(Request::new(HelloRequest {
-            name: "message from client".to_string(),
+        .unary_echo(Request::new(EchoRequest {
+            message: "message from client".to_string(),
         }))
         .await;
     let resp = match resp {
@@ -36,18 +36,18 @@ async fn main() {
     println!("Response: {:?}", body);
 
     let data = vec![
-        HelloRequest {
-            name: "msg1 from client streaming".to_string(),
+        EchoRequest {
+            message: "msg1 from client streaming".to_string(),
         },
-        HelloRequest {
-            name: "msg2 from client streaming".to_string(),
+        EchoRequest {
+            message: "msg2 from client streaming".to_string(),
         },
-        HelloRequest {
-            name: "msg3 from client streaming".to_string(),
+        EchoRequest {
+            message: "msg3 from client streaming".to_string(),
         },
     ];
     let req = futures_util::stream::iter(data);
-    let resp = cli.client_streaming(req).await;
+    let resp = cli.client_streaming_echo(req).await;
     let client_streaming_resp = match resp {
         Ok(resp) => resp,
         Err(err) => return println!("{:?}", err),
@@ -56,14 +56,14 @@ async fn main() {
     println!("client streaming, Response: {:?}", resp_body);
 
     let data = vec![
-        HelloRequest {
-            name: "msg1 from client".to_string(),
+        EchoRequest {
+            message: "msg1 from client".to_string(),
         },
-        HelloRequest {
-            name: "msg2 from client".to_string(),
+        EchoRequest {
+            message: "msg2 from client".to_string(),
         },
-        HelloRequest {
-            name: "msg3 from client".to_string(),
+        EchoRequest {
+            message: "msg3 from client".to_string(),
         },
     ];
     let req = futures_util::stream::iter(data);
@@ -86,8 +86,8 @@ async fn main() {
     println!("trailer: {:?}", trailer);
 
     let resp = cli
-        .server_streaming(Request::new(HelloRequest {
-            name: "server streaming req".to_string(),
+        .server_streaming_echo(Request::new(EchoRequest {
+            message: "server streaming req".to_string(),
         }))
         .await
         .unwrap();

@@ -15,39 +15,6 @@
  * limitations under the License.
  */
 
-use crate::common::url::Url;
-use crate::invocation::{Request, Response};
-use crate::protocol::Invoker;
+pub mod triple;
 
-#[allow(dead_code)]
-#[derive(Clone, Default)]
-pub struct TripleInvoker {
-    url: Url,
-}
-
-impl TripleInvoker {
-    pub fn new(url: Url) -> TripleInvoker {
-        Self { url }
-    }
-}
-
-impl Invoker for TripleInvoker {
-    fn invoke<M1>(&self, _req: Request<M1>) -> Response<String>
-    where
-        M1: Send + 'static,
-    {
-        todo!()
-    }
-
-    fn is_available(&self) -> bool {
-        todo!()
-    }
-
-    fn destroy(&self) {
-        todo!()
-    }
-
-    fn get_url(&self) -> Url {
-        todo!()
-    }
-}
+pub use triple::TripleClient;

@@ -15,6 +15,11 @@
  * limitations under the License.
  */
 
-pub mod grpc;
-
-pub use grpc::TripleClient;
+pub mod client;
+pub mod codec;
+pub mod compression;
+pub mod consts;
+pub mod decode;
+pub mod encode;
+pub mod server;
+pub mod transport;

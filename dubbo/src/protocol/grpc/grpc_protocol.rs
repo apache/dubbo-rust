@@ -58,7 +58,7 @@ impl Protocol for GrpcProtocol {
     }
 
     async fn export(self, url: Url) -> Self::Exporter {
-        let service_key = url.service_key.clone();
+        let service_key = url.service_key.join(",");
 
         let exporter: GrpcExporter<GrpcInvoker> =
             GrpcExporter::new(service_key.clone(), GrpcInvoker::new(url.clone()));

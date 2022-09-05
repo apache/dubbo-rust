@@ -20,11 +20,11 @@ use std::str::FromStr;
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 
-use crate::codec::Codec;
-use crate::invocation::{IntoStreamingRequest, Request, Response};
-use crate::server::compression::CompressionEncoding;
-use crate::server::encode::encode;
-use crate::server::Decoding;
+use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
+use crate::triple::codec::Codec;
+use crate::triple::compression::CompressionEncoding;
+use crate::triple::decode::Decoding;
+use crate::triple::encode::encode;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
@@ -62,11 +62,14 @@ impl TripleClient {
 
     /// host: http://0.0.0.0:8888
     pub fn with_host(self, host: String) -> Self {
-        let uri = http::Uri::from_str(&host).unwrap();
-        TripleClient {
-            host: Some(uri),
-            ..self
-        }
+        let uri = match http::Uri::from_str(&host) {
+            Ok(v) => Some(v),
+            Err(err) => {
+                tracing::error!("http uri parse error: {}, host: {}", err, host);
+                None
+            }
+        };
+        TripleClient { host: uri, ..self }
     }
 }
 
@@ -76,7 +79,13 @@ impl TripleClient {
         path: http::uri::PathAndQuery,
         body: hyper::Body,
     ) -> http::Request<hyper::Body> {
-        let mut parts = self.host.clone().unwrap().into_parts();
+        let mut parts = match self.host.as_ref() {
+            Some(v) => v.to_owned().into_parts(),
+            None => {
+                tracing::warn!("client host is empty");
+                return http::Request::new(hyper::Body::empty());
+            }
+        };
         parts.path_and_query = Some(path);
 
         let uri = http::Uri::from_parts(parts).unwrap();
@@ -185,7 +194,7 @@ impl TripleClient {
                 if let Some(trailers) = body.trailer().await? {
                     let mut h = parts.into_headers();
                     h.extend(trailers.into_headers());
-                    parts = crate::invocation::Metadata::from_headers(h);
+                    parts = Metadata::from_headers(h);
                 }
 
                 Ok(Response::from_parts(parts, message))
@@ -280,7 +289,7 @@ impl TripleClient {
                 if let Some(trailers) = body.trailer().await? {
                     let mut h = parts.into_headers();
                     h.extend(trailers.into_headers());
-                    parts = crate::invocation::Metadata::from_headers(h);
+                    parts = Metadata::from_headers(h);
                 }
 
                 Ok(Response::from_parts(parts, message))
