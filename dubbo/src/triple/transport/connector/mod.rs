@@ -19,7 +19,7 @@ use hyper::Uri;
 use tower::make::MakeConnection;
 use tower_service::Service;
 
-use super::listener::BoxIO;
+use super::io::BoxIO;
 
 pub struct Connector<C> {
     inner: C,
