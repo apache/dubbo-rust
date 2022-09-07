@@ -16,6 +16,8 @@
  */
 
 use std::pin::Pin;
+
+use hyper::client::connect::Connection;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 pub struct BoxIO {
@@ -68,5 +70,12 @@ impl AsyncRead for BoxIO {
     ) -> std::task::Poll<std::io::Result<()>> {
         let s = &mut *self;
         Pin::new(&mut s.reader).poll_read(cx, buf)
+    }
+}
+
+/// for connector
+impl Connection for BoxIO {
+    fn connected(&self) -> hyper::client::connect::Connected {
+        hyper::client::connect::Connected::new()
     }
 }

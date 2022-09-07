@@ -17,10 +17,10 @@
 
 pub mod dns;
 
-use futures::Future;
 use std::net::SocketAddr;
 use std::task::{self, Poll};
 
+use futures::Future;
 use hyper::client::connect::dns::Name;
 use tower_service::Service;
 

@@ -26,6 +26,7 @@ use crate::triple::codec::Codec;
 use crate::triple::compression::CompressionEncoding;
 use crate::triple::decode::Decoding;
 use crate::triple::encode::encode;
+use crate::triple::transport::connector::http_connector::HttpConnector;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
@@ -185,7 +186,7 @@ impl TripleClient {
         let cli = self
             .inner
             .clone()
-            .builder_with_connector(hyper::client::HttpConnector::new());
+            .builder_with_connector(HttpConnector::new());
         let response = cli.request(req).await;
 
         match response {

@@ -20,15 +20,16 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::pin::Pin;
 use std::task::Poll;
-use tokio::task::JoinHandle;
+use std::vec;
 
+use tokio::task::JoinHandle;
 use tower_service::Service;
 
 #[derive(Clone, Default)]
 pub struct DnsResolver {}
 
 impl Service<String> for DnsResolver {
-    type Response = Vec<SocketAddr>;
+    type Response = vec::IntoIter<SocketAddr>;
 
     type Error = std::io::Error;
 
@@ -39,22 +40,18 @@ impl Service<String> for DnsResolver {
     }
 
     fn call(&mut self, name: String) -> Self::Future {
-        let block = tokio::task::spawn_blocking(move || {
-            (name, 0)
-                .to_socket_addrs()
-                .map(|res| res.as_slice().to_vec())
-        });
+        let block = tokio::task::spawn_blocking(move || (name, 0).to_socket_addrs());
 
         DnsFuture { inner: block }
     }
 }
 
 pub struct DnsFuture {
-    inner: JoinHandle<Result<Vec<SocketAddr>, std::io::Error>>,
+    inner: JoinHandle<Result<vec::IntoIter<SocketAddr>, std::io::Error>>,
 }
 
 impl Future for DnsFuture {
-    type Output = Result<Vec<SocketAddr>, std::io::Error>;
+    type Output = Result<vec::IntoIter<SocketAddr>, std::io::Error>;
 
     fn poll(
         mut self: std::pin::Pin<&mut Self>,

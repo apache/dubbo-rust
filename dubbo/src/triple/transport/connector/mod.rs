@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+pub mod http_connector;
+
 use hyper::Uri;
 use tower::make::MakeConnection;
 use tower_service::Service;
