@@ -19,12 +19,14 @@ use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
+use hyper::client::connect::Connect;
 
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
 use crate::triple::codec::Codec;
 use crate::triple::compression::CompressionEncoding;
 use crate::triple::decode::Decoding;
 use crate::triple::encode::encode;
+use crate::triple::transport::connector::http_connector::HttpConnector;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
@@ -47,6 +49,15 @@ impl ConnectionPool {
         hyper::Client::builder()
             .http2_only(self.http2_only)
             .build_http()
+    }
+
+    pub fn builder_with_connector<C>(self, connector: C) -> hyper::Client<C>
+    where
+        C: Connect + Clone,
+    {
+        hyper::Client::builder()
+            .http2_only(self.http2_only)
+            .build(connector)
     }
 }
 
@@ -172,7 +183,10 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(body_stream);
 
         let req = self.map_request(path, body);
-        let cli = self.inner.clone().builder();
+        let cli = self
+            .inner
+            .clone()
+            .builder_with_connector(HttpConnector::new());
         let response = cli.request(req).await;
 
         match response {
