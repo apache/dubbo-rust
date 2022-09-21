@@ -17,6 +17,7 @@
 
 pub mod codegen;
 pub mod common;
+pub mod filter;
 mod framework;
 pub mod invocation;
 pub mod protocol;
