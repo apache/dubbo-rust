@@ -27,7 +27,7 @@ use crate::triple::server::service::{
     ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc,
 };
 use crate::BoxBody;
-use config::BusinessConfig;
+use dubbo_config::BusinessConfig;
 
 pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";
 pub const GRPC_ENCODING: &str = "grpc-encoding";

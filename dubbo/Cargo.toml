@@ -2,6 +2,10 @@
 name = "dubbo"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
+description = "dubbo"
+documentation = "https://github.com/apache/dubbo-rust"
+repository = "https://github.com/apache/dubbo-rust.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,4 +34,4 @@ axum = "0.5.9"
 async-stream = "0.3"
 flate2 = "1.0"
 
-config = {path = "../config"}
+dubbo-config = {path = "../config", version = "0.1.0"}

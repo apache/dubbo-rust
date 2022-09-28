@@ -24,7 +24,7 @@ async-trait = "0.1.56"
 tokio-stream = "0.1"
 
 dubbo = {path = "../../dubbo"}
-config = {path = "../../config"}
+dubbo-config = {path = "../../config"}
 
 [build-dependencies]
 dubbo-build = {path = "../../dubbo-build"}

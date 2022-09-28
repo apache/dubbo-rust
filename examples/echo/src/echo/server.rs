@@ -24,9 +24,9 @@ use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use config::RootConfig;
 use dubbo::codegen::*;
 use dubbo::Dubbo;
+use dubbo_config::RootConfig;
 use example_echo::protos::hello_echo::{
     echo_server::{register_server, Echo},
     EchoRequest, EchoResponse,

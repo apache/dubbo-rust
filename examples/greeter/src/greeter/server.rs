@@ -33,8 +33,8 @@ use futures_util::Stream;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use config::RootConfig;
 use dubbo::{codegen::*, Dubbo};
+use dubbo_config::RootConfig;
 
 type ResponseStream =
     Pin<Box<dyn Stream<Item = Result<GreeterReply, dubbo::status::Status>> + Send>>;
