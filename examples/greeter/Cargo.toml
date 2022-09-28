@@ -1,0 +1,30 @@
+[package]
+name = "example-greeter"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "greeter-server"
+path = "src/greeter/server.rs"
+
+[[bin]]
+name = "greeter-client"
+path = "src/greeter/client.rs"
+
+[dependencies]
+http = "0.2"
+http-body = "0.4.4"
+futures-util = {version = "0.3", default-features = false}
+tokio = { version = "1.0", features = [ "rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
+prost-derive = {version = "0.10", optional = true}
+prost = "0.10.4"
+async-trait = "0.1.56"
+tokio-stream = "0.1"
+
+dubbo = {path = "../../dubbo"}
+config = {path = "../../config"}
+
+[build-dependencies]
+dubbo-build = {path = "../../dubbo-build"}

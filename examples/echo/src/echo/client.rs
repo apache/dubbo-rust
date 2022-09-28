@@ -16,8 +16,8 @@
  */
 
 use dubbo::codegen::*;
-use examples::protos::hello_echo::echo_client::EchoClient;
-use examples::protos::hello_echo::EchoRequest;
+use example_echo::protos::hello_echo::echo_client::EchoClient;
+use example_echo::protos::hello_echo::EchoRequest;
 use futures_util::StreamExt;
 
 #[tokio::main]
