@@ -19,54 +19,27 @@ use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
-use hyper::client::connect::Connect;
+use tower_service::Service;
 
+use super::connection::Connection;
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
 use crate::triple::codec::Codec;
 use crate::triple::compression::CompressionEncoding;
 use crate::triple::decode::Decoding;
 use crate::triple::encode::encode;
-use crate::triple::transport::connector::http_connector::HttpConnector;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
     host: Option<http::Uri>,
-    inner: ConnectionPool,
+    inner: Connection,
     send_compression_encoding: Option<CompressionEncoding>,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct ConnectionPool {
-    http2_only: bool,
-}
-
-impl ConnectionPool {
-    pub fn new() -> Self {
-        ConnectionPool { http2_only: true }
-    }
-
-    pub fn builder(self) -> hyper::Client<hyper::client::HttpConnector> {
-        hyper::Client::builder()
-            .http2_only(self.http2_only)
-            .build_http()
-    }
-
-    pub fn builder_with_connector<C>(self, connector: C) -> hyper::Client<C>
-    where
-        C: Connect + Clone,
-    {
-        hyper::Client::builder()
-            .http2_only(self.http2_only)
-            .build(connector)
-    }
-}
-
-// TODO: initial connection pool
 impl TripleClient {
     pub fn new() -> Self {
         TripleClient {
             host: None,
-            inner: ConnectionPool::new(),
+            inner: Connection::new(),
             send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
     }
@@ -80,7 +53,12 @@ impl TripleClient {
                 None
             }
         };
-        TripleClient { host: uri, ..self }
+
+        TripleClient {
+            inner: self.inner.with_host(uri.clone().unwrap()),
+            host: uri,
+            ..self
+        }
     }
 }
 
@@ -163,7 +141,7 @@ impl TripleClient {
     }
 
     pub async fn unary<C, M1, M2>(
-        &self,
+        &mut self,
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
@@ -183,11 +161,8 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(body_stream);
 
         let req = self.map_request(path, body);
-        let cli = self
-            .inner
-            .clone()
-            .builder_with_connector(HttpConnector::new());
-        let response = cli.request(req).await;
+
+        let response = self.inner.call(req).await;
 
         match response {
             Ok(v) => {
@@ -242,8 +217,7 @@ impl TripleClient {
 
         let req = self.map_request(path, body);
 
-        let cli = self.inner.clone().builder();
-        let response = cli.request(req).await;
+        let response = self.inner.call(req).await;
 
         match response {
             Ok(v) => {
@@ -281,8 +255,8 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(en);
 
         let req = self.map_request(path, body);
-        let cli = self.inner.clone().builder();
-        let response = cli.request(req).await;
+
+        let response = self.inner.call(req).await;
 
         match response {
             Ok(v) => {
@@ -337,8 +311,7 @@ impl TripleClient {
 
         let req = self.map_request(path, body);
 
-        let cli = self.inner.clone().builder();
-        let response = cli.request(req).await;
+        let response = self.inner.call(req).await;
 
         match response {
             Ok(v) => {
