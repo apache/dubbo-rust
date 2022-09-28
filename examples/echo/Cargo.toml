@@ -23,8 +23,8 @@ prost = "0.10.4"
 async-trait = "0.1.56"
 tokio-stream = "0.1"
 
-dubbo = {path = "../../dubbo"}
-dubbo-config = {path = "../../config"}
+dubbo = {path = "../../dubbo", version = "0.1.0"}
+dubbo-config = {path = "../../config", version = "0.1.0"}
 
 [build-dependencies]
-dubbo-build = {path = "../../dubbo-build"}
+dubbo-build = {path = "../../dubbo-build", version = "0.1.0"}
