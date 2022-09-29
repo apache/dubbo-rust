@@ -35,9 +35,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
       - name: Check License Header
         uses: apache/skywalking-eyes/header@501a28d2fb4a9b962661987e50cf0219631b32ff
         with:
           log: info
           config: .licenserc.yaml
+      - name: Check Dependencies' License
+        uses: apache/skywalking-eyes/dependency@main
+        with:
+          log: info
