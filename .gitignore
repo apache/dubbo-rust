@@ -3,5 +3,4 @@ Cargo.lock
 **/*.rs.bk
 .vscode/
 .idea/
-echo
 helloworld
