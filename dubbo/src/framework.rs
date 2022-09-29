@@ -26,7 +26,7 @@ use crate::common::url::Url;
 use crate::protocol::triple::triple_invoker::TripleInvoker;
 use crate::protocol::triple::triple_protocol::TripleProtocol;
 use crate::protocol::{Exporter, Protocol};
-use config::{get_global_config, RootConfig};
+use dubbo_config::{get_global_config, RootConfig};
 
 pub type BoxExporter = Box<dyn Exporter<InvokerType = TripleInvoker>>;
 // Invoker是否可以基于hyper写一个通用的

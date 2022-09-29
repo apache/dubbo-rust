@@ -27,6 +27,8 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
           toolchain: ${{ matrix.rust }}
+    - name: Install Protoc
+      uses: arduino/setup-protoc@v1
     - run: cargo check
     
  fmt:
