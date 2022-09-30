@@ -1,6 +1,6 @@
 [package]
 name = "dubbo"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "dubbo"
@@ -34,4 +34,4 @@ axum = "0.5.9"
 async-stream = "0.3"
 flate2 = "1.0"
 
-dubbo-config = {path = "../config", version = "0.1.0"}
+dubbo-config = {path = "../config", version = "0.2.0"}
