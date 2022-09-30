@@ -83,6 +83,7 @@ impl RootConfig {
             }
         };
 
+        tracing::info!("current path: {:?}", env::current_dir());
         let data = fs::read(config_path)?;
         let mut conf: RootConfig = serde_yaml::from_slice(&data).unwrap();
         tracing::debug!("origin config: {:?}", conf);

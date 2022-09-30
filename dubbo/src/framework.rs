@@ -39,6 +39,7 @@ pub struct Dubbo {
 
 impl Dubbo {
     pub fn new() -> Dubbo {
+        tracing_subscriber::fmt::init();
         Self {
             protocols: HashMap::new(),
             config: None,
@@ -51,7 +52,6 @@ impl Dubbo {
     }
 
     pub fn init(&mut self) {
-        tracing_subscriber::fmt::init();
 
         if self.config.is_none() {
             self.config = Some(get_global_config())
