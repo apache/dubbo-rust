@@ -52,7 +52,6 @@ impl Dubbo {
     }
 
     pub fn init(&mut self) {
-
         if self.config.is_none() {
             self.config = Some(get_global_config())
         }
