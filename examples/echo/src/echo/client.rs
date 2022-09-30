@@ -22,7 +22,7 @@ use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() {
-    let mut cli = EchoClient::new().with_uri("http://127.0.0.1:8888".to_string());
+    let mut cli = EchoClient::connect("http://127.0.0.1:8888".to_string());
     let resp = cli
         .unary_echo(Request::new(EchoRequest {
             message: "message from client".to_string(),

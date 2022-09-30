@@ -26,7 +26,7 @@ use protos::{greeter_client::GreeterClient, GreeterRequest};
 
 #[tokio::main]
 async fn main() {
-    let mut cli = GreeterClient::new().with_uri("http://127.0.0.1:8888".to_string());
+    let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
 
     println!("# unary call");
     let resp = cli

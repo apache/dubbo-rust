@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 /// EchoRequest is the request for echo.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EchoRequest {
@@ -33,21 +16,33 @@ pub mod echo_client {
     use dubbo::codegen::*;
     /// Echo is the echo service.
     #[derive(Debug, Clone, Default)]
-    pub struct EchoClient {
-        inner: TripleClient,
-        uri: String,
+    pub struct EchoClient<T> {
+        inner: TripleClient<T>,
     }
-    impl EchoClient {
-        pub fn new() -> Self {
+    impl EchoClient<Connection> {
+        pub fn connect(host: String) -> Self {
+            let cli = TripleClient::connect(host);
+            EchoClient { inner: cli }
+        }
+    }
+    impl<T, RespBody> EchoClient<T>
+    where
+        RespBody: http_body::Body<Data = Bytes> + Send + Sync + 'static,
+        RespBody::Error: Into<StdError> + Send + Sync + 'static,
+        T: Service<http::Request<hyperBody>, Response = http::Response<RespBody>>,
+        T::Error: Into<StdError>,
+    {
+        pub fn new(inner: T) -> Self {
             Self {
-                inner: TripleClient::new(),
-                uri: "".to_string(),
+                inner: TripleClient::new(inner),
             }
         }
-        pub fn with_uri(mut self, uri: String) -> Self {
-            self.uri = uri.clone();
-            self.inner = self.inner.with_host(uri);
-            self
+        pub fn with_filter<F>(self, filter: F) -> EchoClient<FilterService<T, F>>
+        where
+            F: Filter,
+        {
+            let inner = self.inner.with_filter(filter);
+            EchoClient { inner }
         }
         /// UnaryEcho is unary echo.
         pub async fn unary_echo(
