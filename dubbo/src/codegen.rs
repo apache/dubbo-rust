@@ -19,7 +19,9 @@ pub use std::sync::Arc;
 pub use std::task::{Context, Poll};
 
 pub use async_trait::async_trait;
+pub use bytes::Bytes;
 pub use http_body::Body;
+pub use hyper::Body as hyperBody;
 pub use tower_service::Service;
 
 pub use super::invocation::{IntoStreamingRequest, Request, Response};
@@ -34,3 +36,6 @@ pub use super::triple::server::service::{
 };
 pub use super::triple::server::TripleServer;
 pub use super::{empty_body, BoxBody, BoxFuture, StdError};
+pub use crate::filter::service::FilterService;
+pub use crate::filter::Filter;
+pub use crate::triple::client::connection::Connection;

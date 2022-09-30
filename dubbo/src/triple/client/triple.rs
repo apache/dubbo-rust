@@ -22,6 +22,8 @@ use http::HeaderValue;
 use tower_service::Service;
 
 use super::connection::Connection;
+use crate::filter::service::FilterService;
+use crate::filter::Filter;
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
 use crate::triple::codec::Codec;
 use crate::triple::compression::CompressionEncoding;
@@ -29,23 +31,14 @@ use crate::triple::decode::Decoding;
 use crate::triple::encode::encode;
 
 #[derive(Debug, Clone, Default)]
-pub struct TripleClient {
+pub struct TripleClient<T> {
     host: Option<http::Uri>,
-    inner: Connection,
+    inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
 }
 
-impl TripleClient {
-    pub fn new() -> Self {
-        TripleClient {
-            host: None,
-            inner: Connection::new(),
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-        }
-    }
-
-    /// host: http://0.0.0.0:8888
-    pub fn with_host(self, host: String) -> Self {
+impl TripleClient<Connection> {
+    pub fn connect(host: String) -> Self {
         let uri = match http::Uri::from_str(&host) {
             Ok(v) => Some(v),
             Err(err) => {
@@ -55,14 +48,37 @@ impl TripleClient {
         };
 
         TripleClient {
-            inner: self.inner.with_host(uri.clone().unwrap()),
-            host: uri,
-            ..self
+            host: uri.clone(),
+            inner: Connection::new().with_host(uri.unwrap()),
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
     }
 }
 
-impl TripleClient {
+impl<T> TripleClient<T> {
+    pub fn new(inner: T) -> Self {
+        TripleClient {
+            host: None,
+            inner,
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
+        }
+    }
+
+    pub fn with_filter<F>(self, filter: F) -> TripleClient<FilterService<T, F>>
+    where
+        F: Filter,
+    {
+        TripleClient::new(FilterService::new(self.inner, filter))
+    }
+}
+
+impl<T, RespBody> TripleClient<T>
+where
+    RespBody: http_body::Body<Data = bytes::Bytes> + Send + Sync + 'static,
+    RespBody::Error: Into<crate::Error> + Send + Sync + 'static,
+    T: Service<http::Request<hyper::Body>, Response = http::Response<RespBody>>,
+    T::Error: Into<crate::Error>,
+{
     fn map_request(
         &self,
         path: http::uri::PathAndQuery,
@@ -162,7 +178,11 @@ impl TripleClient {
 
         let req = self.map_request(path, body);
 
-        let response = self.inner.call(req).await;
+        let response = self
+            .inner
+            .call(req)
+            .await
+            .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
@@ -188,10 +208,7 @@ impl TripleClient {
 
                 Ok(Response::from_parts(parts, message))
             }
-            Err(err) => Err(crate::status::Status::new(
-                crate::status::Code::Internal,
-                err.to_string(),
-            )),
+            Err(err) => Err(err),
         }
     }
 
@@ -217,7 +234,11 @@ impl TripleClient {
 
         let req = self.map_request(path, body);
 
-        let response = self.inner.call(req).await;
+        let response = self
+            .inner
+            .call(req)
+            .await
+            .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
@@ -227,10 +248,7 @@ impl TripleClient {
 
                 Ok(Response::from_http(resp))
             }
-            Err(err) => Err(crate::status::Status::new(
-                crate::status::Code::Internal,
-                err.to_string(),
-            )),
+            Err(err) => Err(err),
         }
     }
 
@@ -256,7 +274,11 @@ impl TripleClient {
 
         let req = self.map_request(path, body);
 
-        let response = self.inner.call(req).await;
+        let response = self
+            .inner
+            .call(req)
+            .await
+            .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
@@ -282,10 +304,7 @@ impl TripleClient {
 
                 Ok(Response::from_parts(parts, message))
             }
-            Err(err) => Err(crate::status::Status::new(
-                crate::status::Code::Internal,
-                err.to_string(),
-            )),
+            Err(err) => Err(err),
         }
     }
 
@@ -311,7 +330,11 @@ impl TripleClient {
 
         let req = self.map_request(path, body);
 
-        let response = self.inner.call(req).await;
+        let response = self
+            .inner
+            .call(req)
+            .await
+            .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
@@ -321,10 +344,7 @@ impl TripleClient {
 
                 Ok(Response::from_http(resp))
             }
-            Err(err) => Err(crate::status::Status::new(
-                crate::status::Code::Internal,
-                err.to_string(),
-            )),
+            Err(err) => Err(err),
         }
     }
 }
