@@ -305,6 +305,30 @@ impl Status {
 
         http::Response::from_parts(parts, crate::empty_body())
     }
+
+    pub fn to_hyper_body(&self) -> http::Response<hyper::Body> {
+        let (mut parts, _) = http::Response::new(()).into_parts();
+
+        parts.headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("application/grpc"),
+        );
+
+        parts
+            .headers
+            .insert(GRPC_STATUS, self.code.to_http_header_value());
+        parts.headers.insert(
+            GRPC_MESSAGE,
+            http::HeaderValue::from_str(&self.message).unwrap(),
+        );
+
+        parts.headers.insert(
+            "grpc-accept-encoding",
+            http::HeaderValue::from_static("gzip,identity"),
+        );
+
+        http::Response::from_parts(parts, hyper::Body::empty())
+    }
 }
 
 impl From<std::io::Error> for Status {

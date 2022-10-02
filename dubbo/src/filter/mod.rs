@@ -20,5 +20,5 @@ pub mod service;
 use crate::invocation::Request;
 
 pub trait Filter {
-    fn call(&mut self, _req: Request<()>) -> Result<Request<()>, crate::status::Status>;
+    fn call(&mut self, req: Request<()>) -> Result<Request<()>, crate::status::Status>;
 }

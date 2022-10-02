@@ -15,16 +15,11 @@
  * limitations under the License.
  */
 
-use std::{future::Future, task::Poll};
-
-use pin_project::pin_project;
 use tower_service::Service;
 
 use super::Filter;
-use crate::boxed;
 use crate::invocation::Metadata;
 use crate::invocation::Request;
-use crate::BoxBody;
 
 pub struct FilterService<S, F> {
     inner: S,
@@ -40,19 +35,18 @@ impl<S, F> FilterService<S, F> {
     }
 }
 
-impl<S, F, ReqBody, RespBody> Service<http::Request<ReqBody>> for FilterService<S, F>
+impl<S, F, ReqBody> Service<http::Request<ReqBody>> for FilterService<S, F>
 where
-    RespBody: Default + http_body::Body<Data = bytes::Bytes> + Send + 'static,
-    RespBody::Error: Into<crate::Error>,
     F: Filter,
-    S: Service<http::Request<ReqBody>, Response = http::Response<RespBody>>,
+    S: Service<http::Request<ReqBody>, Response = http::Response<hyper::Body>>,
     S::Error: Into<crate::Error>,
+    S::Future: Send + 'static,
 {
-    type Response = http::Response<BoxBody>;
+    type Response = http::Response<hyper::Body>;
 
     type Error = S::Error;
 
-    type Future = ResponseFuture<S::Future>;
+    type Future = crate::BoxFuture<Self::Response, Self::Error>;
 
     fn poll_ready(
         &mut self,
@@ -78,66 +72,11 @@ where
                 let http_req = req.into_http(uri, method, version);
 
                 let resp = self.inner.call(http_req);
-                ResponseFuture::future(resp)
+                Box::pin(resp)
             }
-            Err(err) => ResponseFuture::status(err),
-        }
-    }
-}
-
-#[pin_project]
-#[derive(Debug)]
-pub struct ResponseFuture<F> {
-    #[pin]
-    kind: Kind<F>,
-}
-
-impl<F> ResponseFuture<F> {
-    fn status(status: crate::status::Status) -> Self {
-        Self {
-            kind: Kind::Status(Some(status)),
-        }
-    }
-
-    fn future(future: F) -> Self {
-        Self {
-            kind: Kind::Future(future),
-        }
-    }
-}
-
-#[pin_project(project = KindProj)]
-#[derive(Debug)]
-enum Kind<F> {
-    Future(#[pin] F),
-    Status(Option<crate::status::Status>),
-}
-
-impl<F, E, B> Future for ResponseFuture<F>
-where
-    F: Future<Output = Result<http::Response<B>, E>>,
-    E: Into<crate::Error>,
-    B: Default + http_body::Body<Data = bytes::Bytes> + Send + 'static,
-    B::Error: Into<crate::Error>,
-{
-    type Output = Result<http::Response<BoxBody>, E>;
-
-    fn poll(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
-        match self.project().kind.project() {
-            KindProj::Future(future) => future
-                .poll(cx)
-                .map(|result| result.map(|res| res.map(boxed))),
-            KindProj::Status(status) => {
-                let response = status
-                    .take()
-                    .unwrap()
-                    .to_http()
-                    .map(|_| B::default())
-                    .map(boxed);
-                Poll::Ready(Ok(response))
+            Err(err) => {
+                let fut = async move { Ok(err.to_hyper_body()) };
+                Box::pin(fut)
             }
         }
     }

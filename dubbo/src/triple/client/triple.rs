@@ -56,9 +56,9 @@ impl TripleClient<Connection> {
 }
 
 impl<T> TripleClient<T> {
-    pub fn new(inner: T) -> Self {
+    pub fn new(inner: T, host: Option<http::Uri>) -> Self {
         TripleClient {
-            host: None,
+            host,
             inner,
             send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
@@ -68,15 +68,13 @@ impl<T> TripleClient<T> {
     where
         F: Filter,
     {
-        TripleClient::new(FilterService::new(self.inner, filter))
+        TripleClient::new(FilterService::new(self.inner, filter), self.host)
     }
 }
 
-impl<T, RespBody> TripleClient<T>
+impl<T> TripleClient<T>
 where
-    RespBody: http_body::Body<Data = bytes::Bytes> + Send + Sync + 'static,
-    RespBody::Error: Into<crate::Error> + Send + Sync + 'static,
-    T: Service<http::Request<hyper::Body>, Response = http::Response<RespBody>>,
+    T: Service<http::Request<hyper::Body>, Response = http::Response<hyper::Body>>,
     T::Error: Into<crate::Error>,
 {
     fn map_request(
@@ -87,7 +85,7 @@ where
         let mut parts = match self.host.as_ref() {
             Some(v) => v.to_owned().into_parts(),
             None => {
-                tracing::warn!("client host is empty");
+                tracing::error!("client host is empty");
                 return http::Request::new(hyper::Body::empty());
             }
         };
@@ -119,18 +117,18 @@ where
             HeaderValue::from_static("application/grpc+json"),
         );
         req.headers_mut()
-            .insert("user-agent", HeaderValue::from_static("dubbo-rust/1.0.0"));
+            .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
         req.headers_mut()
             .insert("te", HeaderValue::from_static("trailers"));
         req.headers_mut().insert(
             "tri-service-version",
-            HeaderValue::from_static("dubbo-rust/1.0.0"),
+            HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
         req.headers_mut()
             .insert("tri-service-group", HeaderValue::from_static("cluster"));
         req.headers_mut().insert(
             "tri-unit-info",
-            HeaderValue::from_static("dubbo-rust/1.0.0"),
+            HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
         if let Some(_encoding) = self.send_compression_encoding {
             req.headers_mut()
