@@ -79,16 +79,14 @@ pub fn generate<T: Service>(
                 }
             }
 
-            impl<T, RespBody> #service_ident<T>
+            impl<T> #service_ident<T>
             where
-                RespBody: http_body::Body<Data = Bytes> + Send + Sync + 'static,
-                RespBody::Error: Into<StdError> + Send + Sync + 'static,
-                T: Service<http::Request<hyperBody>, Response = http::Response<RespBody>>,
+                T: Service<http::Request<hyperBody>, Response = http::Response<hyperBody>>,
                 T::Error: Into<StdError>,
             {
                 pub fn new(inner: T) -> Self {
                     Self {
-                        inner: TripleClient::new(inner),
+                        inner: TripleClient::new(inner, None),
                     }
                 }
 
