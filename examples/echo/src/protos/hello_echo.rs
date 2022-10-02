@@ -18,13 +18,13 @@
 /// EchoRequest is the request for echo.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EchoRequest {
-    #[prost(string, tag = "1")]
+    #[prost(string, tag="1")]
     pub message: ::prost::alloc::string::String,
 }
 /// EchoResponse is the response for echo.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EchoResponse {
-    #[prost(string, tag = "1")]
+    #[prost(string, tag="1")]
     pub message: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
@@ -42,16 +42,14 @@ pub mod echo_client {
             EchoClient { inner: cli }
         }
     }
-    impl<T, RespBody> EchoClient<T>
+    impl<T> EchoClient<T>
     where
-        RespBody: http_body::Body<Data = Bytes> + Send + Sync + 'static,
-        RespBody::Error: Into<StdError> + Send + Sync + 'static,
-        T: Service<http::Request<hyperBody>, Response = http::Response<RespBody>>,
+        T: Service<http::Request<hyperBody>, Response = http::Response<hyperBody>>,
         T::Error: Into<StdError>,
     {
         pub fn new(inner: T) -> Self {
             Self {
-                inner: TripleClient::new(inner),
+                inner: TripleClient::new(inner, None),
             }
         }
         pub fn with_filter<F>(self, filter: F) -> EchoClient<FilterService<T, F>>
@@ -66,9 +64,13 @@ pub mod echo_client {
             &mut self,
             request: Request<super::EchoRequest>,
         ) -> Result<Response<super::EchoResponse>, dubbo::status::Status> {
-            let codec =
-                dubbo::codegen::ProstCodec::<super::EchoRequest, super::EchoResponse>::default();
-            let path = http::uri::PathAndQuery::from_static("/grpc.examples.echo.Echo/UnaryEcho");
+            let codec = dubbo::codegen::ProstCodec::<
+                super::EchoRequest,
+                super::EchoResponse,
+            >::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/grpc.examples.echo.Echo/UnaryEcho",
+            );
             self.inner.unary(request, codec, path).await
         }
         /// ServerStreamingEcho is server side streaming.
@@ -76,8 +78,10 @@ pub mod echo_client {
             &mut self,
             request: Request<super::EchoRequest>,
         ) -> Result<Response<Decoding<super::EchoResponse>>, dubbo::status::Status> {
-            let codec =
-                dubbo::codegen::ProstCodec::<super::EchoRequest, super::EchoResponse>::default();
+            let codec = dubbo::codegen::ProstCodec::<
+                super::EchoRequest,
+                super::EchoResponse,
+            >::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/ServerStreamingEcho",
             );
@@ -88,8 +92,10 @@ pub mod echo_client {
             &mut self,
             request: impl IntoStreamingRequest<Message = super::EchoRequest>,
         ) -> Result<Response<super::EchoResponse>, dubbo::status::Status> {
-            let codec =
-                dubbo::codegen::ProstCodec::<super::EchoRequest, super::EchoResponse>::default();
+            let codec = dubbo::codegen::ProstCodec::<
+                super::EchoRequest,
+                super::EchoResponse,
+            >::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/ClientStreamingEcho",
             );
@@ -100,8 +106,10 @@ pub mod echo_client {
             &mut self,
             request: impl IntoStreamingRequest<Message = super::EchoRequest>,
         ) -> Result<Response<Decoding<super::EchoResponse>>, dubbo::status::Status> {
-            let codec =
-                dubbo::codegen::ProstCodec::<super::EchoRequest, super::EchoResponse>::default();
+            let codec = dubbo::codegen::ProstCodec::<
+                super::EchoRequest,
+                super::EchoResponse,
+            >::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/BidirectionalStreamingEcho",
             );
@@ -122,7 +130,9 @@ pub mod echo_server {
             request: Request<super::EchoRequest>,
         ) -> Result<Response<super::EchoResponse>, dubbo::status::Status>;
         ///Server streaming response type for the ServerStreamingEcho method.
-        type ServerStreamingEchoStream: futures_util::Stream<Item = Result<super::EchoResponse, dubbo::status::Status>>
+        type ServerStreamingEchoStream: futures_util::Stream<
+                Item = Result<super::EchoResponse, dubbo::status::Status>,
+            >
             + Send
             + 'static;
         /// ServerStreamingEcho is server side streaming.
@@ -136,14 +146,19 @@ pub mod echo_server {
             request: Request<Decoding<super::EchoRequest>>,
         ) -> Result<Response<super::EchoResponse>, dubbo::status::Status>;
         ///Server streaming response type for the BidirectionalStreamingEcho method.
-        type BidirectionalStreamingEchoStream: futures_util::Stream<Item = Result<super::EchoResponse, dubbo::status::Status>>
+        type BidirectionalStreamingEchoStream: futures_util::Stream<
+                Item = Result<super::EchoResponse, dubbo::status::Status>,
+            >
             + Send
             + 'static;
         /// BidirectionalStreamingEcho is bidi streaming.
         async fn bidirectional_streaming_echo(
             &self,
             request: Request<Decoding<super::EchoRequest>>,
-        ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, dubbo::status::Status>;
+        ) -> Result<
+            Response<Self::BidirectionalStreamingEchoStream>,
+            dubbo::status::Status,
+        >;
     }
     /// Echo is the echo service.
     #[derive(Debug)]
@@ -170,7 +185,10 @@ pub mod echo_server {
         type Response = http::Response<BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -183,18 +201,26 @@ pub mod echo_server {
                     }
                     impl<T: Echo> UnarySvc<super::EchoRequest> for UnaryEchoServer<T> {
                         type Response = super::EchoResponse;
-                        type Future = BoxFuture<Response<Self::Response>, dubbo::status::Status>;
-                        fn call(&mut self, request: Request<super::EchoRequest>) -> Self::Future {
+                        type Future = BoxFuture<
+                            Response<Self::Response>,
+                            dubbo::status::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: Request<super::EchoRequest>,
+                        ) -> Self::Future {
                             let inner = self.inner.0.clone();
                             let fut = async move { inner.unary_echo(request).await };
                             Box::pin(fut)
                         }
                     }
                     let fut = async move {
-                        let mut server = TripleServer::new(dubbo::codegen::ProstCodec::<
-                            super::EchoResponse,
-                            super::EchoRequest,
-                        >::default());
+                        let mut server = TripleServer::new(
+                            dubbo::codegen::ProstCodec::<
+                                super::EchoResponse,
+                                super::EchoRequest,
+                            >::default(),
+                        );
                         let res = server.unary(UnaryEchoServer { inner }, req).await;
                         Ok(res)
                     };
@@ -205,22 +231,32 @@ pub mod echo_server {
                     struct ServerStreamingEchoServer<T: Echo> {
                         inner: _Inner<T>,
                     }
-                    impl<T: Echo> ServerStreamingSvc<super::EchoRequest> for ServerStreamingEchoServer<T> {
+                    impl<T: Echo> ServerStreamingSvc<super::EchoRequest>
+                    for ServerStreamingEchoServer<T> {
                         type Response = super::EchoResponse;
                         type ResponseStream = T::ServerStreamingEchoStream;
-                        type Future =
-                            BoxFuture<Response<Self::ResponseStream>, dubbo::status::Status>;
-                        fn call(&mut self, request: Request<super::EchoRequest>) -> Self::Future {
+                        type Future = BoxFuture<
+                            Response<Self::ResponseStream>,
+                            dubbo::status::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: Request<super::EchoRequest>,
+                        ) -> Self::Future {
                             let inner = self.inner.0.clone();
-                            let fut = async move { inner.server_streaming_echo(request).await };
+                            let fut = async move {
+                                inner.server_streaming_echo(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
                     let fut = async move {
-                        let mut server = TripleServer::new(dubbo::codegen::ProstCodec::<
-                            super::EchoResponse,
-                            super::EchoRequest,
-                        >::default());
+                        let mut server = TripleServer::new(
+                            dubbo::codegen::ProstCodec::<
+                                super::EchoResponse,
+                                super::EchoRequest,
+                            >::default(),
+                        );
                         let res = server
                             .server_streaming(ServerStreamingEchoServer { inner }, req)
                             .await;
@@ -233,23 +269,31 @@ pub mod echo_server {
                     struct ClientStreamingEchoServer<T: Echo> {
                         inner: _Inner<T>,
                     }
-                    impl<T: Echo> ClientStreamingSvc<super::EchoRequest> for ClientStreamingEchoServer<T> {
+                    impl<T: Echo> ClientStreamingSvc<super::EchoRequest>
+                    for ClientStreamingEchoServer<T> {
                         type Response = super::EchoResponse;
-                        type Future = BoxFuture<Response<Self::Response>, dubbo::status::Status>;
+                        type Future = BoxFuture<
+                            Response<Self::Response>,
+                            dubbo::status::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: Request<Decoding<super::EchoRequest>>,
                         ) -> Self::Future {
                             let inner = self.inner.0.clone();
-                            let fut = async move { inner.client_streaming_echo(request).await };
+                            let fut = async move {
+                                inner.client_streaming_echo(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
                     let fut = async move {
-                        let mut server = TripleServer::new(dubbo::codegen::ProstCodec::<
-                            super::EchoResponse,
-                            super::EchoRequest,
-                        >::default());
+                        let mut server = TripleServer::new(
+                            dubbo::codegen::ProstCodec::<
+                                super::EchoResponse,
+                                super::EchoRequest,
+                            >::default(),
+                        );
                         let res = server
                             .client_streaming(ClientStreamingEchoServer { inner }, req)
                             .await;
@@ -262,51 +306,63 @@ pub mod echo_server {
                     struct BidirectionalStreamingEchoServer<T: Echo> {
                         inner: _Inner<T>,
                     }
-                    impl<T: Echo> StreamingSvc<super::EchoRequest> for BidirectionalStreamingEchoServer<T> {
+                    impl<T: Echo> StreamingSvc<super::EchoRequest>
+                    for BidirectionalStreamingEchoServer<T> {
                         type Response = super::EchoResponse;
                         type ResponseStream = T::BidirectionalStreamingEchoStream;
-                        type Future =
-                            BoxFuture<Response<Self::ResponseStream>, dubbo::status::Status>;
+                        type Future = BoxFuture<
+                            Response<Self::ResponseStream>,
+                            dubbo::status::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: Request<Decoding<super::EchoRequest>>,
                         ) -> Self::Future {
                             let inner = self.inner.0.clone();
-                            let fut =
-                                async move { inner.bidirectional_streaming_echo(request).await };
+                            let fut = async move {
+                                inner.bidirectional_streaming_echo(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
                     let fut = async move {
-                        let mut server = TripleServer::new(dubbo::codegen::ProstCodec::<
-                            super::EchoResponse,
-                            super::EchoRequest,
-                        >::default());
+                        let mut server = TripleServer::new(
+                            dubbo::codegen::ProstCodec::<
+                                super::EchoResponse,
+                                super::EchoRequest,
+                            >::default(),
+                        );
                         let res = server
-                            .bidi_streaming(BidirectionalStreamingEchoServer { inner }, req)
+                            .bidi_streaming(
+                                BidirectionalStreamingEchoServer {
+                                    inner,
+                                },
+                                req,
+                            )
                             .await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
     impl<T: Echo, I: Invoker + Send + 'static> Clone for EchoServer<T, I> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
-            Self {
-                inner,
-                invoker: None,
-            }
+            Self { inner, invoker: None }
         }
     }
     impl<T: Echo> Clone for _Inner<T> {
