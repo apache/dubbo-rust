@@ -21,6 +21,7 @@ use super::Filter;
 use crate::invocation::Metadata;
 use crate::invocation::Request;
 
+#[derive(Clone)]
 pub struct FilterService<S, F> {
     inner: S,
     f: F,

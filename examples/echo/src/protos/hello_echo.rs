@@ -44,7 +44,7 @@ pub mod echo_client {
     }
     impl<T> EchoClient<T>
     where
-        T: Service<http::Request<hyperBody>, Response = http::Response<hyperBody>>,
+        T: Service<http::Request<hyperBody>, Response = http::Response<BoxBody>>,
         T::Error: Into<StdError>,
     {
         pub fn new(inner: T) -> Self {
@@ -173,6 +173,12 @@ pub mod echo_server {
                 inner: _Inner(Arc::new(inner)),
                 invoker: None,
             }
+        }
+        pub fn with_filter<F>(inner: T, filter: F) -> FilterService<Self, F>
+        where
+            F: Filter,
+        {
+            FilterService::new(Self::new(inner), filter)
         }
     }
     impl<T, I, B> Service<http::Request<B>> for EchoServer<T, I>

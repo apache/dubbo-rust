@@ -91,6 +91,13 @@ pub fn generate<T: Service>(
                     }
                 }
 
+                pub fn with_filter<F>(inner: T, filter: F) -> FilterService<Self, F>
+                where
+                    F: Filter,
+                {
+                    FilterService::new(Self::new(inner), filter)
+                }
+
             }
 
             impl<T, I, B> Service<http::Request<B>> for #server_service<T, I>
