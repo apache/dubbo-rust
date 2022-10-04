@@ -74,7 +74,7 @@ impl<T> TripleClient<T> {
 
 impl<T> TripleClient<T>
 where
-    T: Service<http::Request<hyper::Body>, Response = http::Response<hyper::Body>>,
+    T: Service<http::Request<hyper::Body>, Response = http::Response<crate::BoxBody>>,
     T::Error: Into<crate::Error>,
 {
     fn map_request(

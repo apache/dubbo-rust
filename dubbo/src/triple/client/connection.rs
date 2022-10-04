@@ -21,6 +21,7 @@ use hyper::client::conn::Builder;
 use hyper::client::service::Connect;
 use tower_service::Service;
 
+use crate::boxed;
 use crate::triple::transport::connector::get_connector;
 
 #[derive(Debug, Clone)]
@@ -67,7 +68,7 @@ where
     ReqBody::Data: Send + Unpin,
     ReqBody::Error: Into<crate::Error>,
 {
-    type Response = http::Response<hyper::Body>;
+    type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
 
@@ -86,7 +87,10 @@ where
         let uri = self.host.clone();
         let fut = async move {
             let mut con = connector.call(uri).await.unwrap();
-            con.call(req).await.map_err(|err| err.into())
+            con.call(req)
+                .await
+                .map_err(|err| err.into())
+                .map(|res| res.map(boxed))
         };
 
         Box::pin(fut)

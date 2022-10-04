@@ -38,11 +38,11 @@ impl<S, F> FilterService<S, F> {
 impl<S, F, ReqBody> Service<http::Request<ReqBody>> for FilterService<S, F>
 where
     F: Filter,
-    S: Service<http::Request<ReqBody>, Response = http::Response<hyper::Body>>,
+    S: Service<http::Request<ReqBody>, Response = http::Response<crate::BoxBody>>,
     S::Error: Into<crate::Error>,
     S::Future: Send + 'static,
 {
-    type Response = http::Response<hyper::Body>;
+    type Response = http::Response<crate::BoxBody>;
 
     type Error = S::Error;
 
@@ -75,7 +75,7 @@ where
                 Box::pin(resp)
             }
             Err(err) => {
-                let fut = async move { Ok(err.to_hyper_body()) };
+                let fut = async move { Ok(err.to_http()) };
                 Box::pin(fut)
             }
         }
