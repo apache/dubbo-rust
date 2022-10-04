@@ -81,7 +81,7 @@ pub fn generate<T: Service>(
 
             impl<T> #service_ident<T>
             where
-                T: Service<http::Request<hyperBody>, Response = http::Response<hyperBody>>,
+                T: Service<http::Request<hyperBody>, Response = http::Response<BoxBody>>,
                 T::Error: Into<StdError>,
             {
                 pub fn new(inner: T) -> Self {
