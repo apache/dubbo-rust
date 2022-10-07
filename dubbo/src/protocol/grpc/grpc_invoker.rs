@@ -15,8 +15,6 @@
  * limitations under the License.
  */
 
-use std::sync::Once;
-
 use tonic::client::Grpc;
 use tonic::transport::Channel;
 use tonic::transport::Endpoint;
@@ -28,7 +26,6 @@ use crate::protocol::Invoker;
 pub struct GrpcInvoker {
     client: Grpc<Channel>,
     url: Url,
-    once: Once,
 }
 
 impl GrpcInvoker {
@@ -38,20 +35,11 @@ impl GrpcInvoker {
         Self {
             url,
             client: Grpc::new(conn),
-            once: Once::new(),
         }
     }
 }
 
 impl Invoker for GrpcInvoker {
-    fn is_available(&self) -> bool {
-        true
-    }
-
-    fn destroy(&self) {
-        self.once.call_once(|| println!("destroy..."))
-    }
-
     fn get_url(&self) -> Url {
         self.url.to_owned()
     }
@@ -75,7 +63,6 @@ impl Clone for GrpcInvoker {
         Self {
             client: self.client.clone(),
             url: self.url.clone(),
-            once: Once::new(),
         }
     }
 }

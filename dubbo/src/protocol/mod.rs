@@ -46,8 +46,6 @@ pub trait Invoker {
     fn invoke<M1>(&self, req: Request<M1>) -> Response<String>
     where
         M1: Send + 'static;
-    fn is_available(&self) -> bool;
-    fn destroy(&self);
     fn get_url(&self) -> Url;
 }
 

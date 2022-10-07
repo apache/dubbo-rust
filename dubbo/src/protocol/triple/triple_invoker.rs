@@ -39,14 +39,6 @@ impl Invoker for TripleInvoker {
         todo!()
     }
 
-    fn is_available(&self) -> bool {
-        todo!()
-    }
-
-    fn destroy(&self) {
-        todo!()
-    }
-
     fn get_url(&self) -> Url {
         todo!()
     }

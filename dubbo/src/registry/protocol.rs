@@ -15,31 +15,20 @@
  * limitations under the License.
  */
 
-#![allow(unused_variables, dead_code, missing_docs)]
-pub mod memory_registry;
-pub mod protocol;
+use std::collections::HashMap;
 
+use super::BoxRegistry;
 use crate::common::url::Url;
 
-pub trait Registry {
-    type NotifyListener;
-
-    fn register(&mut self, url: Url) -> Result<(), crate::StdError>;
-    fn unregister(&mut self, url: Url) -> Result<(), crate::StdError>;
-
-    fn subscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), crate::StdError>;
-    fn unsubscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), crate::StdError>;
+pub struct RegistryProtocol {
+    registries: HashMap<String, BoxRegistry>,
 }
 
-pub trait NotifyListener {
-    fn notify(&self, event: ServiceEvent);
-    fn notify_all(&self, event: ServiceEvent);
-}
+impl RegistryProtocol {
+    fn destroy(&self) {
+        todo!()
+    }
 
-pub struct ServiceEvent {
-    key: String,
-    action: String,
-    service: Url,
+    async fn export(self, url: Url) {}
+    async fn refer(self, url: Url) {}
 }
-
-pub type BoxRegistry = Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener>>;
