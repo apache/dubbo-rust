@@ -1,6 +1,6 @@
 [package]
 name = "example-echo"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -23,8 +23,8 @@ prost = "0.10.4"
 async-trait = "0.1.56"
 tokio-stream = "0.1"
 
-dubbo = {path = "../../dubbo", version = "0.1.0"}
-dubbo-config = {path = "../../config", version = "0.1.0"}
+dubbo = {path = "../../dubbo", version = "0.2.0"}
+dubbo-config = {path = "../../config", version = "0.2.0"}
 
 [build-dependencies]
-dubbo-build = {path = "../../dubbo-build", version = "0.1.0"}
+dubbo-build = {path = "../../dubbo-build", version = "0.2.0"}
