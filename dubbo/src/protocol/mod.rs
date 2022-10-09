@@ -22,40 +22,23 @@ pub mod triple;
 use async_trait::async_trait;
 
 use crate::common::url::Url;
-use crate::invocation::{Request, Response};
-use crate::utils::boxed_clone::BoxCloneService;
 
 #[async_trait]
 pub trait Protocol {
     type Invoker;
-    type Exporter;
 
     fn destroy(&self);
-    async fn export(self, url: Url) -> Self::Exporter;
+    async fn export(self, url: Url) -> BoxExporter;
     async fn refer(self, url: Url) -> Self::Invoker;
 }
 
 pub trait Exporter {
-    type InvokerType: Invoker;
-
     fn unexport(&self);
-    fn get_invoker(&self) -> Self::InvokerType;
 }
 
 pub trait Invoker {
-    fn invoke<M1>(&self, req: Request<M1>) -> Response<String>
-    where
-        M1: Send + 'static;
     fn get_url(&self) -> Url;
 }
 
-pub trait DubboGrpcService<T> {
-    fn set_proxy_impl(&mut self, invoker: T);
-    fn service_desc(&self) -> server_desc::ServiceDesc;
-}
-
-pub type GrpcBoxCloneService = BoxCloneService<
-    http::Request<hyper::Body>,
-    http::Response<hyper::Body>,
-    std::convert::Infallible,
->;
+pub type BoxExporter = Box<dyn Exporter>;
+pub type BoxInvoker = Box<dyn Invoker>;

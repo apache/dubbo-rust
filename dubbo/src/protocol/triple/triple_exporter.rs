@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-use super::triple_invoker::TripleInvoker;
 use crate::protocol::Exporter;
 
 #[derive(Clone)]
@@ -34,13 +33,7 @@ impl Default for TripleExporter {
 }
 
 impl Exporter for TripleExporter {
-    type InvokerType = TripleInvoker;
-
     fn unexport(&self) {
-        todo!()
-    }
-
-    fn get_invoker(&self) -> Self::InvokerType {
         todo!()
     }
 }

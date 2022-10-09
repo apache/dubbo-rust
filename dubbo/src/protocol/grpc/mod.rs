@@ -24,9 +24,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use crate::protocol::DubboGrpcService;
 use crate::utils::boxed_clone::BoxCloneService;
-use grpc_invoker::GrpcInvoker;
 
 pub type GrpcBoxCloneService = BoxCloneService<
     http::Request<hyper::Body>,
@@ -34,11 +32,7 @@ pub type GrpcBoxCloneService = BoxCloneService<
     std::convert::Infallible,
 >;
 
-pub type DubboGrpcBox = Box<dyn DubboGrpcService<GrpcInvoker> + Send + Sync + 'static>;
-
 lazy_static! {
-    pub static ref DUBBO_GRPC_SERVICES: RwLock<HashMap<String, Box<dyn DubboGrpcService<GrpcInvoker> + Send + Sync + 'static>>> =
-        RwLock::new(HashMap::new());
     pub static ref GRPC_SERVICES: RwLock<HashMap<String, GrpcBoxCloneService>> =
         RwLock::new(HashMap::new());
 }

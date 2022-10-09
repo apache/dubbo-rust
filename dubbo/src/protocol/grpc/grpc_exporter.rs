@@ -28,13 +28,7 @@ impl<T> GrpcExporter<T> {
 }
 
 impl<T: Invoker + Clone> Exporter for GrpcExporter<T> {
-    type InvokerType = T;
-
     fn unexport(&self) {}
-
-    fn get_invoker(&self) -> Self::InvokerType {
-        self.invoker.clone()
-    }
 }
 
 impl<T: Invoker + Clone> Clone for GrpcExporter<T> {

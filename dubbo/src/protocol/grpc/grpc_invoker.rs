@@ -20,7 +20,6 @@ use tonic::transport::Channel;
 use tonic::transport::Endpoint;
 
 use crate::common::url::Url;
-use crate::invocation::{Request, Response};
 use crate::protocol::Invoker;
 
 pub struct GrpcInvoker {
@@ -42,19 +41,6 @@ impl GrpcInvoker {
 impl Invoker for GrpcInvoker {
     fn get_url(&self) -> Url {
         self.url.to_owned()
-    }
-
-    // 根据req中的数据发起req，由Client发起请求，获取响应
-    fn invoke<M1>(&self, req: Request<M1>) -> Response<String>
-    where
-        M1: Send + 'static,
-    {
-        let (metadata, _) = req.into_parts();
-
-        let resp = Response::new("string");
-        let (_resp_meta, msg) = resp.into_parts();
-
-        Response::from_parts(metadata, msg.to_string())
     }
 }
 

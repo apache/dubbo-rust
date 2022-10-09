@@ -16,7 +16,6 @@
  */
 
 use crate::common::url::Url;
-use crate::invocation::{Request, Response};
 use crate::protocol::Invoker;
 
 #[allow(dead_code)]
@@ -32,13 +31,6 @@ impl TripleInvoker {
 }
 
 impl Invoker for TripleInvoker {
-    fn invoke<M1>(&self, _req: Request<M1>) -> Response<String>
-    where
-        M1: Send + 'static,
-    {
-        todo!()
-    }
-
     fn get_url(&self) -> Url {
         todo!()
     }

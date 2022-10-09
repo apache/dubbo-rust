@@ -21,7 +21,7 @@ use super::grpc_exporter::GrpcExporter;
 use super::grpc_invoker::GrpcInvoker;
 use super::grpc_server::GrpcServer;
 use crate::common::url::Url;
-use crate::protocol::Protocol;
+use crate::protocol::{BoxExporter, Protocol};
 
 pub struct GrpcProtocol {
     server_map: HashMap<String, GrpcServer>,
@@ -47,8 +47,6 @@ impl Default for GrpcProtocol {
 impl Protocol for GrpcProtocol {
     type Invoker = GrpcInvoker;
 
-    type Exporter = GrpcExporter<Self::Invoker>;
-
     fn destroy(&self) {
         todo!()
     }
@@ -57,7 +55,7 @@ impl Protocol for GrpcProtocol {
         GrpcInvoker::new(url)
     }
 
-    async fn export(self, url: Url) -> Self::Exporter {
+    async fn export(self, url: Url) -> BoxExporter {
         let service_key = url.service_key.join(",");
 
         let exporter: GrpcExporter<GrpcInvoker> =
@@ -71,6 +69,6 @@ impl Protocol for GrpcProtocol {
         let mut server_map = self.server_map;
         server_map.insert(service_key.clone(), server.clone());
         server.serve(url.clone()).await;
-        exporter
+        Box::new(exporter)
     }
 }

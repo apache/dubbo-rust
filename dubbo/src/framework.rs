@@ -23,12 +23,10 @@ use futures::Future;
 use futures::FutureExt;
 
 use crate::common::url::Url;
-use crate::protocol::triple::triple_invoker::TripleInvoker;
 use crate::protocol::triple::triple_protocol::TripleProtocol;
-use crate::protocol::{Exporter, Protocol};
+use crate::protocol::{BoxExporter, Protocol};
 use dubbo_config::{get_global_config, RootConfig};
 
-pub type BoxExporter = Box<dyn Exporter<InvokerType = TripleInvoker>>;
 // Invoker是否可以基于hyper写一个通用的
 
 #[derive(Default)]
@@ -105,11 +103,7 @@ impl Dubbo {
                 "triple" => {
                     let pro = Box::new(TripleProtocol::new());
                     for u in c.iter() {
-                        let tri_fut = pro
-                            .clone()
-                            .export(u.clone())
-                            .map(|res| Box::new(res) as BoxExporter)
-                            .boxed();
+                        let tri_fut = pro.clone().export(u.clone()).boxed();
                         async_vec.push(tri_fut);
                     }
                 }
