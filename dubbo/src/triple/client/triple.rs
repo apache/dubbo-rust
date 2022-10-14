@@ -43,7 +43,7 @@ impl TripleClient<Connection> {
             Ok(v) => Some(v),
             Err(err) => {
                 tracing::error!("http uri parse error: {}, host: {}", err, host);
-                None
+                panic!("http uri parse error: {}, host: {}", err, host)
             }
         };
 

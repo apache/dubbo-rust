@@ -15,23 +15,48 @@
  * limitations under the License.
  */
 
+use std::str::FromStr;
+
+use tower_service::Service;
+
 use crate::common::url::Url;
 use crate::protocol::Invoker;
+use crate::triple::client::connection::Connection;
 
 #[allow(dead_code)]
 #[derive(Clone, Default)]
 pub struct TripleInvoker {
     url: Url,
+    conn: Connection,
 }
 
 impl TripleInvoker {
     pub fn new(url: Url) -> TripleInvoker {
-        Self { url }
+        let uri = http::Uri::from_str(&url.to_url()).unwrap();
+        Self {
+            url,
+            conn: Connection::new().with_host(uri),
+        }
     }
 }
 
-impl Invoker for TripleInvoker {
+impl<ReqBody> Invoker<http::Request<ReqBody>> for TripleInvoker
+where
+    ReqBody: http_body::Body + Unpin + Send + 'static,
+    ReqBody::Error: Into<crate::Error>,
+    ReqBody::Data: Send + Unpin,
+{
+    type Response = http::Response<crate::BoxBody>;
+
+    type Error = crate::Error;
+
+    type Future = crate::BoxFuture<Self::Response, Self::Error>;
+
     fn get_url(&self) -> Url {
-        todo!()
+        self.url.clone()
+    }
+
+    fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
+        self.conn.call(req)
     }
 }

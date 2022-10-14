@@ -15,11 +15,14 @@
  * limitations under the License.
  */
 
-pub mod grpc;
 pub mod server_desc;
 pub mod triple;
 
+use std::future::Future;
+use std::task::{Context, Poll};
+
 use async_trait::async_trait;
+use tower_service::Service;
 
 use crate::common::url::Url;
 
@@ -36,9 +39,38 @@ pub trait Exporter {
     fn unexport(&self);
 }
 
-pub trait Invoker {
+pub trait Invoker<ReqBody> {
+    type Response;
+
+    type Error;
+
+    type Future: Future<Output = Result<Self::Response, Self::Error>>;
+
     fn get_url(&self) -> Url;
+
+    fn call(&mut self, req: ReqBody) -> Self::Future;
 }
 
 pub type BoxExporter = Box<dyn Exporter>;
-pub type BoxInvoker = Box<dyn Invoker>;
+
+pub struct WrapperInvoker<T>(T);
+
+impl<T, ReqBody> Service<http::Request<ReqBody>> for WrapperInvoker<T>
+where
+    T: Invoker<http::Request<ReqBody>, Response = http::Response<crate::BoxBody>>,
+    T::Error: Into<crate::Error>,
+{
+    type Response = T::Response;
+
+    type Error = T::Error;
+
+    type Future = T::Future;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
+        self.0.call(req)
+    }
+}
