@@ -162,16 +162,14 @@ pub mod echo_server {
     }
     /// Echo is the echo service.
     #[derive(Debug)]
-    pub struct EchoServer<T: Echo, I = TripleInvoker> {
+    pub struct EchoServer<T: Echo> {
         inner: _Inner<T>,
-        invoker: Option<I>,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: Echo, I> EchoServer<T, I> {
+    impl<T: Echo> EchoServer<T> {
         pub fn new(inner: T) -> Self {
             Self {
                 inner: _Inner(Arc::new(inner)),
-                invoker: None,
             }
         }
         pub fn with_filter<F>(inner: T, filter: F) -> FilterService<Self, F>
@@ -181,12 +179,11 @@ pub mod echo_server {
             FilterService::new(Self::new(inner), filter)
         }
     }
-    impl<T, I, B> Service<http::Request<B>> for EchoServer<T, I>
+    impl<T, B> Service<http::Request<B>> for EchoServer<T>
     where
         T: Echo,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
-        I: Invoker + Send + 'static,
     {
         type Response = http::Response<BoxBody>;
         type Error = std::convert::Infallible;
@@ -365,10 +362,10 @@ pub mod echo_server {
             }
         }
     }
-    impl<T: Echo, I: Invoker + Send + 'static> Clone for EchoServer<T, I> {
+    impl<T: Echo> Clone for EchoServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
-            Self { inner, invoker: None }
+            Self { inner }
         }
     }
     impl<T: Echo> Clone for _Inner<T> {
@@ -382,7 +379,7 @@ pub mod echo_server {
         }
     }
     pub fn register_server<T: Echo>(server: T) {
-        let s = EchoServer::<_, TripleInvoker>::new(server);
+        let s = EchoServer::new(server);
         dubbo::protocol::triple::TRIPLE_SERVICES
             .write()
             .unwrap()

@@ -76,18 +76,16 @@ pub fn generate<T: Service>(
             #service_doc
             #(#struct_attributes)*
             #[derive(Debug)]
-            pub struct #server_service<T: #server_trait, I = TripleInvoker> {
+            pub struct #server_service<T: #server_trait> {
                 inner: _Inner<T>,
-                invoker: Option<I>,
             }
 
             struct _Inner<T>(Arc<T>);
 
-            impl<T: #server_trait, I> #server_service<T, I> {
+            impl<T: #server_trait> #server_service<T> {
                 pub fn new(inner: T) -> Self {
                     Self {
                         inner: _Inner(Arc::new(inner)),
-                        invoker: None,
                     }
                 }
 
@@ -100,12 +98,11 @@ pub fn generate<T: Service>(
 
             }
 
-            impl<T, I, B> Service<http::Request<B>> for #server_service<T, I>
+            impl<T, B> Service<http::Request<B>> for #server_service<T>
                 where
                     T: #server_trait,
                     B: Body + Send + 'static,
                     B::Error: Into<StdError> + Send + 'static,
-                    I: Invoker + Send + 'static,
             {
                 type Response = http::Response<BoxBody>;
                 type Error = std::convert::Infallible;
@@ -133,12 +130,11 @@ pub fn generate<T: Service>(
                 }
             }
 
-            impl<T: #server_trait, I: Invoker + Send + 'static> Clone for #server_service<T, I> {
+            impl<T: #server_trait> Clone for #server_service<T> {
                 fn clone(&self) -> Self {
                     let inner = self.inner.clone();
                     Self {
                         inner,
-                        invoker: None,
                     }
                 }
             }
@@ -156,7 +152,7 @@ pub fn generate<T: Service>(
             }
 
             pub fn register_server<T: #server_trait>(server: T) {
-                let s = #server_service::<_, TripleInvoker>::new(server);
+                let s = #server_service::new(server);
                 dubbo::protocol::triple::TRIPLE_SERVICES
                     .write()
                     .unwrap()

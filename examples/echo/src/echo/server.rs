@@ -51,7 +51,7 @@ async fn main() {
         name: "echo".to_string(),
     });
     let server = EchoServerImpl::default();
-    let s = EchoServer::<EchoServerImpl, TripleInvoker>::with_filter(server, FakeFilter {});
+    let s = EchoServer::<EchoServerImpl>::with_filter(server, FakeFilter {});
     dubbo::protocol::triple::TRIPLE_SERVICES
         .write()
         .unwrap()
