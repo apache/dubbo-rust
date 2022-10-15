@@ -42,4 +42,5 @@ pub struct ServiceEvent {
     service: Url,
 }
 
-pub type BoxRegistry = Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener>>;
+pub type BoxRegistry =
+    Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener> + Send + Sync>;

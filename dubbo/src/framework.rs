@@ -32,6 +32,7 @@ use dubbo_config::{get_global_config, RootConfig};
 #[derive(Default)]
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
+    registries: HashMap<String, Url>,
     config: Option<RootConfig>,
 }
 
@@ -40,6 +41,7 @@ impl Dubbo {
         tracing_subscriber::fmt::init();
         Self {
             protocols: HashMap::new(),
+            registries: HashMap::new(),
             config: None,
         }
     }
@@ -56,6 +58,12 @@ impl Dubbo {
 
         let conf = self.config.as_ref().unwrap();
         tracing::debug!("global conf: {:?}", conf);
+
+        for (name, url) in conf.registries.iter() {
+            self.registries
+                .insert(name.to_string(), Url::from_url(url).unwrap());
+        }
+
         for (_, c) in conf.service.iter() {
             let u = if c.protocol_configs.is_empty() {
                 let protocol = match conf.protocols.get(&c.protocol) {

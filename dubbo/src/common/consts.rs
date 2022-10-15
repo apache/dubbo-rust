@@ -15,5 +15,4 @@
  * limitations under the License.
  */
 
-pub mod consts;
-pub mod url;
+pub const REGISTRY_PROTOCOL: &str = "registry";

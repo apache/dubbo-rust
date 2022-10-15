@@ -51,7 +51,16 @@ pub trait Invoker<ReqBody> {
     fn call(&mut self, req: ReqBody) -> Self::Future;
 }
 
-pub type BoxExporter = Box<dyn Exporter>;
+pub type BoxExporter = Box<dyn Exporter + Send + Sync>;
+pub type BoxInvoker = Box<
+    dyn Invoker<
+            http::Request<hyper::Body>,
+            Response = http::Response<crate::BoxBody>,
+            Error = crate::Error,
+            Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
+        > + Send
+        + Sync,
+>;
 
 pub struct WrapperInvoker<T>(T);
 
