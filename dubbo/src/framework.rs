@@ -20,11 +20,10 @@ use std::pin::Pin;
 
 use futures::future;
 use futures::Future;
-use futures::FutureExt;
 
 use crate::common::url::Url;
-use crate::protocol::triple::triple_protocol::TripleProtocol;
 use crate::protocol::{BoxExporter, Protocol};
+use crate::registry::protocol::RegistryProtocol;
 use dubbo_config::{get_global_config, RootConfig};
 
 // Invoker是否可以基于hyper写一个通用的
@@ -104,20 +103,17 @@ impl Dubbo {
         self.init();
 
         // TODO: server registry
+        for (name, url) in self.registries.iter() {
+            tracing::info!("registry name: {:?}, url: {:?}", name, url);
+        }
 
+        let mem_reg = Box::new(RegistryProtocol::new());
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
-        for (key, c) in self.protocols.iter() {
-            match key.as_str() {
-                "triple" => {
-                    let pro = Box::new(TripleProtocol::new());
-                    for u in c.iter() {
-                        let tri_fut = pro.clone().export(u.clone()).boxed();
-                        async_vec.push(tri_fut);
-                    }
-                }
-                _ => {
-                    tracing::error!("protocol {:?} not implemented", key);
-                }
+        for (name, items) in self.protocols.iter() {
+            for url in items.iter() {
+                tracing::info!("protocol: {:?}, service url: {:?}", name, url);
+                let exporter = mem_reg.clone().export(url.to_owned());
+                async_vec.push(exporter)
             }
         }
 
