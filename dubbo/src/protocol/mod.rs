@@ -15,49 +15,71 @@
  * limitations under the License.
  */
 
-pub mod grpc;
 pub mod server_desc;
 pub mod triple;
 
+use std::future::Future;
+use std::task::{Context, Poll};
+
 use async_trait::async_trait;
+use tower_service::Service;
 
 use crate::common::url::Url;
-use crate::invocation::{Request, Response};
-use crate::utils::boxed_clone::BoxCloneService;
 
 #[async_trait]
 pub trait Protocol {
     type Invoker;
-    type Exporter;
 
     fn destroy(&self);
-    async fn export(self, url: Url) -> Self::Exporter;
+    async fn export(self, url: Url) -> BoxExporter;
     async fn refer(self, url: Url) -> Self::Invoker;
 }
 
 pub trait Exporter {
-    type InvokerType: Invoker;
-
     fn unexport(&self);
-    fn get_invoker(&self) -> Self::InvokerType;
 }
 
-pub trait Invoker {
-    fn invoke<M1>(&self, req: Request<M1>) -> Response<String>
-    where
-        M1: Send + 'static;
-    fn is_available(&self) -> bool;
-    fn destroy(&self);
+pub trait Invoker<ReqBody> {
+    type Response;
+
+    type Error;
+
+    type Future: Future<Output = Result<Self::Response, Self::Error>>;
+
     fn get_url(&self) -> Url;
+
+    fn call(&mut self, req: ReqBody) -> Self::Future;
 }
 
-pub trait DubboGrpcService<T> {
-    fn set_proxy_impl(&mut self, invoker: T);
-    fn service_desc(&self) -> server_desc::ServiceDesc;
-}
-
-pub type GrpcBoxCloneService = BoxCloneService<
-    http::Request<hyper::Body>,
-    http::Response<hyper::Body>,
-    std::convert::Infallible,
+pub type BoxExporter = Box<dyn Exporter + Send + Sync>;
+pub type BoxInvoker = Box<
+    dyn Invoker<
+            http::Request<hyper::Body>,
+            Response = http::Response<crate::BoxBody>,
+            Error = crate::Error,
+            Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
+        > + Send
+        + Sync,
 >;
+
+pub struct WrapperInvoker<T>(T);
+
+impl<T, ReqBody> Service<http::Request<ReqBody>> for WrapperInvoker<T>
+where
+    T: Invoker<http::Request<ReqBody>, Response = http::Response<crate::BoxBody>>,
+    T::Error: Into<crate::Error>,
+{
+    type Response = T::Response;
+
+    type Error = T::Error;
+
+    type Future = T::Future;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
+        self.0.call(req)
+    }
+}

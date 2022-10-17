@@ -51,9 +51,16 @@ impl<T> Request<T> {
         }
     }
 
-    pub fn into_http(self) -> http::Request<T> {
+    pub fn into_http(
+        self,
+        uri: http::Uri,
+        method: http::Method,
+        version: http::Version,
+    ) -> http::Request<T> {
         let mut http_req = http::Request::new(self.message);
-        *http_req.version_mut() = http::Version::HTTP_2;
+        *http_req.version_mut() = version;
+        *http_req.uri_mut() = uri;
+        *http_req.method_mut() = method;
         *http_req.headers_mut() = self.metadata.into_headers();
 
         http_req

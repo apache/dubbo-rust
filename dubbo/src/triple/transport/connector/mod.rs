@@ -17,18 +17,26 @@
 
 pub mod http_connector;
 
-use hyper::Uri;
+use hyper::{client::connect::Connection, Uri};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tower::make::MakeConnection;
 use tower_service::Service;
 
 use super::io::BoxIO;
+use crate::utils::boxed_clone::BoxCloneService;
 
+#[derive(Clone)]
 pub struct Connector<C> {
     inner: C,
 }
 
 impl<C> Connector<C> {
-    pub fn new(inner: C) -> Connector<C> {
+    pub fn new(inner: C) -> Connector<C>
+    where
+        C: Service<Uri>,
+        C::Error: Into<crate::Error>,
+        C::Response: AsyncRead + AsyncWrite + Connection + Send + 'static,
+    {
         Self { inner }
     }
 }
@@ -60,5 +68,18 @@ where
             let io = conn.await?;
             Ok(BoxIO::new(io))
         })
+    }
+}
+
+pub fn get_connector(connector: String) -> BoxCloneService<Uri, BoxIO, crate::Error> {
+    match connector.as_str() {
+        "http" => {
+            let c = http_connector::HttpConnector::new();
+            BoxCloneService::new(Connector::new(c))
+        }
+        _ => {
+            let c = http_connector::HttpConnector::new();
+            BoxCloneService::new(Connector::new(c))
+        }
     }
 }

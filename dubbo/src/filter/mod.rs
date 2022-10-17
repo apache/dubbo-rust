@@ -15,32 +15,10 @@
  * limitations under the License.
  */
 
-use crate::protocol::{Exporter, Invoker};
+pub mod service;
 
-pub struct GrpcExporter<T> {
-    invoker: T,
-}
+use crate::invocation::Request;
 
-impl<T> GrpcExporter<T> {
-    pub fn new(_key: String, invoker: T) -> GrpcExporter<T> {
-        Self { invoker }
-    }
-}
-
-impl<T: Invoker + Clone> Exporter for GrpcExporter<T> {
-    type InvokerType = T;
-
-    fn unexport(&self) {}
-
-    fn get_invoker(&self) -> Self::InvokerType {
-        self.invoker.clone()
-    }
-}
-
-impl<T: Invoker + Clone> Clone for GrpcExporter<T> {
-    fn clone(&self) -> Self {
-        Self {
-            invoker: self.invoker.clone(),
-        }
-    }
+pub trait Filter {
+    fn call(&mut self, req: Request<()>) -> Result<Request<()>, crate::status::Status>;
 }

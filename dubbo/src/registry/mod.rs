@@ -17,6 +17,7 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 pub mod memory_registry;
+pub mod protocol;
 
 use crate::common::url::Url;
 
@@ -40,3 +41,6 @@ pub struct ServiceEvent {
     action: String,
     service: Url,
 }
+
+pub type BoxRegistry =
+    Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener> + Send + Sync>;

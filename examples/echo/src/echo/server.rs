@@ -28,18 +28,37 @@ use dubbo::codegen::*;
 use dubbo::Dubbo;
 use dubbo_config::RootConfig;
 use example_echo::protos::hello_echo::{
-    echo_server::{register_server, Echo},
+    echo_server::{register_server, Echo, EchoServer},
     EchoRequest, EchoResponse,
 };
 
 type ResponseStream =
     Pin<Box<dyn Stream<Item = Result<EchoResponse, dubbo::status::Status>> + Send>>;
 
+#[derive(Clone)]
+pub struct FakeFilter {}
+
+impl Filter for FakeFilter {
+    fn call(&mut self, req: Request<()>) -> Result<Request<()>, dubbo::status::Status> {
+        println!("server fake filter: {:?}", req.metadata);
+        Ok(req)
+    }
+}
+
 #[tokio::main]
 async fn main() {
     register_server(EchoServerImpl {
         name: "echo".to_string(),
     });
+    let server = EchoServerImpl::default();
+    let s = EchoServer::<EchoServerImpl>::with_filter(server, FakeFilter {});
+    dubbo::protocol::triple::TRIPLE_SERVICES
+        .write()
+        .unwrap()
+        .insert(
+            "grpc.examples.echo.Echo".to_string(),
+            dubbo::utils::boxed_clone::BoxCloneService::new(s),
+        );
 
     // Dubbo::new().start().await;
     Dubbo::new()

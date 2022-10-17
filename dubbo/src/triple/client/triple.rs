@@ -19,72 +19,64 @@ use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
-use hyper::client::connect::Connect;
+use tower_service::Service;
 
+use super::connection::Connection;
+use crate::filter::service::FilterService;
+use crate::filter::Filter;
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
 use crate::triple::codec::Codec;
 use crate::triple::compression::CompressionEncoding;
 use crate::triple::decode::Decoding;
 use crate::triple::encode::encode;
-use crate::triple::transport::connector::http_connector::HttpConnector;
 
 #[derive(Debug, Clone, Default)]
-pub struct TripleClient {
+pub struct TripleClient<T> {
     host: Option<http::Uri>,
-    inner: ConnectionPool,
+    inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct ConnectionPool {
-    http2_only: bool,
-}
-
-impl ConnectionPool {
-    pub fn new() -> Self {
-        ConnectionPool { http2_only: true }
-    }
-
-    pub fn builder(self) -> hyper::Client<hyper::client::HttpConnector> {
-        hyper::Client::builder()
-            .http2_only(self.http2_only)
-            .build_http()
-    }
-
-    pub fn builder_with_connector<C>(self, connector: C) -> hyper::Client<C>
-    where
-        C: Connect + Clone,
-    {
-        hyper::Client::builder()
-            .http2_only(self.http2_only)
-            .build(connector)
-    }
-}
-
-// TODO: initial connection pool
-impl TripleClient {
-    pub fn new() -> Self {
-        TripleClient {
-            host: None,
-            inner: ConnectionPool::new(),
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-        }
-    }
-
-    /// host: http://0.0.0.0:8888
-    pub fn with_host(self, host: String) -> Self {
+impl TripleClient<Connection> {
+    pub fn connect(host: String) -> Self {
         let uri = match http::Uri::from_str(&host) {
             Ok(v) => Some(v),
             Err(err) => {
                 tracing::error!("http uri parse error: {}, host: {}", err, host);
-                None
+                panic!("http uri parse error: {}, host: {}", err, host)
             }
         };
-        TripleClient { host: uri, ..self }
+
+        TripleClient {
+            host: uri.clone(),
+            inner: Connection::new().with_host(uri.unwrap()),
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
+        }
     }
 }
 
-impl TripleClient {
+impl<T> TripleClient<T> {
+    pub fn new(inner: T, host: Option<http::Uri>) -> Self {
+        TripleClient {
+            host,
+            inner,
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
+        }
+    }
+
+    pub fn with_filter<F>(self, filter: F) -> TripleClient<FilterService<T, F>>
+    where
+        F: Filter,
+    {
+        TripleClient::new(FilterService::new(self.inner, filter), self.host)
+    }
+}
+
+impl<T> TripleClient<T>
+where
+    T: Service<http::Request<hyper::Body>, Response = http::Response<crate::BoxBody>>,
+    T::Error: Into<crate::Error>,
+{
     fn map_request(
         &self,
         path: http::uri::PathAndQuery,
@@ -93,7 +85,7 @@ impl TripleClient {
         let mut parts = match self.host.as_ref() {
             Some(v) => v.to_owned().into_parts(),
             None => {
-                tracing::warn!("client host is empty");
+                tracing::error!("client host is empty");
                 return http::Request::new(hyper::Body::empty());
             }
         };
@@ -125,18 +117,18 @@ impl TripleClient {
             HeaderValue::from_static("application/grpc+json"),
         );
         req.headers_mut()
-            .insert("user-agent", HeaderValue::from_static("dubbo-rust/1.0.0"));
+            .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
         req.headers_mut()
             .insert("te", HeaderValue::from_static("trailers"));
         req.headers_mut().insert(
             "tri-service-version",
-            HeaderValue::from_static("dubbo-rust/1.0.0"),
+            HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
         req.headers_mut()
             .insert("tri-service-group", HeaderValue::from_static("cluster"));
         req.headers_mut().insert(
             "tri-unit-info",
-            HeaderValue::from_static("dubbo-rust/1.0.0"),
+            HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
         if let Some(_encoding) = self.send_compression_encoding {
             req.headers_mut()
@@ -163,7 +155,7 @@ impl TripleClient {
     }
 
     pub async fn unary<C, M1, M2>(
-        &self,
+        &mut self,
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
@@ -183,11 +175,12 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(body_stream);
 
         let req = self.map_request(path, body);
-        let cli = self
+
+        let response = self
             .inner
-            .clone()
-            .builder_with_connector(HttpConnector::new());
-        let response = cli.request(req).await;
+            .call(req)
+            .await
+            .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
@@ -213,10 +206,7 @@ impl TripleClient {
 
                 Ok(Response::from_parts(parts, message))
             }
-            Err(err) => Err(crate::status::Status::new(
-                crate::status::Code::Internal,
-                err.to_string(),
-            )),
+            Err(err) => Err(err),
         }
     }
 
@@ -242,8 +232,11 @@ impl TripleClient {
 
         let req = self.map_request(path, body);
 
-        let cli = self.inner.clone().builder();
-        let response = cli.request(req).await;
+        let response = self
+            .inner
+            .call(req)
+            .await
+            .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
@@ -253,10 +246,7 @@ impl TripleClient {
 
                 Ok(Response::from_http(resp))
             }
-            Err(err) => Err(crate::status::Status::new(
-                crate::status::Code::Internal,
-                err.to_string(),
-            )),
+            Err(err) => Err(err),
         }
     }
 
@@ -281,8 +271,12 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(en);
 
         let req = self.map_request(path, body);
-        let cli = self.inner.clone().builder();
-        let response = cli.request(req).await;
+
+        let response = self
+            .inner
+            .call(req)
+            .await
+            .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
@@ -308,10 +302,7 @@ impl TripleClient {
 
                 Ok(Response::from_parts(parts, message))
             }
-            Err(err) => Err(crate::status::Status::new(
-                crate::status::Code::Internal,
-                err.to_string(),
-            )),
+            Err(err) => Err(err),
         }
     }
 
@@ -337,8 +328,11 @@ impl TripleClient {
 
         let req = self.map_request(path, body);
 
-        let cli = self.inner.clone().builder();
-        let response = cli.request(req).await;
+        let response = self
+            .inner
+            .call(req)
+            .await
+            .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
@@ -348,10 +342,7 @@ impl TripleClient {
 
                 Ok(Response::from_http(resp))
             }
-            Err(err) => Err(crate::status::Status::new(
-                crate::status::Code::Internal,
-                err.to_string(),
-            )),
+            Err(err) => Err(err),
         }
     }
 }

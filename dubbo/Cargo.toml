@@ -12,7 +12,6 @@ repository = "https://github.com/apache/dubbo-rust.git"
 [dependencies]
 hyper = { version = "0.14.19", features = ["full"]}
 http = "0.2"
-tonic = {version ="0.7.2", features = ["compression",]}
 tower-service = "0.3.1"
 http-body = "0.4.4"
 tower = "0.4.12"

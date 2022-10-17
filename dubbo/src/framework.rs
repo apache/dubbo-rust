@@ -23,24 +23,25 @@ use futures::Future;
 use futures::FutureExt;
 
 use crate::common::url::Url;
-use crate::protocol::triple::triple_invoker::TripleInvoker;
 use crate::protocol::triple::triple_protocol::TripleProtocol;
-use crate::protocol::{Exporter, Protocol};
+use crate::protocol::{BoxExporter, Protocol};
 use dubbo_config::{get_global_config, RootConfig};
 
-pub type BoxExporter = Box<dyn Exporter<InvokerType = TripleInvoker>>;
 // Invoker是否可以基于hyper写一个通用的
 
 #[derive(Default)]
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
+    registries: HashMap<String, Url>,
     config: Option<RootConfig>,
 }
 
 impl Dubbo {
     pub fn new() -> Dubbo {
+        tracing_subscriber::fmt::init();
         Self {
             protocols: HashMap::new(),
+            registries: HashMap::new(),
             config: None,
         }
     }
@@ -51,14 +52,18 @@ impl Dubbo {
     }
 
     pub fn init(&mut self) {
-        tracing_subscriber::fmt::init();
-
         if self.config.is_none() {
             self.config = Some(get_global_config())
         }
 
         let conf = self.config.as_ref().unwrap();
         tracing::debug!("global conf: {:?}", conf);
+
+        for (name, url) in conf.registries.iter() {
+            self.registries
+                .insert(name.to_string(), Url::from_url(url).unwrap());
+        }
+
         for (_, c) in conf.service.iter() {
             let u = if c.protocol_configs.is_empty() {
                 let protocol = match conf.protocols.get(&c.protocol) {
@@ -106,11 +111,7 @@ impl Dubbo {
                 "triple" => {
                     let pro = Box::new(TripleProtocol::new());
                     for u in c.iter() {
-                        let tri_fut = pro
-                            .clone()
-                            .export(u.clone())
-                            .map(|res| Box::new(res) as BoxExporter)
-                            .boxed();
+                        let tri_fut = pro.clone().export(u.clone()).boxed();
                         async_vec.push(tri_fut);
                     }
                 }

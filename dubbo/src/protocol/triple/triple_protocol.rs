@@ -24,7 +24,7 @@ use super::triple_exporter::TripleExporter;
 use super::triple_invoker::TripleInvoker;
 use super::triple_server::TripleServer;
 use crate::common::url::Url;
-use crate::protocol::Protocol;
+use crate::protocol::{BoxExporter, Protocol};
 
 #[derive(Clone)]
 pub struct TripleProtocol {
@@ -55,19 +55,17 @@ impl TripleProtocol {
 impl Protocol for TripleProtocol {
     type Invoker = TripleInvoker;
 
-    type Exporter = TripleExporter;
-
     fn destroy(&self) {
         todo!()
     }
 
-    async fn export(mut self, url: Url) -> Self::Exporter {
+    async fn export(mut self, url: Url) -> BoxExporter {
         let server = TripleServer::new(url.service_key.clone());
         self.servers
             .insert(url.service_key.join(","), server.clone());
         server.serve(url.to_url()).await;
 
-        TripleExporter::new()
+        Box::new(TripleExporter::new())
     }
 
     async fn refer(self, url: Url) -> Self::Invoker {

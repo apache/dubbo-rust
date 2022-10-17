@@ -20,10 +20,20 @@ use example_echo::protos::hello_echo::echo_client::EchoClient;
 use example_echo::protos::hello_echo::EchoRequest;
 use futures_util::StreamExt;
 
+pub struct FakeFilter {}
+
+impl Filter for FakeFilter {
+    fn call(&mut self, req: Request<()>) -> Result<Request<()>, dubbo::status::Status> {
+        println!("fake filter: {:?}", req.metadata);
+        Ok(req)
+    }
+}
+
 #[tokio::main]
 async fn main() {
-    let mut cli = EchoClient::new().with_uri("http://127.0.0.1:8888".to_string());
-    let resp = cli
+    let mut cli = EchoClient::connect("http://127.0.0.1:8888".to_string());
+    let mut unary_cli = cli.clone().with_filter(FakeFilter {});
+    let resp = unary_cli
         .unary_echo(Request::new(EchoRequest {
             message: "message from client".to_string(),
         }))

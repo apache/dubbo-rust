@@ -38,7 +38,7 @@ impl TripleServer {
             let lock = super::TRIPLE_SERVICES.read().unwrap();
             for name in self.service_names.iter() {
                 if lock.get(name).is_none() {
-                    tracing::warn!("service {} not register", name);
+                    tracing::warn!("service ({}) not register", name);
                     continue;
                 }
                 let svc = lock.get(name).unwrap();

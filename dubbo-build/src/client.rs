@@ -66,23 +66,38 @@ pub fn generate<T: Service>(
             #service_doc
             #(#struct_attributes)*
             #[derive(Debug, Clone, Default)]
-            pub struct #service_ident {
-                inner: TripleClient,
-                uri: String,
+            pub struct #service_ident<T> {
+                inner: TripleClient<T>,
             }
 
-            impl #service_ident {
-                pub fn new() -> Self {
+            impl #service_ident<Connection> {
+                pub fn connect(host: String) -> Self {
+                    let cli = TripleClient::connect(host);
+                    #service_ident {
+                        inner: cli,
+                    }
+                }
+            }
+
+            impl<T> #service_ident<T>
+            where
+                T: Service<http::Request<hyperBody>, Response = http::Response<BoxBody>>,
+                T::Error: Into<StdError>,
+            {
+                pub fn new(inner: T) -> Self {
                     Self {
-                        inner: TripleClient::new(),
-                        uri: "".to_string(),
+                        inner: TripleClient::new(inner, None),
                     }
                 }
 
-                pub fn with_uri(mut self, uri: String) -> Self {
-                    self.uri = uri.clone();
-                    self.inner = self.inner.with_host(uri);
-                    self
+                pub fn with_filter<F>(self, filter: F) -> #service_ident<FilterService<T, F>>
+                where
+                    F: Filter,
+                {
+                    let inner = self.inner.with_filter(filter);
+                    #service_ident {
+                        inner,
+                    }
                 }
 
                 #methods
