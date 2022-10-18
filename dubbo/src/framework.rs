@@ -21,6 +21,7 @@ use std::pin::Pin;
 use futures::future;
 use futures::Future;
 
+use crate::common::consts;
 use crate::common::url::Url;
 use crate::protocol::{BoxExporter, Protocol};
 use crate::registry::protocol::RegistryProtocol;
@@ -32,6 +33,7 @@ use dubbo_config::{get_global_config, RootConfig};
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
     registries: HashMap<String, Url>,
+    services: HashMap<String, Vec<Url>>, // protocol:  Url; registry: Url
     config: Option<RootConfig>,
 }
 
@@ -41,6 +43,7 @@ impl Dubbo {
         Self {
             protocols: HashMap::new(),
             registries: HashMap::new(),
+            services: HashMap::new(),
             config: None,
         }
     }
@@ -63,7 +66,7 @@ impl Dubbo {
                 .insert(name.to_string(), Url::from_url(url).unwrap());
         }
 
-        for (_, c) in conf.service.iter() {
+        for (_, c) in conf.provider.services.iter() {
             let u = if c.protocol_configs.is_empty() {
                 let protocol = match conf.protocols.get(&c.protocol) {
                     Some(v) => v.to_owned(),
@@ -91,6 +94,26 @@ impl Dubbo {
             }
 
             let u = u.unwrap();
+            if self.services.get(consts::PROTOCOL).is_some() {
+                self.services
+                    .get_mut(consts::PROTOCOL)
+                    .unwrap()
+                    .push(u.clone());
+            } else {
+                self.services
+                    .insert(consts::PROTOCOL.to_string(), vec![u.clone()]);
+            }
+
+            if self.services.get(consts::REGISTRY).is_some() {
+                self.services
+                    .get_mut(consts::REGISTRY)
+                    .unwrap()
+                    .push(u.clone());
+            } else {
+                self.services
+                    .insert(consts::REGISTRY.to_string(), vec![u.clone()]);
+            }
+
             if self.protocols.get(&c.protocol).is_some() {
                 self.protocols.get_mut(&c.protocol).unwrap().push(u);
             } else {

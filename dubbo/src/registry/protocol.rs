@@ -97,6 +97,7 @@ impl Protocol for RegistryProtocol {
 }
 
 fn get_registry_url(mut url: Url) -> Url {
+    // registry_url need storage some places
     if url.protocol == consts::REGISTRY_PROTOCOL {
         url.protocol = url.get_param("registry".to_string()).unwrap();
     }
