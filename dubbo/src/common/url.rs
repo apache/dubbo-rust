@@ -96,7 +96,8 @@ mod tests {
 
     #[test]
     fn test_from_url() {
-        let u1 = Url::from_url("");
+        let u1 = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter");
+        println!("{:?}", u1.unwrap().get_service_name())
     }
 
     #[test]

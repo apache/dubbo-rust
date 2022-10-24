@@ -21,7 +21,6 @@ use std::pin::Pin;
 use futures::future;
 use futures::Future;
 
-use crate::common::consts;
 use crate::common::url::Url;
 use crate::protocol::{BoxExporter, Protocol};
 use crate::registry::protocol::RegistryProtocol;
@@ -33,7 +32,7 @@ use dubbo_config::{get_global_config, RootConfig};
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
     registries: HashMap<String, Url>,
-    services: HashMap<String, Vec<Url>>, // protocol:  Url; registry: Url
+    service_registry: HashMap<String, Vec<Url>>, // registry: Urls
     config: Option<RootConfig>,
 }
 
@@ -43,7 +42,7 @@ impl Dubbo {
         Self {
             protocols: HashMap::new(),
             registries: HashMap::new(),
-            services: HashMap::new(),
+            service_registry: HashMap::new(),
             config: None,
         }
     }
@@ -94,24 +93,16 @@ impl Dubbo {
             }
 
             let u = u.unwrap();
-            if self.services.get(consts::PROTOCOL).is_some() {
-                self.services
-                    .get_mut(consts::PROTOCOL)
-                    .unwrap()
-                    .push(u.clone());
-            } else {
-                self.services
-                    .insert(consts::PROTOCOL.to_string(), vec![u.clone()]);
-            }
 
-            if self.services.get(consts::REGISTRY).is_some() {
-                self.services
-                    .get_mut(consts::REGISTRY)
+            let reg_url = self.registries.get(&c.registry).unwrap();
+            if self.service_registry.get(&c.name).is_some() {
+                self.service_registry
+                    .get_mut(&c.name)
                     .unwrap()
-                    .push(u.clone());
+                    .push(reg_url.clone());
             } else {
-                self.services
-                    .insert(consts::REGISTRY.to_string(), vec![u.clone()]);
+                self.service_registry
+                    .insert(c.name.clone(), vec![reg_url.clone()]);
             }
 
             if self.protocols.get(&c.protocol).is_some() {
@@ -126,11 +117,9 @@ impl Dubbo {
         self.init();
 
         // TODO: server registry
-        for (name, url) in self.registries.iter() {
-            tracing::info!("registry name: {:?}, url: {:?}", name, url);
-        }
 
-        let mem_reg = Box::new(RegistryProtocol::new());
+        let mem_reg =
+            Box::new(RegistryProtocol::new().with_services(self.service_registry.clone()));
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
         for (name, items) in self.protocols.iter() {
             for url in items.iter() {
