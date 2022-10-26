@@ -21,6 +21,7 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 use super::protocol::ProtocolConfig;
+use super::provider::ProviderConfig;
 use super::service::ServiceConfig;
 
 pub const DUBBO_CONFIG_PATH: &str = "./dubbo.yaml";
@@ -35,9 +36,13 @@ lazy_static! {
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct RootConfig {
     pub name: String,
+
+    #[serde(skip_serializing, skip_deserializing)]
     pub service: HashMap<String, ServiceConfig>,
     pub protocols: HashMap<String, ProtocolConfig>,
     pub registries: HashMap<String, String>,
+
+    pub provider: ProviderConfig,
 
     #[serde(skip_serializing, skip_deserializing)]
     pub data: HashMap<String, String>,
@@ -65,6 +70,7 @@ impl RootConfig {
             service: HashMap::new(),
             protocols: HashMap::new(),
             registries: HashMap::new(),
+            provider: ProviderConfig::new(),
             data: HashMap::new(),
         }
     }
@@ -96,6 +102,10 @@ impl RootConfig {
     }
 
     pub fn test_config(&mut self) {
+        let mut provider = ProviderConfig::new();
+        provider.protocol_ids = vec!["triple".to_string()];
+        provider.registry_ids = vec![];
+
         let service_config = ServiceConfig::default()
             .group("test".to_string())
             .serializer("json".to_string())
@@ -127,6 +137,10 @@ impl RootConfig {
                 .ip("0.0.0.0".to_string())
                 .port("8889".to_string()),
         );
+
+        provider.services = self.service.clone();
+        self.provider = provider.clone();
+        println!("provider config: {:?}", provider);
         // 通过环境变量读取某个文件。加在到内存中
         self.data.insert(
             "dubbo.provider.url".to_string(),
@@ -171,6 +185,12 @@ pub trait Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_config() {
+        let mut r = RootConfig::new();
+        r.test_config();
+    }
 
     #[test]
     fn test_load() {

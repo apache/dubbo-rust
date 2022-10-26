@@ -17,6 +17,7 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::RwLock;
 
 use super::{NotifyListener, Registry};
@@ -27,15 +28,15 @@ use super::{NotifyListener, Registry};
 
 pub const REGISTRY_GROUP_KEY: &str = "registry.group";
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MemoryRegistry {
-    registries: RwLock<HashMap<String, String>>,
+    registries: Arc<RwLock<HashMap<String, String>>>,
 }
 
 impl MemoryRegistry {
     pub fn new() -> MemoryRegistry {
         MemoryRegistry {
-            registries: RwLock::new(HashMap::new()),
+            registries: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }

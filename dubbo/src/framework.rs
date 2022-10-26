@@ -20,11 +20,10 @@ use std::pin::Pin;
 
 use futures::future;
 use futures::Future;
-use futures::FutureExt;
 
 use crate::common::url::Url;
-use crate::protocol::triple::triple_protocol::TripleProtocol;
 use crate::protocol::{BoxExporter, Protocol};
+use crate::registry::protocol::RegistryProtocol;
 use dubbo_config::{get_global_config, RootConfig};
 
 // Invoker是否可以基于hyper写一个通用的
@@ -33,6 +32,7 @@ use dubbo_config::{get_global_config, RootConfig};
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
     registries: HashMap<String, Url>,
+    service_registry: HashMap<String, Vec<Url>>, // registry: Urls
     config: Option<RootConfig>,
 }
 
@@ -42,6 +42,7 @@ impl Dubbo {
         Self {
             protocols: HashMap::new(),
             registries: HashMap::new(),
+            service_registry: HashMap::new(),
             config: None,
         }
     }
@@ -64,7 +65,7 @@ impl Dubbo {
                 .insert(name.to_string(), Url::from_url(url).unwrap());
         }
 
-        for (_, c) in conf.service.iter() {
+        for (_, c) in conf.provider.services.iter() {
             let u = if c.protocol_configs.is_empty() {
                 let protocol = match conf.protocols.get(&c.protocol) {
                     Some(v) => v.to_owned(),
@@ -92,6 +93,18 @@ impl Dubbo {
             }
 
             let u = u.unwrap();
+
+            let reg_url = self.registries.get(&c.registry).unwrap();
+            if self.service_registry.get(&c.name).is_some() {
+                self.service_registry
+                    .get_mut(&c.name)
+                    .unwrap()
+                    .push(reg_url.clone());
+            } else {
+                self.service_registry
+                    .insert(c.name.clone(), vec![reg_url.clone()]);
+            }
+
             if self.protocols.get(&c.protocol).is_some() {
                 self.protocols.get_mut(&c.protocol).unwrap().push(u);
             } else {
@@ -105,19 +118,14 @@ impl Dubbo {
 
         // TODO: server registry
 
+        let mem_reg =
+            Box::new(RegistryProtocol::new().with_services(self.service_registry.clone()));
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
-        for (key, c) in self.protocols.iter() {
-            match key.as_str() {
-                "triple" => {
-                    let pro = Box::new(TripleProtocol::new());
-                    for u in c.iter() {
-                        let tri_fut = pro.clone().export(u.clone()).boxed();
-                        async_vec.push(tri_fut);
-                    }
-                }
-                _ => {
-                    tracing::error!("protocol {:?} not implemented", key);
-                }
+        for (name, items) in self.protocols.iter() {
+            for url in items.iter() {
+                tracing::info!("protocol: {:?}, service url: {:?}", name, url);
+                let exporter = mem_reg.clone().export(url.to_owned());
+                async_vec.push(exporter)
             }
         }
 
