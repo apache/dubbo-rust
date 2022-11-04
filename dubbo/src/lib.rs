@@ -16,6 +16,7 @@
  */
 
 pub mod codegen;
+pub mod cluster;
 pub mod common;
 pub mod filter;
 mod framework;

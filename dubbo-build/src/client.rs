@@ -100,6 +100,11 @@ pub fn generate<T: Service>(
                     }
                 }
 
+                pub fn with_directory(mut self, directory: Box<dyn Directory>) -> Self {
+                    self.inner = self.inner.with_directory(directory);
+                    self
+                }
+
                 #methods
 
             }
@@ -117,6 +122,12 @@ fn generate_methods<T: Service>(
     let package = if emit_package { service.package() } else { "" };
 
     for method in service.methods() {
+        let service_unique_name= format!(
+            "{}{}{}",
+            package,
+            if package.is_empty() { "" } else { "." },
+            service.identifier()
+        );
         let path = format!(
             "/{}{}{}/{}",
             package,
@@ -128,7 +139,7 @@ fn generate_methods<T: Service>(
         stream.extend(generate_doc_comments(method.comment()));
 
         let method = match (method.client_streaming(), method.server_streaming()) {
-            (false, false) => generate_unary(&method, proto_path, compile_well_known_types, path),
+            (false, false) => generate_unary(service_unique_name, &method, proto_path, compile_well_known_types, path),
             (false, true) => {
                 generate_server_streaming(&method, proto_path, compile_well_known_types, path)
             }
@@ -145,6 +156,7 @@ fn generate_methods<T: Service>(
 }
 
 fn generate_unary<T: Method>(
+    service_unique_name: String,
     method: &T,
     proto_path: &str,
     compile_well_known_types: bool,
@@ -153,6 +165,7 @@ fn generate_unary<T: Method>(
     let codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
     let ident = format_ident!("{}", method.name());
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
+    let method_name = method.identifier();
 
     quote! {
         pub async fn #ident(
@@ -160,12 +173,16 @@ fn generate_unary<T: Method>(
             request: Request<#request>,
         ) -> Result<Response<#response>, dubbo::status::Status> {
            let codec = #codec_name::<#request, #response>::default();
+           let invocation = RpcInvocation::default()
+            .with_servie_unique_name(String::from(#service_unique_name))
+            .with_method_name(String::from(#method_name));
            let path = http::uri::PathAndQuery::from_static(#path);
            self.inner
             .unary(
                 request,
                 codec,
                 path,
+                invocation,
             )
             .await
         }
