@@ -18,13 +18,17 @@
 use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
+
 use http::HeaderValue;
+use rand::prelude::SliceRandom;
 use tower_service::Service;
 
 use super::connection::Connection;
+use crate::codegen::{Directory, RpcInvocation};
 use crate::filter::service::FilterService;
 use crate::filter::Filter;
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
+
 use crate::triple::codec::Codec;
 use crate::triple::compression::CompressionEncoding;
 use crate::triple::decode::Decoding;
@@ -35,6 +39,7 @@ pub struct TripleClient<T> {
     host: Option<http::Uri>,
     inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
+    directory: Option<Box<dyn Directory>>,
 }
 
 impl TripleClient<Connection> {
@@ -51,6 +56,7 @@ impl TripleClient<Connection> {
             host: uri.clone(),
             inner: Connection::new().with_host(uri.unwrap()),
             send_compression_encoding: Some(CompressionEncoding::Gzip),
+            directory: None,
         }
     }
 }
@@ -61,6 +67,7 @@ impl<T> TripleClient<T> {
             host,
             inner,
             send_compression_encoding: Some(CompressionEncoding::Gzip),
+            directory: None,
         }
     }
 
@@ -70,6 +77,14 @@ impl<T> TripleClient<T> {
     {
         TripleClient::new(FilterService::new(self.inner, filter), self.host)
     }
+
+    /// host: http://0.0.0.0:8888
+    pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
+        TripleClient {
+            directory: Some(directory),
+            ..self
+        }
+    }
 }
 
 impl<T> TripleClient<T>
@@ -77,6 +92,78 @@ where
     T: Service<http::Request<hyper::Body>, Response = http::Response<crate::BoxBody>>,
     T::Error: Into<crate::Error>,
 {
+    fn new_map_request(
+        &self,
+        uri: http::Uri,
+        path: http::uri::PathAndQuery,
+        body: hyper::Body,
+    ) -> http::Request<hyper::Body> {
+        let mut parts = uri.into_parts();
+        parts.path_and_query = Some(path);
+
+        let uri = http::Uri::from_parts(parts).unwrap();
+        let mut req = hyper::Request::builder()
+            .version(http::Version::HTTP_2)
+            .uri(uri.clone())
+            .method("POST")
+            .body(body)
+            .unwrap();
+
+        *req.version_mut() = http::Version::HTTP_2;
+        req.headers_mut()
+            .insert("method", HeaderValue::from_static("POST"));
+        req.headers_mut().insert(
+            "scheme",
+            HeaderValue::from_str(uri.scheme_str().unwrap()).unwrap(),
+        );
+        req.headers_mut()
+            .insert("path", HeaderValue::from_str(uri.path()).unwrap());
+        req.headers_mut().insert(
+            "authority",
+            HeaderValue::from_str(uri.authority().unwrap().as_str()).unwrap(),
+        );
+        req.headers_mut().insert(
+            "content-type",
+            HeaderValue::from_static("application/grpc+proto"),
+        );
+        req.headers_mut()
+            .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
+        req.headers_mut()
+            .insert("te", HeaderValue::from_static("trailers"));
+        req.headers_mut().insert(
+            "tri-service-version",
+            HeaderValue::from_static("dubbo-rust/0.1.0"),
+        );
+        req.headers_mut()
+            .insert("tri-service-group", HeaderValue::from_static("cluster"));
+        req.headers_mut().insert(
+            "tri-unit-info",
+            HeaderValue::from_static("dubbo-rust/0.1.0"),
+        );
+        if let Some(_encoding) = self.send_compression_encoding {
+            req.headers_mut()
+                .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+        }
+        req.headers_mut().insert(
+            "grpc-accept-encoding",
+            http::HeaderValue::from_static("gzip"),
+        );
+
+        // const (
+        //     TripleContentType    = "application/grpc+proto"
+        //     TripleUserAgent      = "grpc-go/1.35.0-dev"
+        //     TripleServiceVersion = "tri-service-version"
+        //     TripleAttachement    = "tri-attachment"
+        //     TripleServiceGroup   = "tri-service-group"
+        //     TripleRequestID      = "tri-req-id"
+        //     TripleTraceID        = "tri-trace-traceid"
+        //     TripleTraceRPCID     = "tri-trace-rpcid"
+        //     TripleTraceProtoBin  = "tri-trace-proto-bin"
+        //     TripleUnitInfo       = "tri-unit-info"
+        // )
+        req
+    }
+
     fn map_request(
         &self,
         path: http::uri::PathAndQuery,
@@ -114,7 +201,7 @@ where
         );
         req.headers_mut().insert(
             "content-type",
-            HeaderValue::from_static("application/grpc+json"),
+            HeaderValue::from_static("application/grpc+proto"),
         );
         req.headers_mut()
             .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
@@ -159,6 +246,7 @@ where
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
+        invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
@@ -174,10 +262,15 @@ where
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
 
-        let req = self.map_request(path, body);
+        let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+        let http_uri =
+            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
 
-        let response = self
-            .inner
+        let req = self.new_map_request(http_uri.clone(), path, body);
+
+        let mut conn = Connection::new().with_host(http_uri);
+        let response = conn
             .call(req)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));

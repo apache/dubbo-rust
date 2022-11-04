@@ -64,14 +64,10 @@ pub mod echo_client {
             &mut self,
             request: Request<super::EchoRequest>,
         ) -> Result<Response<super::EchoResponse>, dubbo::status::Status> {
-            let codec = dubbo::codegen::ProstCodec::<
-                super::EchoRequest,
-                super::EchoResponse,
-            >::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/grpc.examples.echo.Echo/UnaryEcho",
-            );
-            self.inner.unary(request, codec, path).await
+            let codec =
+                dubbo::codegen::ProstCodec::<super::EchoRequest, super::EchoResponse>::default();
+            let path = http::uri::PathAndQuery::from_static("/grpc.examples.echo.Echo/UnaryEcho");
+            self.inner.unary(request, codec, path, RpcInvocation::default()).await
         }
         /// ServerStreamingEcho is server side streaming.
         pub async fn server_streaming_echo(

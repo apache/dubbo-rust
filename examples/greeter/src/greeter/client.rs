@@ -19,14 +19,40 @@ pub mod protos {
     #![allow(non_camel_case_types)]
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
 }
+use std::{str::FromStr, time::Duration, env};
 
-use dubbo::codegen::*;
-use futures_util::StreamExt;
+use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
+
+use dubbo::{cluster::directory::RegistryDirectory, codegen::*, invocation::RpcInvocation};
+use http;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() {
-    let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
+    // a builder for `FmtSubscriber`.
+    let subscriber = FmtSubscriber::builder()
+        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+        // will be written to stdout.
+        .with_max_level(Level::DEBUG)
+        // completes the builder.
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
+    let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {
+        Ok(val) => val,
+        Err(_) => "localhost:2181".to_string(),
+    };
+    let zkr = ZookeeperRegistry::new(&zk_connect_string);
+    let directory = RegistryDirectory::new(Box::new(zkr));
+
+    let http_uri = http::Uri::from_str(&"http://1.1.1.1:8888").unwrap();
+
+    let mut cli = GreeterClient::new(Connection::new().with_host(http_uri));
+    cli = cli.with_directory(Box::new(directory));
+    //let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
 
     println!("# unary call");
     let resp = cli
@@ -41,78 +67,7 @@ async fn main() {
     let (_parts, body) = resp.into_parts();
     println!("Response: {:?}", body);
 
-    println!("# client stream");
-    let data = vec![
-        GreeterRequest {
-            name: "msg1 from client streaming".to_string(),
-        },
-        GreeterRequest {
-            name: "msg2 from client streaming".to_string(),
-        },
-        GreeterRequest {
-            name: "msg3 from client streaming".to_string(),
-        },
-    ];
-    let req = futures_util::stream::iter(data);
-    let resp = cli.greet_client_stream(req).await;
-    let client_streaming_resp = match resp {
-        Ok(resp) => resp,
-        Err(err) => return println!("{:?}", err),
-    };
-    let (_parts, resp_body) = client_streaming_resp.into_parts();
-    println!("client streaming, Response: {:?}", resp_body);
-
-    println!("# bi stream");
-    let data = vec![
-        GreeterRequest {
-            name: "msg1 from client".to_string(),
-        },
-        GreeterRequest {
-            name: "msg2 from client".to_string(),
-        },
-        GreeterRequest {
-            name: "msg3 from client".to_string(),
-        },
-    ];
-    let req = futures_util::stream::iter(data);
-
-    let bidi_resp = cli.greet_stream(req).await.unwrap();
-
-    let (parts, mut body) = bidi_resp.into_parts();
-    println!("parts: {:?}", parts);
-    while let Some(item) = body.next().await {
-        match item {
-            Ok(v) => {
-                println!("reply: {:?}", v);
-            }
-            Err(err) => {
-                println!("err: {:?}", err);
-            }
-        }
+    loop {
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    let trailer = body.trailer().await.unwrap();
-    println!("trailer: {:?}", trailer);
-
-    println!("# server stream");
-    let resp = cli
-        .greet_server_stream(Request::new(GreeterRequest {
-            name: "server streaming req".to_string(),
-        }))
-        .await
-        .unwrap();
-
-    let (parts, mut body) = resp.into_parts();
-    println!("parts: {:?}", parts);
-    while let Some(item) = body.next().await {
-        match item {
-            Ok(v) => {
-                println!("reply: {:?}", v);
-            }
-            Err(err) => {
-                println!("err: {:?}", err);
-            }
-        }
-    }
-    let trailer = body.trailer().await.unwrap();
-    println!("trailer: {:?}", trailer);
 }

@@ -189,3 +189,36 @@ impl Metadata {
         header
     }
 }
+
+pub trait Invocation {
+    fn get_target_service_unique_name(&self) -> String;
+    fn get_method_name(&self) -> String;
+}
+
+#[derive(Default)]
+pub struct RpcInvocation {
+    target_service_unique_name: String,
+    method_name: String,
+}
+
+impl RpcInvocation{
+    pub fn with_servie_unique_name(mut self, service_unique_name: String) -> Self {
+        self.target_service_unique_name = service_unique_name;
+        self
+    }
+    pub fn with_method_name(mut self, method_name: String) -> Self {
+        self.method_name = method_name;
+        self
+    }
+}
+
+
+impl Invocation for RpcInvocation {
+    fn get_target_service_unique_name(&self) -> String {
+        self.target_service_unique_name.clone()
+    }
+
+    fn get_method_name(&self) -> String {
+        self.method_name.clone()
+    }
+}
