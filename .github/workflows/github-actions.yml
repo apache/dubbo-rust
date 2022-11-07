@@ -4,14 +4,14 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: ["*"]
   pull_request:
-    branches: [ main ]
+    branches: ["*"]
 
   workflow_dispatch:
 
 jobs:
- check:
+  check:
     name: check dubbo-rust project
     runs-on: ${{ matrix.os }}
     strategy:
@@ -21,24 +21,26 @@ jobs:
 
     env:
       RUSTFLAGS: "-D warnings"
-      
+
     steps:
-    - uses: actions/checkout@main
-    - uses: actions-rs/toolchain@v1
-      with:
+      - uses: actions/checkout@main
+      - uses: actions-rs/toolchain@v1
+        with:
           toolchain: ${{ matrix.rust }}
-    - name: Install Protoc
-      uses: arduino/setup-protoc@v1
-    - run: cargo check
-    
- fmt:
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: cargo check
+
+  fmt:
     name: Rustfmt
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         rust: [stable]
-        
+
     steps:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
@@ -46,3 +48,36 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
+
+  example-greeter:
+    name: example/greeter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - run: cargo build
+        working-directory: examples/greeter
+      - name: example greeter
+        run: |
+          ../../target/debug/greeter-server &
+          sleep 1s ;
+          ../../target/debug/greeter-client
+        working-directory: examples/greeter
