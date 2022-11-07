@@ -14,15 +14,17 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #
+# See: https://cwiki.apache.org/confluence/display/INFRA/git+-+.asf.yaml+features
 
 notifications:
-  commits:      commits@dubbo.apache.org
-  issues:       notifications@dubbo.apache.org
+  commits: commits@dubbo.apache.org
+  issues: notifications@dubbo.apache.org
   pullrequests: notifications@dubbo.apache.org
   jira_options: link label link label
 
 github:
   homepage: https://dubbo.apache.org/
+  del_branch_on_merge: true
   features:
     # Enable wiki for documentation
     wiki: true
@@ -30,7 +32,12 @@ github:
     issues: true
     # Enable projects for project management boards
     projects: true
+  enabled_merge_buttons:
+    # enable squash button:
+    squash: true
+    # enable merge button:
+    merge: false
+    # disable rebase button:
+    rebase: false
   protected_branches:
-    master:
-      # only disable force push
-      foo: bar
+    main: {}
