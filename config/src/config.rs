@@ -37,11 +37,14 @@ lazy_static! {
 pub struct RootConfig {
     pub name: String,
 
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(default)]
     pub service: HashMap<String, ServiceConfig>,
     pub protocols: HashMap<String, ProtocolConfig>,
+
+    #[serde(default)]
     pub registries: HashMap<String, String>,
 
+    #[serde(default)]
     pub provider: ProviderConfig,
 
     #[serde(skip_serializing, skip_deserializing)]

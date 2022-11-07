@@ -65,7 +65,7 @@ impl Dubbo {
                 .insert(name.to_string(), Url::from_url(url).unwrap());
         }
 
-        for (_, c) in conf.provider.services.iter() {
+        for (service_name, c) in conf.provider.services.iter() {
             let u = if c.protocol_configs.is_empty() {
                 let protocol = match conf.protocols.get(&c.protocol) {
                     Some(v) => v.to_owned(),
@@ -74,7 +74,8 @@ impl Dubbo {
                         continue;
                     }
                 };
-                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
+                let protocol_url =
+                    format!("{}/{}/{}", protocol.to_url(), c.name.clone(), service_name);
                 Url::from_url(&protocol_url)
             } else {
                 let protocol = match c.protocol_configs.get(&c.protocol) {
@@ -84,7 +85,8 @@ impl Dubbo {
                         continue;
                     }
                 };
-                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
+                let protocol_url =
+                    format!("{}/{}/{}", protocol.to_url(), c.name.clone(), service_name);
                 Url::from_url(&protocol_url)
             };
             tracing::info!("url: {:?}", u);
