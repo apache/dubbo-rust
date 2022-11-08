@@ -13,11 +13,7 @@ on:
 jobs:
   check:
     name: check dubbo-rust project
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        rust: [stable]
+    runs-on: ubuntu-latest
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -26,26 +22,27 @@ jobs:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.rust }}
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          toolchain: stable
+      - name: setup protoc
+        run: |
+          mkdir $HOME/protoc/ -p &&
+          cd $HOME/protoc/ &&
+          curl --location --silent --output /tmp/protoc-21.9-linux-x86_64.zip \
+          https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip &&
+          unzip /tmp/protoc-21.9-linux-x86_64.zip &&
+          echo "$HOME/protoc/bin" >> $GITHUB_PATH
+        shell: bash
       - run: cargo check
 
   fmt:
     name: Rustfmt
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        rust: [stable]
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
 
@@ -57,10 +54,15 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: setup protoc
+        run: |
+          mkdir $HOME/protoc/ -p &&
+          cd $HOME/protoc/ &&
+          curl --location --silent --output /tmp/protoc-21.9-linux-x86_64.zip \
+          https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip &&
+          unzip /tmp/protoc-21.9-linux-x86_64.zip &&
+          echo "$HOME/protoc/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
