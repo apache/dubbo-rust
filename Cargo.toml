@@ -2,6 +2,8 @@
 members = [
   "xds",
   "registry",
+  "cluster",
+  "rpc",
   "registry-zookeeper",
   "metadata",
   "common",
