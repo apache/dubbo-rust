@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+
+pub extern crate flurry;
+pub extern crate url;
+
+pub mod util;
+
