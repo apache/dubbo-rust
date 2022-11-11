@@ -22,7 +22,7 @@ impl Random {
 
 /// Select one provider from multiple providers randomly.
 impl LoadBalance for Random {
-    fn do_select(&self, invokers: InvokersContainer, url: String, invocation: RpcInvocation) -> Option<Box<Invoker>> {
+    fn do_select(&mut self, invokers: InvokersContainer, url: String, invocation: RpcInvocation) -> Option<Box<Invoker>> {
         let i: usize = (rand::thread_rng().next_u32()) as usize % invokers.len();
         invokers.get(i).cloned()
     }
@@ -36,7 +36,7 @@ mod tests {
 
     #[test]
     fn test_random_load_balance() {
-        let random = Random::new();
+        let mut  random = Random::new();
         for i in 0..11 {
             let option = random.select(get_test_invokers(), String::new(), RpcInvocation {});
             println!("{:},{:?}",i, option);
