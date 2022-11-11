@@ -1,5 +1,4 @@
 use std::net::{AddrParseError, SocketAddr};
-use std::str::FromStr;
 
 use crate::invocation::RpcInvocation;
 

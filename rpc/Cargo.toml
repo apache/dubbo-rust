@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 common = { path = "../common" }
-lazy_static = "1.4.0"

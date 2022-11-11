@@ -1,17 +1,25 @@
 use std::any::Any;
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::ops::Deref;
+use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
-use lazy_static::lazy_static;
-
-use common::flurry::HashMap;
+use common::dashmap::DashMap;
+use common::dashmap::mapref::one::Ref;
+use common::lazy_static::lazy_static;
 use common::url::Url;
-use common::util::url::{to_identity_string_with_url, to_identity_string_with_url_method_name};
+use common::util::url::{to_identity_string_with_url, to_identity_string_with_url_and_method_name};
 
 lazy_static! {
-    static ref SERVICE_STATISTICS: HashMap<String,  BoxedRpcStatus> = HashMap::new();
-    static ref METHOD_STATISTICS: HashMap<String,  BoxedRpcStatus> = HashMap::new();
+    static ref SERVICE_STATISTICS: Arc<DashMap<String, BoxedRpcStatus>> = {
+        let mut map = Arc::new(DashMap::<String,BoxedRpcStatus>::new());
+        map
+    };
+    static ref METHOD_STATISTICS: Arc<DashMap<String, BoxedRpcStatus>> = {
+        let mut map = Arc::new(DashMap::<String,BoxedRpcStatus>::new());
+        map
+    };
 }
 
 
@@ -19,7 +27,7 @@ pub type BoxedRpcStatus = Box<RpcStatus>;
 
 #[derive(Debug)]
 pub struct RpcStatus {
-    values: HashMap<String, Box<dyn Any>>,
+    values: Box<DashMap<String,String>>,
     active: AtomicUsize,
     total: AtomicUsize,
     failed: AtomicUsize,
@@ -33,7 +41,7 @@ pub struct RpcStatus {
 impl RpcStatus {
     pub fn new() -> RpcStatus {
         RpcStatus {
-            values: HashMap::new(),
+            values: Box::new(DashMap::new()),
             active: AtomicUsize::new(0),
             total: AtomicUsize::new(0),
             failed: AtomicUsize::new(0),
@@ -45,36 +53,37 @@ impl RpcStatus {
         }
     }
 
-    pub fn get_status(url: Url) -> &'static BoxedRpcStatus {
-        let identity = to_identity_string_with_url(url);
-        match SERVICE_STATISTICS.pin().get(&identity) {
+    pub fn get_status<'a>(url: Url) -> Ref<'a, String, BoxedRpcStatus> {
+        let identity = &to_identity_string_with_url(url);
+        let mut option = SERVICE_STATISTICS.get(identity);
+        match option {
             None => {
-                let boxed_rpc_status: BoxedRpcStatus = BoxedRpcStatus::from(RpcStatus::new());
-                SERVICE_STATISTICS.pin().insert(identity, boxed_rpc_status).unwrap();
-                SERVICE_STATISTICS.pin().get(identity.as_str()).unwrap()
+                SERVICE_STATISTICS.insert(identity.to_string(), BoxedRpcStatus::new(RpcStatus::new()));
+                SERVICE_STATISTICS.get(identity.as_str()).unwrap()
             }
             Some(v) => v
         }
     }
 
-    pub fn get_method_status(url: Url, method_name: &str) -> &'static BoxedRpcStatus {
-        let identity = to_identity_string_with_url_method_name(url, method_name);
-        match SERVICE_STATISTICS.pin().get(&identity) {
+    pub fn get_method_status<'a>(url: Url, method_name: &str) -> Ref<'a, String, BoxedRpcStatus> {
+        let identity = &to_identity_string_with_url_and_method_name(url, method_name);
+        let mut option = SERVICE_STATISTICS.get(identity);
+        match option {
             None => {
-                let boxed_rpc_status: BoxedRpcStatus = BoxedRpcStatus::from(RpcStatus::new());
-                SERVICE_STATISTICS.pin().insert(identity, boxed_rpc_status).unwrap();
-                &boxed_rpc_status
+                SERVICE_STATISTICS.insert(identity.to_string(), BoxedRpcStatus::new(RpcStatus::new()));
+                SERVICE_STATISTICS.get(identity.as_str()).unwrap()
             }
             Some(v) => v
         }
     }
+
 
     pub fn remove_status(url: Url) {
-        SERVICE_STATISTICS.pin().remove(to_identity_string_with_url(url).as_str());
+        SERVICE_STATISTICS.remove(to_identity_string_with_url(url).as_str());
     }
 
     pub fn remove_method_status(url: Url, method_name: &str) {
-        METHOD_STATISTICS.pin().remove(to_identity_string_with_url_method_name(url, method_name).as_str());
+        METHOD_STATISTICS.remove(to_identity_string_with_url_and_method_name(url, method_name).as_str());
     }
 }
 
@@ -88,7 +97,14 @@ mod tests {
     fn test_get_status() {
         let url = Url::from_str("https://www.taobao.com").unwrap();
         let option = RpcStatus::get_status(url);
-        println!("{:?}", option);
+        println!("{:?}", option.succeeded_max_elapsed);
+    }
+
+    #[test]
+    fn test_get_method_status() {
+        let url = Url::from_str("https://www.taobao.com").unwrap();
+        let option = RpcStatus::get_method_status(url, "hello");
+        println!("{:?}", option.succeeded_max_elapsed);
     }
 }
 

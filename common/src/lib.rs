@@ -16,8 +16,9 @@
  */
 
 
-pub extern crate flurry;
+pub extern crate dashmap;
 pub extern crate url;
+pub extern crate lazy_static;
 
 pub mod util;
 
