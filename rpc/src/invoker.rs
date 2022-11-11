@@ -9,6 +9,8 @@ pub struct Invoker {
     is_available: bool,
     url: String,
 }
+pub type InvokersContainer = Vec<Box<Invoker>>;
+
 
 trait Invoke {
     fn invoke(invocation: RpcInvocation);

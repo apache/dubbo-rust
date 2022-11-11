@@ -1,8 +1,7 @@
-use std::fs::metadata;
-
-use crate::invocation::RpcInvocation;
-use crate::invoker::{Backend, Invoker};
+use rpc::invocation::RpcInvocation;
+use rpc::invoker::{Invoker, InvokersContainer};
 use crate::loadbalance::{LoadBalance, Metadata};
+
 
 #[derive(Debug)]
 struct Random {
@@ -21,15 +20,8 @@ impl Random {
 
 /// Select one provider from multiple providers randomly.
 impl LoadBalance for Random {
-    fn select(&self, invokers: Vec<Box<Invoker>>, url: String, invocation: RpcInvocation) -> Invoker {
-        if invokers.len() == 1 {
-            invokers.get(0)
-        }
 
-        todo!()
-    }
-
-    fn do_select(invokers: Vec<Box<Invoker>>, url: String, invocation: RpcInvocation) -> Invoker {
+    fn do_select(&self, invokers: InvokersContainer, url: String, invocation: RpcInvocation) -> Option<Invoker> {
         todo!()
     }
 }
