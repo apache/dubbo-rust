@@ -9,7 +9,7 @@ impl LeastActive {
     pub fn new() -> LeastActive {
         LeastActive {
             metadata: Metadata {
-                name: "leastactive"
+                name: "leastactive".to_string()
             }
         }
     }

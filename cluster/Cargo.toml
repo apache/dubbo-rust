@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 rpc = { path = "../rpc" }
+rand = "0.8.5"

@@ -9,7 +9,7 @@ impl RoundRobin {
     pub fn new() -> RoundRobin {
         RoundRobin {
             metadata: Metadata {
-                name: "roundrobin"
+                name: "roundrobin".to_string()
             }
         }
     }

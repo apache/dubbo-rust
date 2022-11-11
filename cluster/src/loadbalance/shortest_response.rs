@@ -9,7 +9,7 @@ impl ShortestResponse {
     pub fn new() -> ShortestResponse {
         ShortestResponse {
             metadata: Metadata {
-                name: "shortestresponse"
+                name: "shortestresponse".to_string()
             }
         }
     }

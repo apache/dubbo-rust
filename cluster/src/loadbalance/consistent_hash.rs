@@ -9,7 +9,7 @@ impl ConsistentHash {
     pub fn new() -> ConsistentHash {
         ConsistentHash {
             metadata: Metadata {
-                name: "consistenthash"
+                name: "consistenthash".to_string()
             }
         }
     }
