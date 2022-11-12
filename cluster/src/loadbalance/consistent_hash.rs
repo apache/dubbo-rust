@@ -5,6 +5,8 @@ pub struct ConsistentHash {
     metadata: Metadata,
 }
 
+pub struct ConsistentHashSelector {}
+
 impl ConsistentHash {
     pub fn new() -> ConsistentHash {
         ConsistentHash {

@@ -1,16 +1,27 @@
 use std::net::{AddrParseError, SocketAddr};
 
-use crate::invocation::RpcInvocation;
+use common::url::Url;
+use crate::invocation::Invocation;
 
-#[derive(Debug,Clone)]
+
+#[derive(Debug, Clone)]
 pub struct Invoker {
-    pub registry_url: String,
+    pub registry_url: Url,
     pub is_available: bool,
-    pub url: String,
+    pub url: Url,
 }
 
-trait Invoke {
-    fn invoke(invocation: RpcInvocation);
+impl Invoker {
+
+    pub fn invoke(&self, invocation: Invocation) {}
+
+    pub fn url(&self) -> Url {
+        self.url.clone()
+    }
+
+    pub fn registry_url(&self) -> Url {
+        self.url.clone()
+    }
 }
 
 /// Container of many invoker
