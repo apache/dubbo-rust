@@ -44,7 +44,7 @@ impl LoadBalance for LeastActive {
         for i in 0..length {
             let invoker = invokers.get(i).unwrap();
             // Get the active number of the invoker
-            let active = RpcStatus::get_method_status(invoker.url.clone(), invocation.method_name.clone().as_str()).active();
+            let active = RpcStatus::get_method_status(invoker.url().clone(), invocation.method_name.clone().as_str()).active();
             // Get the weight of the invoker's configuration. The default value is 100.
             let after_warmup = self.get_weight(invoker, &invocation);
             // save for later use

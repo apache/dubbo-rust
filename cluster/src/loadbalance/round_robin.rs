@@ -42,7 +42,7 @@ mod tests {
         for i in 0..100 {
             let invocation = Invocation::new("a".to_string(), "Invocation".to_string(), HashMap::new());
             let option = round_robin.select(get_test_invokers(), String::new(), invocation);
-            println!("{:},{:?}", i, option);
+            println!("{:},{:?}", i, option.unwrap().url());
         }
     }
 }

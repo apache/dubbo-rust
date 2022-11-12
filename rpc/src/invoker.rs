@@ -1,18 +1,24 @@
 use std::net::{AddrParseError, SocketAddr};
 
 use common::url::Url;
-use crate::invocation::Invocation;
 
+use crate::invocation::Invocation;
 
 #[derive(Debug, Clone)]
 pub struct Invoker {
-    pub registry_url: Url,
-    pub is_available: bool,
-    pub url: Url,
+    registry_url: Url,
+    is_available: bool,
+    url: Url,
 }
 
 impl Invoker {
-
+    pub fn new(registry_url: Url, is_available: bool, url: Url) -> Invoker {
+        Invoker {
+            registry_url,
+            is_available,
+            url,
+        }
+    }
     pub fn invoke(&self, invocation: Invocation) {}
 
     pub fn url(&self) -> Url {

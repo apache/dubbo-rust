@@ -75,11 +75,11 @@ pub struct Metadata {
 fn get_test_invokers() -> InvokersContainer {
     let mut vec = InvokersContainer::new();
     for i in 0..5 {
-        vec.push(Box::new(Invoker {
-            registry_url: Url::from_str(format!("https://dubbo.apache.org/invoker-{}", "i").as_str()).unwrap(),
-            is_available: true,
-            url: Url::from_str(format!("https://dubbo.apache.org/invoker-{}", "i").as_str()).unwrap(),
-        }));
+        vec.push(Box::new(Invoker::new(
+            Url::from_str(format!("https://dubbo.apache.org/invoker-{}", "i").as_str()).unwrap(),
+            true,
+            Url::from_str(format!("https://dubbo.apache.org/invoker-{}", "i").as_str()).unwrap(),
+        )));
     }
     vec
 }
