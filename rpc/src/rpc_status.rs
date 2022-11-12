@@ -3,23 +3,17 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use common::dashmap::DashMap;
-use common::dashmap::mapref::one::Ref;
+use common::dashmap::mapref::one::{Ref, RefMut};
 use common::lazy_static::lazy_static;
 use common::url::Url;
 use common::util::url::{to_identity_string_with_url, to_identity_string_with_url_and_method_name};
 
 lazy_static! {
-    static ref SERVICE_STATISTICS: Arc<DashMap<String, BoxedRpcStatus>> = {
-        let mut map = Arc::new(DashMap::<String,BoxedRpcStatus>::new());
-        map
-    };
-    static ref METHOD_STATISTICS: Arc<DashMap<String, BoxedRpcStatus>> = {
-        let mut map = Arc::new(DashMap::<String,BoxedRpcStatus>::new());
-        map
-    };
+    static ref SERVICE_STATISTICS: Arc<DashMap<String, BoxedRpcStatus>> = Arc::new(DashMap::<String,BoxedRpcStatus>::new());
+    static ref METHOD_STATISTICS: Arc<DashMap<String, BoxedRpcStatus>> = Arc::new(DashMap::<String,BoxedRpcStatus>::new());
 }
 
 
@@ -27,7 +21,7 @@ pub type BoxedRpcStatus = Box<RpcStatus>;
 
 #[derive(Debug)]
 pub struct RpcStatus {
-    values: Box<DashMap<String,String>>,
+    values: HashMap<String, String>,
     active: AtomicUsize,
     total: AtomicUsize,
     failed: AtomicUsize,
@@ -41,7 +35,7 @@ pub struct RpcStatus {
 impl RpcStatus {
     pub fn new() -> RpcStatus {
         RpcStatus {
-            values: Box::new(DashMap::new()),
+            values: HashMap::new(),
             active: AtomicUsize::new(0),
             total: AtomicUsize::new(0),
             failed: AtomicUsize::new(0),
@@ -79,18 +73,64 @@ impl RpcStatus {
 
 
     pub fn remove_status(url: Url) {
-        SERVICE_STATISTICS.remove(to_identity_string_with_url(url).as_str());
+        let identity = &to_identity_string_with_url(url);
+        SERVICE_STATISTICS.remove(identity);
     }
 
     pub fn remove_method_status(url: Url, method_name: &str) {
-        METHOD_STATISTICS.remove(to_identity_string_with_url_and_method_name(url, method_name).as_str());
+        let identity = &to_identity_string_with_url_and_method_name(url, method_name);
+        METHOD_STATISTICS.remove(identity);
+    }
+
+    pub fn succeeded_max_elapsed(&self) -> usize {
+        self.succeeded_max_elapsed.load(Ordering::SeqCst)
+    }
+
+    pub fn total(&self) -> usize {
+        self.total.load(Ordering::SeqCst)
+    }
+
+    pub fn active(&self) -> usize {
+        self.active.load(Ordering::SeqCst)
+    }
+
+    pub fn failed(&self) -> usize {
+        self.failed.load(Ordering::SeqCst)
+    }
+
+    pub fn failed_max_elapsed(&self) -> usize {
+        self.failed_max_elapsed.load(Ordering::SeqCst)
+    }
+
+    pub fn failed_elapsed(&self) -> usize {
+        self.failed_elapsed.load(Ordering::SeqCst)
+    }
+
+    pub fn max_elapsed(&self) -> usize {
+        self.max_elapsed.load(Ordering::SeqCst)
+    }
+
+    pub fn total_elapsed(&self) -> usize {
+        self.total_elapsed.load(Ordering::SeqCst)
+    }
+
+    pub fn set(&mut self, k: &str, v: &str) {
+        self.values.insert(k.to_string(), v.to_string());
+    }
+
+    pub fn get(&self, k: &str) -> Option<String> {
+        match self.values.get(k) {
+            None => None,
+            Some(v) => Some(v.clone())
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::BorrowMut;
+    use std::ops::DerefMut;
     use std::str::FromStr;
-
     use super::*;
 
     #[test]
@@ -104,7 +144,18 @@ mod tests {
     fn test_get_method_status() {
         let url = Url::from_str("https://www.taobao.com").unwrap();
         let option = RpcStatus::get_method_status(url, "hello");
-        println!("{:?}", option.succeeded_max_elapsed);
+        option.total.fetch_add(1, Ordering::SeqCst);
+        println!("{:?}", option.total());
+    }
+
+    #[test]
+    fn test_set_get_values(){
+        let url = Url::from_str("https://www.taobao.com").unwrap();
+        let option = RpcStatus::get_status(url);
+        let mut x1 = option.value();
+        let x = option.get("a");
+        todo!("set value");
+        println!("{:?}", x);
     }
 }
 
