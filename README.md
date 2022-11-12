@@ -66,12 +66,10 @@ more ...
 
 ## Contact Us
 
-- Join the Wechat Group
-![image](https://user-images.githubusercontent.com/18097545/201456467-e33a491c-a94a-4d3e-baf2-c9c0748f0346.png)
-
 - Subscribe to the official Wechat Account
 ![officialAccount](https://user-images.githubusercontent.com/18097545/201456442-68a7bf1e-3c84-4f32-bd45-0fedb4d1012d.png)
 
+- Search and join the DingTalk group: 44694199
 
 ## Contribute
 
