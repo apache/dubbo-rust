@@ -64,7 +64,10 @@ more ...
 
 ## 联系方式
 
-- [钉钉](https://www.dingtalk.com/zh-cn):  44694199
+- 订阅官方微信公众号
+![officialAccount](https://user-images.githubusercontent.com/18097545/201456442-68a7bf1e-3c84-4f32-bd45-0fedb4d1012d.png)
+
+- 搜索并加入钉钉群组: 44694199
 
 ## 贡献
 
