@@ -46,7 +46,7 @@ impl ProtocolConfig {
         Self { params, ..self }
     }
 
-    pub fn to_url(self) -> String {
+    pub fn to_url(&self) -> String {
         format!("{}://{}:{}", self.name, self.ip, self.port)
     }
 }

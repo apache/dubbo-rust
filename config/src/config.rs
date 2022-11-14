@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-use std::{collections::HashMap, env, fs, sync::RwLock};
+use std::{collections::HashMap, env, fs};
 
-use lazy_static::lazy_static;
+use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 
 use super::protocol::ProtocolConfig;
@@ -26,9 +26,7 @@ use super::service::ServiceConfig;
 
 pub const DUBBO_CONFIG_PATH: &str = "./dubbo.yaml";
 
-lazy_static! {
-    pub static ref GLOBAL_ROOT_CONFIG: RwLock<Option<RootConfig>> = RwLock::new(None);
-}
+pub static GLOBAL_ROOT_CONFIG: OnceCell<RootConfig> = OnceCell::new();
 
 /// used to storage all structed config, from some source: cmd, file..;
 /// Impl Config trait, business init by read Config trait
@@ -51,19 +49,13 @@ pub struct RootConfig {
     pub data: HashMap<String, String>,
 }
 
-pub fn get_global_config() -> RootConfig {
-    if GLOBAL_ROOT_CONFIG.read().unwrap().as_ref().is_none() {
-        {
-            tracing::debug!("current path: {:?}", env::current_dir());
-            let c = match RootConfig::new().load() {
-                Ok(v) => v,
-                Err(err) => panic!("Failed to load global config, error: {}", err),
-            };
-            *GLOBAL_ROOT_CONFIG.write().unwrap() = Some(c);
-        }
-    }
-
-    return GLOBAL_ROOT_CONFIG.read().unwrap().as_ref().unwrap().clone();
+pub fn get_global_config() -> &'static RootConfig {
+    GLOBAL_ROOT_CONFIG.get_or_init(|| {
+        tracing::debug!("current path: {:?}", env::current_dir());
+        RootConfig::new()
+            .load()
+            .unwrap_or_else(|err| panic!("Failed to load global config, error: {}", err))
+    })
 }
 
 impl RootConfig {
@@ -150,6 +142,11 @@ impl RootConfig {
             "dubbo://127.0.0.1:8888/?serviceName=hellworld".to_string(),
         );
         // self.data.insert("dubbo.consume.", v)
+    }
+
+    #[inline]
+    pub fn leak(self) -> &'static Self {
+        Box::leak(Box::new(self))
     }
 }
 

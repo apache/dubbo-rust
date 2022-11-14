@@ -33,7 +33,7 @@ pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
     registries: HashMap<String, Url>,
     service_registry: HashMap<String, Vec<Url>>, // registry: Urls
-    config: Option<RootConfig>,
+    config: Option<&'static RootConfig>,
 }
 
 impl Dubbo {
@@ -47,71 +47,60 @@ impl Dubbo {
         }
     }
 
-    pub fn with_config(mut self, c: RootConfig) -> Self {
-        self.config = Some(c);
+    pub fn with_config(mut self, config: RootConfig) -> Self {
+        self.config = Some(config.leak());
         self
     }
 
     pub fn init(&mut self) {
-        if self.config.is_none() {
-            self.config = Some(get_global_config())
-        }
-
-        let conf = self.config.as_ref().unwrap();
+        let conf = self.config.get_or_insert(get_global_config());
         tracing::debug!("global conf: {:?}", conf);
 
         for (name, url) in conf.registries.iter() {
-            self.registries
-                .insert(name.to_string(), Url::from_url(url).unwrap());
+            self.registries.insert(
+                name.clone(),
+                Url::from_url(url).expect(&format!("url: {url} parse failed.")),
+            );
         }
 
-        for (service_name, c) in conf.provider.services.iter() {
-            let u = if c.protocol_configs.is_empty() {
-                let protocol = match conf.protocols.get(&c.protocol) {
-                    Some(v) => v.to_owned(),
-                    None => {
-                        tracing::warn!("protocol {:?} not exists", c.protocol);
-                        continue;
-                    }
-                };
-                let protocol_url =
-                    format!("{}/{}/{}", protocol.to_url(), c.name.clone(), service_name);
-                Url::from_url(&protocol_url)
-            } else {
-                let protocol = match c.protocol_configs.get(&c.protocol) {
-                    Some(v) => v.to_owned(),
-                    None => {
-                        tracing::warn!("protocol {:?} not exists", c.protocol);
-                        continue;
-                    }
-                };
-                let protocol_url =
-                    format!("{}/{}/{}", protocol.to_url(), c.name.clone(), service_name);
-                Url::from_url(&protocol_url)
+        for (service_name, service_config) in conf.provider.services.iter() {
+            let protocol_url = match service_config
+                .protocol_configs
+                .get(&service_config.protocol)
+            {
+                Some(protocol_url) => protocol_url,
+                None => {
+                    let Some(protocol_url) = conf.protocols.get(&service_config.protocol) else {
+                                    tracing::warn!("protocol: {:?} not exists", service_config.protocol);
+                                    continue;
+                                };
+                    protocol_url
+                }
             };
-            tracing::info!("url: {:?}", u);
-            if u.is_none() {
-                continue;
-            }
+            let protocol_url = format!(
+                "{}/{}/{}",
+                &protocol_url.to_url(),
+                service_config.name,
+                service_name
+            );
+            tracing::info!("url: {}", protocol_url);
 
-            let u = u.unwrap();
+            let protocol_url = Url::from_url(&protocol_url)
+                .expect(&format!("protocol url: {protocol_url} parse failed."));
+            self.protocols
+                .entry(service_config.name.clone())
+                .and_modify(|urls| urls.push(protocol_url.clone()))
+                .or_insert(vec![protocol_url]);
 
-            let reg_url = self.registries.get(&c.registry).unwrap();
-            if self.service_registry.get(&c.name).is_some() {
-                self.service_registry
-                    .get_mut(&c.name)
-                    .unwrap()
-                    .push(reg_url.clone());
-            } else {
-                self.service_registry
-                    .insert(c.name.clone(), vec![reg_url.clone()]);
-            }
-
-            if self.protocols.get(&c.protocol).is_some() {
-                self.protocols.get_mut(&c.protocol).unwrap().push(u);
-            } else {
-                self.protocols.insert(c.protocol.clone(), vec![u]);
-            }
+            let registry = &service_config.registry;
+            let reg_url = self
+                .registries
+                .get(registry)
+                .expect(&format!("can't find the registry: {registry}"));
+            self.service_registry
+                .entry(service_config.name.clone())
+                .and_modify(|urls| urls.push(reg_url.to_owned()))
+                .or_insert(vec![reg_url.to_owned()]);
         }
     }
 
@@ -132,5 +121,15 @@ impl Dubbo {
         }
 
         let _res = future::join_all(async_vec).await;
+    }
+}
+
+impl Drop for Dubbo {
+    fn drop(&mut self) {
+        unsafe {
+            if let Some(config) = self.config.take() {
+                let _ = Box::from_raw(config as *const RootConfig as *mut RootConfig);
+            }
+        }
     }
 }
