@@ -6,10 +6,4 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-url = "2.3.1"
-lazy_static = "1.4.0"
-dashmap = "5.4.0"
-regex = "1.6.0"
-urlencoding = "2.1.2"
-rand = "0.8.5"
 

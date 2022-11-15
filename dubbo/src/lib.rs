@@ -26,6 +26,7 @@ pub mod registry;
 pub mod status;
 pub mod triple;
 pub mod utils;
+pub(crate) mod rpc;
 
 use http_body::Body;
 use std::future::Future;

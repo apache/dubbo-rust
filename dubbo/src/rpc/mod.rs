@@ -14,6 +14,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-pub mod directory;
-pub mod loadbalance;
+pub mod invoker;
+pub(crate) mod rpc_status;

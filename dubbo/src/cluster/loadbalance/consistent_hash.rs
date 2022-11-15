@@ -15,5 +15,22 @@
  * limitations under the License.
  */
 
-pub mod directory;
-pub mod loadbalance;
+
+// use crate::cluster::loadbalance::Metadata;
+//
+// #[derive(Debug)]
+// pub struct ConsistentHash {
+//     metadata: Metadata,
+// }
+//
+// pub struct ConsistentHashSelector {}
+//
+// impl ConsistentHash {
+//     pub fn new() -> ConsistentHash {
+//         ConsistentHash {
+//             metadata: Metadata {
+//                 name: "consistenthash".to_string()
+//             }
+//         }
+//     }
+// }

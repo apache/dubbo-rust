@@ -17,6 +17,8 @@
 
 use std::collections::HashMap;
 
+use crate::common::util::hash::hash_to_u64;
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Url {
     pub uri: String,
@@ -27,6 +29,7 @@ pub struct Url {
     pub service_key: Vec<String>,
     pub params: HashMap<String, String>,
 }
+
 
 impl Url {
     pub fn new() -> Self {
@@ -65,6 +68,19 @@ impl Url {
         self.params.get(&key).cloned()
     }
 
+    pub fn query_pairs(&self) -> HashMap<String,String> {
+        //todo
+        HashMap::new()
+    }
+
+    pub fn get_param_with_default(&self, key: String, default: String) -> Option<String> {
+        return if self.params.contains_key(&key) {
+            self.params.get(&key).cloned()
+        } else {
+            Some(default)
+        }
+    }
+
     pub fn encode_param(&self) -> String {
         let mut params_vec: Vec<String> = Vec::new();
         for (k, v) in self.params.iter() {
@@ -88,6 +104,14 @@ impl Url {
     pub fn to_url(&self) -> String {
         format!("{}://{}:{}", self.protocol, self.ip, self.port)
     }
+
+    pub fn to_identity_string(&self) -> String {
+        hash_to_u64(self.uri.as_str()).to_string()
+    }
+
+    pub fn to_identity_string_with_method(&self, method_name: &str) -> String {
+        hash_to_u64(self.uri.as_str()).to_string() + ":" + method_name
+    }
 }
 
 #[cfg(test)]
@@ -97,7 +121,9 @@ mod tests {
     #[test]
     fn test_from_url() {
         let u1 = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter");
-        println!("{:?}", u1.unwrap().get_service_name())
+        println!("{:?}", u1.unwrap().get_service_name());
+        let u2 = Url::from_url("https://dubbo.apache.org/invoker-1");
+        assert_ne!(u2, None);
     }
 
     #[test]
