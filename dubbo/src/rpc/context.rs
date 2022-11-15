@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
+use core::cell::RefCell;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
-use core::cell::RefCell;
 
 type SafetyValue = Arc<dyn Any + Sync + Send>;
 thread_local! {
@@ -61,9 +61,7 @@ impl RpcContext {
 }
 
 fn get_current<F: FnMut(&RpcContext) -> T, T>(mut f: F) -> T {
-    SERVICE_CONTEXT
-        .try_with(|ctx| f(&ctx.borrow()))
-        .unwrap()
+    SERVICE_CONTEXT.try_with(|ctx| f(&ctx.borrow())).unwrap()
 }
 
 impl fmt::Debug for RpcContext {
@@ -73,7 +71,6 @@ impl fmt::Debug for RpcContext {
             .finish()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -93,12 +90,13 @@ mod tests {
         for i in 0..10 {
             handles.push(rt.spawn(async move {
                 let mut context = RpcContext::current();
-                context.attachments.insert("key1".to_string(), Arc::new(format!("test{}", i)));
+                let mut attachs = context.attachments;
+                attachs.insert("key1".into(), Arc::new(format!("test{i}")));
                 if i == 10 {
-                    context.attachments.insert("key2".to_string(), Arc::new(2));
-                    assert_eq!(context.attachments.len(), 2);
+                    attachs.insert("key2".into(), Arc::new(2));
+                    assert_eq!(attachs.len(), 2);
                 } else {
-                    assert_eq!(context.attachments.len(), 1);
+                    assert_eq!(attachs.len(), 1);
                 }
             }));
         }

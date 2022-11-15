@@ -22,10 +22,10 @@ mod framework;
 pub mod invocation;
 pub mod protocol;
 pub mod registry;
+pub mod rpc;
 pub mod status;
 pub mod triple;
 pub mod utils;
-pub mod rpc;
 
 use http_body::Body;
 use std::future::Future;
