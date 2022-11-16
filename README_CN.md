@@ -32,7 +32,7 @@ Dubbo-rust 目前还在开发阶段. 截至目前, 已经实现了基于HTTP2的
 ## 开始使用
 
 - Dubbo-rust 快速开始:  [中文](https://dubbo.apache.org/zh/docs3-v2/rust-sdk/quick-start/), English
-- Dubbo-rust 教程:  [Examples](https://github.com/apache/dubbo-rust/tree/main/examples)
+- Dubbo-rust 教程:  [Examples](examples/READMED.md)
 
 ## 项目结构
 
