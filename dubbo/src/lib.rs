@@ -17,12 +17,12 @@
 
 pub mod codegen;
 pub mod common;
+pub mod context;
 pub mod filter;
 mod framework;
 pub mod invocation;
 pub mod protocol;
 pub mod registry;
-pub mod rpc;
 pub mod status;
 pub mod triple;
 pub mod utils;

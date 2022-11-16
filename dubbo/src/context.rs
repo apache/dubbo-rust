@@ -21,14 +21,26 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use std::sync::Arc;
+///
+/// let mut map = HashMap::<String, SafetyValue>::new();
+///  map.insert("key1".into(), Arc::new("data-1"));
+///
+///  // get a typed value from SafetyValue
+///  let value = map
+///      .get("key1")
+///      .and_then(|f| f.downcast_ref::<String>())
+///      .unwrap();
+///
+/// assert_eq!(value, "data-1");
+/// ```
 type SafetyValue = Arc<dyn Any + Sync + Send>;
+
 thread_local! {
     static SERVICE_CONTEXT: RefCell<RpcContext> = RefCell::new(RpcContext::default());
-    // from Java
-    // static SERVER_CONTEXT: RefCell<Context> = RefCell::new(Context::default());
-    // static CLIENT_ATTACHMENT: RefCell<Context> = RefCell::new(Context::default());
-    // static SERVER_ATTACHMENT: RefCell<Context> = RefCell::new(Context::default());
-    // static CANCELLATION_CONTEXT: RpcContext = RpcContext::default();
 }
 
 ///
@@ -43,20 +55,16 @@ thread_local! {
 #[derive(Clone, Default)]
 pub struct RpcContext {
     pub attachments: HashMap<String, SafetyValue>,
-    //invocation:,
-    //invoker: ,
-    //invokers: ,
-    //remoteAddress
-    //localAddress
-    //remoteApplicationName
-    //url
-    //urls
-    //consumerUrl
+    // TODO
 }
 
 impl RpcContext {
     pub fn current() -> Self {
         get_current(|ctx| ctx.clone())
+    }
+
+    pub fn clear(&mut self) {
+        self.attachments.clear();
     }
 }
 
@@ -75,6 +83,7 @@ impl fmt::Debug for RpcContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread::sleep;
     use std::time::Duration;
 
     #[test]
@@ -89,19 +98,20 @@ mod tests {
 
         for i in 0..10 {
             handles.push(rt.spawn(async move {
-                let mut context = RpcContext::current();
-                let mut attachs = context.attachments;
-                attachs.insert("key1".into(), Arc::new(format!("test{i}")));
+                let mut attachments = RpcContext::current().attachments;
+                attachments.insert("key1".into(), Arc::new(format!("data-{i}")));
+
                 if i == 10 {
-                    attachs.insert("key2".into(), Arc::new(2));
-                    assert_eq!(attachs.len(), 2);
+                    attachments.insert("key2".into(), Arc::new(2));
+                    assert_eq!(attachments.len(), 2);
                 } else {
-                    assert_eq!(attachs.len(), 1);
+                    assert_eq!(attachments.len(), 1);
                 }
             }));
         }
 
-        std::thread::sleep(Duration::from_millis(500));
+        sleep(Duration::from_millis(500));
+
         for handle in handles {
             rt.block_on(handle).unwrap();
         }
