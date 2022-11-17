@@ -106,7 +106,11 @@ impl RootConfig {
             .serializer("json".to_string())
             .version("1.0.0".to_string())
             .protocol_names("triple".to_string())
-            .name("grpc.examples.echo.Echo".to_string());
+            // Currently, the hello_echo.rs doesn't support the url which like
+            // `{protocol}/{service config name}/{service name}(e.g. triple://0.0.0.0:8888/{service config name}/grpc.examples.echo.Echo).
+            // So we comment this line.
+            // .name("grpc.examples.echo.Echo".to_strdding())
+            .registry("zookeeper".to_string());
 
         let triple_config = ProtocolConfig::default()
             .name("triple".to_string())
@@ -122,8 +126,9 @@ impl RootConfig {
                 .group("test".to_string())
                 .serializer("json".to_string())
                 .version("1.0.0".to_string())
-                .name("helloworld.Greeter".to_string())
-                .protocol_names("triple".to_string()),
+                // .name("helloworld.Greeter".to_string())
+                .protocol_names("triple".to_string())
+                .registry("zookeeper".to_string()),
         );
         self.protocols.insert(
             "triple".to_string(),
@@ -135,6 +140,14 @@ impl RootConfig {
 
         provider.services = self.service.clone();
         self.provider = provider.clone();
+
+        let mut registries = HashMap::new();
+        registries.insert(
+            "zookeeper".to_string(),
+            "zookeeper://localhost:2181".to_string(),
+        );
+        self.registries = registries;
+
         println!("provider config: {:?}", provider);
         // 通过环境变量读取某个文件。加在到内存中
         self.data.insert(
