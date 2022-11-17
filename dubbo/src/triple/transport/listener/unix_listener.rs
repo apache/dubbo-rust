@@ -27,13 +27,14 @@ use tokio::net::{UnixListener as tokioUnixListener, UnixStream};
 
 pub struct UnixListener {
     inner: tokioUnixListener,
+    path: String
 }
 
 impl UnixListener {
     pub async fn bind(addr: SocketAddr) -> std::io::Result<UnixListener> {
-        let listener = tokioUnixListener::bind(addr.to_string())?;
+        let listener = tokioUnixListener::bind(format!("{}", addr.to_string()))?;
 
-        Ok(UnixListener { inner: listener })
+        Ok(UnixListener { inner: listener,path:addr.to_string() })
     }
 }
 
@@ -42,8 +43,8 @@ impl Listener for UnixListener {
     type Conn = UnixStream;
 
     async fn accept(&self) -> std::io::Result<(Self::Conn, SocketAddr)> {
-        let (unix_stream, unix_addr)= self.inner.accept().await?;
-        let addr:SocketAddr = unix_addr.as_pathname().unwrap().to_str().unwrap().parse().unwrap();
+        let (unix_stream, _unix_addr)= self.inner.accept().await?;
+        let addr:SocketAddr = self.path.parse().unwrap();
         Ok((unix_stream, addr))
     }
 }

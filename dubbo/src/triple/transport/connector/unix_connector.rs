@@ -20,7 +20,7 @@ use std::str::FromStr;
 
 use http::Uri;
 use hyper::client::connect::dns::Name;
-use tokio::net::TcpStream;
+use tokio::net::{TcpStream, UnixStream};
 use tower_service::Service;
 
 use crate::triple::transport::resolver::dns::DnsResolver;
@@ -50,7 +50,7 @@ where
     R: Resolve + Clone + Send + Sync + 'static,
     R::Future: Send,
 {
-    type Response = TcpStream;
+    type Response = UnixStream;
 
     type Error = crate::Error;
 
@@ -74,9 +74,11 @@ impl<R> UnixConnector<R>
 where
     R: Resolve + Send + Sync + 'static,
 {
-    async fn call_async(&mut self, uri: Uri) -> Result<TcpStream, crate::Error> {
+    async fn call_async(&mut self, uri: Uri) -> Result<UnixStream, crate::Error> {
         let host = uri.host().unwrap();
         let port = uri.port_u16().unwrap();
+
+        
 
         let addr = if let Ok(addr) = host.parse::<Ipv4Addr>() {
             tracing::info!("host is ip address: {:?}", host);
@@ -97,7 +99,9 @@ where
             addrs[0]
         };
 
-        let conn = TcpStream::connect(addr).await?;
+        tracing::debug!("uri:{:?}, ip:port : {}", &addr, addr.to_string());
+
+        let conn = UnixStream::connect(addr.to_string().replace("unix://", "")).await?;
 
         Ok(conn)
     }
