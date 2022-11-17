@@ -57,6 +57,10 @@ impl ServiceConfig {
         Self { serializer, ..self }
     }
 
+    pub fn registry(self, registry: String) -> Self {
+        Self { registry, ..self }
+    }
+
     pub fn add_protocol_configs(mut self, protocol_config: ProtocolConfig) -> Self {
         self.protocol_configs
             .insert(protocol_config.name.clone(), protocol_config);
