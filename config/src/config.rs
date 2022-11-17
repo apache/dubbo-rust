@@ -106,8 +106,8 @@ impl RootConfig {
             .serializer("json".to_string())
             .version("1.0.0".to_string())
             .protocol_names("triple".to_string())
-            // Currently, the grpc.examples.echo.rs which is generated automically dont't support the url just like:
-            // {protocol}/{service config name}/{service name}(e.g. triple://0.0.0.0:8888/{service config name}/grpc.examples.echo.Echo).
+            // Currently, the hello_echo.rs doesn't support the url which like
+            // `{protocol}/{service config name}/{service name}(e.g. triple://0.0.0.0:8888/{service config name}/grpc.examples.echo.Echo).
             // So we comment this line.
             // .name("grpc.examples.echo.Echo".to_strdding())
             .registry("zookeeper".to_string());
