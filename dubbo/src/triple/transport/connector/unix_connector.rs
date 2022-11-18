@@ -20,7 +20,7 @@ use std::str::FromStr;
 
 use http::Uri;
 use hyper::client::connect::dns::Name;
-use tokio::net::{TcpStream, UnixStream};
+use tokio::net::UnixStream;
 use tower_service::Service;
 
 use crate::triple::transport::resolver::dns::DnsResolver;
@@ -77,8 +77,6 @@ where
     async fn call_async(&mut self, uri: Uri) -> Result<UnixStream, crate::Error> {
         let host = uri.host().unwrap();
         let port = uri.port_u16().unwrap();
-
-        
 
         let addr = if let Ok(addr) = host.parse::<Ipv4Addr>() {
             tracing::info!("host is ip address: {:?}", host);

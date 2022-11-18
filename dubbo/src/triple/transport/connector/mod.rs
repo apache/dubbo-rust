@@ -18,12 +18,10 @@
 pub mod http_connector;
 pub mod unix_connector;
 
-use hyper::{Uri};
+use hyper::Uri;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tower::make::MakeConnection;
 use tower_service::Service;
-
-
 
 use super::io::BoxIO;
 use crate::utils::boxed_clone::BoxCloneService;
@@ -38,7 +36,7 @@ impl<C> Connector<C> {
     where
         C: Service<Uri>,
         C::Error: Into<crate::Error>,
-        C::Response: AsyncRead + AsyncWrite  + Send + 'static,
+        C::Response: AsyncRead + AsyncWrite + Send + 'static,
     {
         Self { inner }
     }
@@ -75,7 +73,6 @@ where
 }
 
 pub fn get_connector(connector: String) -> BoxCloneService<Uri, BoxIO, crate::Error> {
-    
     match connector.as_str() {
         "http" => {
             let c = http_connector::HttpConnector::new();
@@ -91,4 +88,3 @@ pub fn get_connector(connector: String) -> BoxCloneService<Uri, BoxIO, crate::Er
         }
     }
 }
-

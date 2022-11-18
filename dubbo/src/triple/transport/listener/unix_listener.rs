@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-
-use std::{task, net::{SocketAddr}};
+use std::{net::SocketAddr, task};
 
 use super::Listener;
 use async_trait::async_trait;
@@ -24,17 +23,19 @@ use futures_core::Stream;
 use hyper::server::accept::Accept;
 use tokio::net::{UnixListener as tokioUnixListener, UnixStream};
 
-
 pub struct UnixListener {
     inner: tokioUnixListener,
-    path: String
+    path: String,
 }
 
 impl UnixListener {
     pub async fn bind(addr: SocketAddr) -> std::io::Result<UnixListener> {
         let listener = tokioUnixListener::bind(format!("{}", addr.to_string()))?;
 
-        Ok(UnixListener { inner: listener,path:addr.to_string() })
+        Ok(UnixListener {
+            inner: listener,
+            path: addr.to_string(),
+        })
     }
 }
 
@@ -43,8 +44,8 @@ impl Listener for UnixListener {
     type Conn = UnixStream;
 
     async fn accept(&self) -> std::io::Result<(Self::Conn, SocketAddr)> {
-        let (unix_stream, _unix_addr)= self.inner.accept().await?;
-        let addr:SocketAddr = self.path.parse().unwrap();
+        let (unix_stream, _unix_addr) = self.inner.accept().await?;
+        let addr: SocketAddr = self.path.parse().unwrap();
         Ok((unix_stream, addr))
     }
 }
