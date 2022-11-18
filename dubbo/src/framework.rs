@@ -92,6 +92,10 @@ impl Dubbo {
                 .and_modify(|urls| urls.push(protocol_url.clone()))
                 .or_insert(vec![protocol_url]);
 
+            tracing::debug!(
+                "service name: {service_name}, service_config: {:?}",
+                service_config
+            );
             let registry = &service_config.registry;
             let reg_url = self
                 .registries
