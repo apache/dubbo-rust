@@ -31,6 +31,26 @@ impl<T> Request<T> {
         }
     }
 
+    /// Get a reference to the message
+    pub fn get_ref(&self) -> &T {
+        &self.message
+    }
+
+    /// Get a mutable reference to the message
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.message
+    }
+
+    /// Get a reference to the custom request metadata.
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+
+    /// Get a mutable reference to the request metadata.
+    pub fn metadata_mut(&mut self) -> &mut Metadata {
+        &mut self.metadata
+    }
+
     pub fn into_inner(self) -> T {
         self.message
     }
@@ -164,6 +184,16 @@ impl Metadata {
         Metadata {
             inner: HashMap::new(),
         }
+    }
+
+    /// Get a reference to the inner
+    pub fn get_ref(&self) -> &HashMap<String, String> {
+        &self.inner
+    }
+
+    /// Get a mutable reference to the inner
+    pub fn get_mut(&mut self) -> &mut HashMap<String, String> {
+        &mut self.inner
     }
 
     pub fn from_headers(headers: http::HeaderMap) -> Self {

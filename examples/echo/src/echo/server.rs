@@ -19,6 +19,8 @@ use std::io::ErrorKind;
 use std::pin::Pin;
 
 use async_trait::async_trait;
+use dubbo::filter::clusterfilter::cluster_filter;
+use dubbo::filter::ClusterFilter;
 use futures_util::Stream;
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
@@ -31,6 +33,7 @@ use example_echo::protos::hello_echo::{
     echo_server::{register_server, Echo, EchoServer},
     EchoRequest, EchoResponse,
 };
+use tower::ServiceBuilder;
 
 type ResponseStream =
     Pin<Box<dyn Stream<Item = Result<EchoResponse, dubbo::status::Status>> + Send>>;
@@ -50,14 +53,16 @@ async fn main() {
     register_server(EchoServerImpl {
         name: "echo".to_string(),
     });
-    let server = EchoServerImpl::default();
-    let s = EchoServer::<EchoServerImpl>::with_filter(server, FakeFilter {});
+    let server = EchoServer::new(EchoServerImpl::default());
+    let server = ServiceBuilder::new()
+        .layer(cluster_filter(EchoClusterFilter))
+        .service(server);
     dubbo::protocol::triple::TRIPLE_SERVICES
         .write()
         .unwrap()
         .insert(
             "grpc.examples.echo.Echo".to_string(),
-            dubbo::utils::boxed_clone::BoxCloneService::new(s),
+            dubbo::utils::boxed_clone::BoxCloneService::new(server),
         );
 
     // Dubbo::new().start().await;
@@ -206,5 +211,19 @@ fn match_for_io_error(err_status: &dubbo::status::Status) -> Option<&std::io::Er
             Some(err) => err,
             None => return None,
         };
+    }
+}
+
+#[derive(Clone, Copy)]
+struct EchoClusterFilter;
+
+impl ClusterFilter for EchoClusterFilter {
+    fn call(&mut self, mut req: Request<()>) -> Result<Request<()>, dubbo::status::Status> {
+        println!("EchoClusterFilter");
+        req.metadata_mut().get_mut().insert(
+            "EchoClusterFilter".to_string(),
+            "EchoClusterFilter".to_string(),
+        );
+        Ok(req)
     }
 }

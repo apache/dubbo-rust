@@ -25,6 +25,7 @@ tokio-stream = "0.1"
 
 dubbo = {path = "../../dubbo", version = "0.2.0"}
 dubbo-config = {path = "../../config", version = "0.2.0"}
+tower = "0.4.13"
 
 [build-dependencies]
 dubbo-build = {path = "../../dubbo-build", version = "0.2.0"}
