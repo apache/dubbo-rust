@@ -75,7 +75,7 @@
 //! }
 //! ```
 
-use crate::codegen::Request;
+use crate::invocation::Request;
 
 pub mod clusterfilter;
 pub mod service;
