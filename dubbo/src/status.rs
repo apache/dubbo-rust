@@ -262,12 +262,18 @@ pub struct Status {
 }
 
 impl Status {
-    pub fn new(code: Code, message: String) -> Self {
-        Status { code, message }
+    pub fn new(code: Code, message: impl Into<String>) -> Self {
+        Status {
+            code,
+            message: message.into(),
+        }
     }
 
-    pub fn with_message(self, message: String) -> Self {
-        Status { message, ..self }
+    pub fn with_message(self, message: impl Into<String>) -> Self {
+        Status {
+            message: message.into(),
+            ..self
+        }
     }
 
     pub fn from_std_erro<T: std::error::Error>(err: T) -> Self {
