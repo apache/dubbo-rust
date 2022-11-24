@@ -17,7 +17,7 @@ Dubbo-rust 目前还在开发阶段. 截至目前, 已经实现了基于HTTP2的
 
 - [`Prost`](https://github.com/tokio-rs/prost/)  [Protocol Buffers](https://developers.google.com/protocol-buffers/) Rust实现。
 
-- [`Hyper`](https://github.com/hyperium/hyperhttps://github.com/hyperium/hyper) 构建HTTP协议的Rust库。
+- [`Hyper`](https://github.com/hyperium/hyper) 构建HTTP协议的Rust库。
 
 - [`Serde`](https://github.com/serde-rs/serde) 序列化/反序列化Rust库
 
