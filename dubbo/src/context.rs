@@ -18,8 +18,10 @@
 use core::cell::RefCell;
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::{fmt, thread};
+
+use state::Container;
 
 ///
 /// ```rust
@@ -39,9 +41,7 @@ use std::sync::Arc;
 /// ```
 type SafetyValue = Arc<dyn Any + Sync + Send>;
 
-thread_local! {
-    static SERVICE_CONTEXT: RefCell<RpcContext> = RefCell::new(RpcContext::default());
-}
+pub static APPLICATION_CONTEXT: Container![Send + Sync] = <Container![Send + Sync]>::new();
 
 ///
 /// All environment information of during the current call will put into the context
@@ -53,30 +53,31 @@ thread_local! {
 /// After B call C,the RpcContext record the information of B call C
 ///
 #[derive(Clone, Default)]
-pub struct RpcContext {
-    pub attachments: HashMap<String, SafetyValue>,
-    // TODO
+pub struct RpcContext {}
+
+pub trait Context {
+    fn get_attachments() -> Option<Arc<Mutex<HashMap<String, SafetyValue>>>>;
 }
 
-impl RpcContext {
-    pub fn current() -> Self {
-        get_current(|ctx| ctx.clone())
-    }
+impl Context for RpcContext {
+    fn get_attachments() -> Option<Arc<Mutex<HashMap<String, SafetyValue>>>> {
+        let request_model =
+            APPLICATION_CONTEXT.try_get_local::<Arc<Mutex<HashMap<String, SafetyValue>>>>();
 
-    pub fn clear(&mut self) {
-        self.attachments.clear();
-    }
-}
+        println!("{:?} - {:?}", thread::current().id(), request_model.clone());
 
-fn get_current<F: FnMut(&RpcContext) -> T, T>(mut f: F) -> T {
-    SERVICE_CONTEXT.try_with(|ctx| f(&ctx.borrow())).unwrap()
-}
-
-impl fmt::Debug for RpcContext {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Context")
-            .field("attachments", &self.attachments)
-            .finish()
+        match request_model {
+            Some(attachment) => Some(attachment.clone()),
+            None => {
+                let attachment = HashMap::<String, SafetyValue>::new();
+                let mutex = Arc::new(Mutex::new(attachment));
+                let mutex_clone = Arc::clone(&mutex);
+                APPLICATION_CONTEXT.set_local(move || {
+                    return Arc::clone(&mutex_clone);
+                });
+                Some(Arc::clone(&mutex))
+            }
+        }
     }
 }
 
@@ -96,16 +97,17 @@ mod tests {
 
         let mut handles = Vec::with_capacity(10);
 
-        for i in 0..10 {
+        for i in 0..=10 {
             handles.push(rt.spawn(async move {
-                let mut attachments = RpcContext::current().attachments;
-                attachments.insert("key1".into(), Arc::new(format!("data-{i}")));
+                let attachments = RpcContext::get_attachments();
+                match attachments {
+                    Some(at) => {
+                        let mut attachments = at.lock().unwrap();
+                        attachments.insert("key1".into(), Arc::new(format!("data-{i}")));
 
-                if i == 10 {
-                    attachments.insert("key2".into(), Arc::new(2));
-                    assert_eq!(attachments.len(), 2);
-                } else {
-                    assert_eq!(attachments.len(), 1);
+                        assert!(attachments.len() > 0);
+                    }
+                    None => {}
                 }
             }));
         }
@@ -115,6 +117,5 @@ mod tests {
         for handle in handles {
             rt.block_on(handle).unwrap();
         }
-        assert_eq!(RpcContext::current().attachments.len(), 0);
     }
 }
