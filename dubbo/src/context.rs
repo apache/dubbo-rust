@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-use core::cell::RefCell;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::{fmt, thread};
+use std::thread;
 
 use state::Container;
 
