@@ -82,6 +82,8 @@ impl Context for RpcContext {
 
 #[cfg(test)]
 mod tests {
+    use tokio::time;
+
     use super::*;
     use std::thread::sleep;
     use std::time::Duration;
@@ -98,20 +100,22 @@ mod tests {
 
         for i in 0..=10 {
             handles.push(rt.spawn(async move {
-                let attachments = RpcContext::get_attachments();
-                match attachments {
-                    Some(at) => {
-                        let mut attachments = at.lock().unwrap();
-                        attachments.insert("key1".into(), Arc::new(format!("data-{i}")));
+                if let Some(attachments) = RpcContext::get_attachments(){
+                    let mut attachments = attachments.lock().unwrap();
+                    attachments.insert("key1".into(), Arc::new(format!("data-{i}")));
 
-                        assert!(attachments.len() > 0);
-                    }
-                    None => {}
-                }
+                    assert!(attachments.len() > 0);
+                };
+
+                time::sleep(Duration::from_millis(1000)).await;
+
+                if let Some(attachments) = RpcContext::get_attachments(){
+                    let attachments = attachments.lock().unwrap();
+                    assert!(attachments.len() > 0);
+                };
+
             }));
         }
-
-        sleep(Duration::from_millis(500));
 
         for handle in handles {
             rt.block_on(handle).unwrap();
