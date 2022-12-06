@@ -100,7 +100,7 @@ mod tests {
 
         for i in 0..=10 {
             handles.push(rt.spawn(async move {
-                if let Some(attachments) = RpcContext::get_attachments(){
+                if let Some(attachments) = RpcContext::get_attachments() {
                     let mut attachments = attachments.lock().unwrap();
                     attachments.insert("key1".into(), Arc::new(format!("data-{i}")));
 
@@ -109,11 +109,10 @@ mod tests {
 
                 time::sleep(Duration::from_millis(1000)).await;
 
-                if let Some(attachments) = RpcContext::get_attachments(){
+                if let Some(attachments) = RpcContext::get_attachments() {
                     let attachments = attachments.lock().unwrap();
                     assert!(attachments.len() > 0);
                 };
-
             }));
         }
 
