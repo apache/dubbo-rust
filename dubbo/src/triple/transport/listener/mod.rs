@@ -16,6 +16,7 @@
  */
 
 pub mod tcp_listener;
+#[cfg(feature = "unix")]
 pub mod unix_listener;
 
 use std::net::SocketAddr;
@@ -25,7 +26,6 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::io::BoxIO;
 pub use tcp_listener::TcpListener;
-pub use unix_listener::UnixListener;
 
 #[async_trait]
 pub trait Listener: Send + Sync {
@@ -64,7 +64,8 @@ impl<T: Listener> Listener for WrappedListener<T> {
 pub async fn get_listener(name: String, addr: SocketAddr) -> Result<BoxListener, crate::Error> {
     match name.as_str() {
         "tcp" => Ok(TcpListener::bind(addr).await?.boxed()),
-        "unix" => Ok(UnixListener::bind(addr).await?.boxed()),
+        #[cfg(feature = "unix")]
+        "unix" => Ok(unix_listener::UnixListener::bind(addr).await?.boxed()),
         _ => {
             tracing::warn!("no support listener: {:?}", name);
             Err(Box::new(crate::status::DubboError::new(format!(
