@@ -34,6 +34,3 @@ async-stream = "0.3"
 flate2 = "1.0"
 
 dubbo-config = {path = "../config", version = "0.2.0"}
-
-[features]
-unix = []
