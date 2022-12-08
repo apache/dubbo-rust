@@ -15,31 +15,12 @@
  * limitations under the License.
  */
 
-use std::any::Any;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 use serde_json::Value;
 use state::Container;
-
-///
-/// ```rust
-/// use std::collections::HashMap;
-/// use std::sync::Arc;
-///
-/// let mut map = HashMap::<String, SafetyValue>::new();
-///  map.insert("key1".into(), Arc::new("data-1"));
-///
-///  // get a typed value from SafetyValue
-///  let value = map
-///      .get("key1")
-///      .and_then(|f| f.downcast_ref::<String>())
-///      .unwrap();
-///
-/// assert_eq!(value, "data-1");
-/// ```
-type SafetyValue = Arc<dyn Any + Sync + Send>;
 
 pub static APPLICATION_CONTEXT: Container![Send + Sync] = <Container![Send + Sync]>::new();
 
