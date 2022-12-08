@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use serde_json::Value;
 use state::Container;
 
 ///
@@ -55,20 +56,19 @@ pub static APPLICATION_CONTEXT: Container![Send + Sync] = <Container![Send + Syn
 pub struct RpcContext {}
 
 pub trait Context {
-    fn get_attachments() -> Option<Arc<Mutex<HashMap<String, SafetyValue>>>>;
+    fn get_attachments() -> Option<Arc<Mutex<HashMap<String, Value>>>>;
 }
 
 impl Context for RpcContext {
-    fn get_attachments() -> Option<Arc<Mutex<HashMap<String, SafetyValue>>>> {
-        let request_model =
-            APPLICATION_CONTEXT.try_get_local::<Arc<Mutex<HashMap<String, SafetyValue>>>>();
+    fn get_attachments() -> Option<Arc<Mutex<HashMap<String, Value>>>> {
+        let local = APPLICATION_CONTEXT.try_get_local::<Arc<Mutex<HashMap<String, Value>>>>();
 
-        println!("{:?} - {:?}", thread::current().id(), request_model.clone());
+        tracing::debug!("{:?} - {:?}", thread::current().id(), local);
 
-        match request_model {
+        match local {
             Some(attachment) => Some(attachment.clone()),
             None => {
-                let attachment = HashMap::<String, SafetyValue>::new();
+                let attachment = HashMap::<String, Value>::new();
                 let mutex = Arc::new(Mutex::new(attachment));
                 let mutex_clone = Arc::clone(&mutex);
                 APPLICATION_CONTEXT.set_local(move || {
@@ -85,7 +85,6 @@ mod tests {
     use tokio::time;
 
     use super::*;
-    use std::thread::sleep;
     use std::time::Duration;
 
     #[test]
@@ -102,7 +101,7 @@ mod tests {
             handles.push(rt.spawn(async move {
                 if let Some(attachments) = RpcContext::get_attachments() {
                     let mut attachments = attachments.lock().unwrap();
-                    attachments.insert("key1".into(), Arc::new(format!("data-{i}")));
+                    attachments.insert("key1".into(), Value::from(format!("data-{i}")));
 
                     assert!(attachments.len() > 0);
                 };
