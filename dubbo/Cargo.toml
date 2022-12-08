@@ -34,3 +34,6 @@ async-stream = "0.3"
 flate2 = "1.0"
 
 dubbo-config = {path = "../config", version = "0.2.0"}
+
+#对象存储
+state = { version = "0.5", features = ["tls"] }
