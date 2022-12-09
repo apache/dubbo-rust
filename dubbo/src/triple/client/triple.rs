@@ -21,7 +21,7 @@ use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 use tower_service::Service;
 
-use super::connection::Connection;
+use super::builder::{ClientBoxService, ClientBuilder};
 use crate::filter::service::FilterService;
 use crate::filter::Filter;
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
@@ -32,33 +32,43 @@ use crate::triple::encode::encode;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient<T> {
-    host: Option<http::Uri>,
+    builder: Option<ClientBuilder>,
     inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
 }
 
-impl TripleClient<Connection> {
+impl TripleClient<ClientBoxService> {
     pub fn connect(host: String) -> Self {
         let uri = match http::Uri::from_str(&host) {
-            Ok(v) => Some(v),
+            Ok(v) => v,
             Err(err) => {
                 tracing::error!("http uri parse error: {}, host: {}", err, host);
                 panic!("http uri parse error: {}, host: {}", err, host)
             }
         };
 
+        let builder = ClientBuilder::from(uri);
+
         TripleClient {
-            host: uri.clone(),
-            inner: Connection::new().with_host(uri.unwrap()),
+            builder: Some(builder.clone()),
+            inner: builder.connect(),
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
+        }
+    }
+
+    pub fn with_builder(builder: ClientBuilder) -> Self {
+        TripleClient {
+            builder: Some(builder.clone()),
+            inner: builder.connect(),
             send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
     }
 }
 
 impl<T> TripleClient<T> {
-    pub fn new(inner: T, host: Option<http::Uri>) -> Self {
+    pub fn new(inner: T, builder: ClientBuilder) -> Self {
         TripleClient {
-            host,
+            builder: Some(builder),
             inner,
             send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
@@ -68,7 +78,10 @@ impl<T> TripleClient<T> {
     where
         F: Filter,
     {
-        TripleClient::new(FilterService::new(self.inner, filter), self.host)
+        TripleClient::new(
+            FilterService::new(self.inner, filter),
+            self.builder.unwrap(),
+        )
     }
 }
 
@@ -82,8 +95,8 @@ where
         path: http::uri::PathAndQuery,
         body: hyper::Body,
     ) -> http::Request<hyper::Body> {
-        let mut parts = match self.host.as_ref() {
-            Some(v) => v.to_owned().into_parts(),
+        let mut parts = match self.builder.as_ref() {
+            Some(v) => v.to_owned().uri.into_parts(),
             None => {
                 tracing::error!("client host is empty");
                 return http::Request::new(hyper::Body::empty());
