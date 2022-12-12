@@ -53,7 +53,7 @@ impl Dubbo {
     }
 
     pub fn init(&mut self) {
-        let conf = self.config.get_or_insert_with(|| get_global_config());
+        let conf = self.config.get_or_insert_with(get_global_config);
         tracing::debug!("global conf: {:?}", conf);
 
         for (name, url) in conf.registries.iter() {
