@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-pub mod service;
 pub mod context;
+pub mod service;
 pub mod timeout;
 
 use crate::invocation::Request;

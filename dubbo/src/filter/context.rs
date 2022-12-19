@@ -2,7 +2,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
-use crate::{codegen::Request, status::Status, context::{RpcContext, Context}};
+use crate::{
+    codegen::Request,
+    context::{Context, RpcContext},
+    status::Status,
+};
 
 use super::Filter;
 
@@ -33,7 +37,10 @@ impl Filter for ContextFilter {
             dead_line_in_nanos = time + timeout;
         }
 
-        tracing::debug!("ContextFilter tri-timeout-deadline-in-nanos : {}", dead_line_in_nanos);
+        tracing::debug!(
+            "ContextFilter tri-timeout-deadline-in-nanos : {}",
+            dead_line_in_nanos
+        );
         if let Some(at) = RpcContext::get_attachments() {
             let mut attachments = at.lock().unwrap();
             attachments.insert(

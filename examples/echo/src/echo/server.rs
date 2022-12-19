@@ -17,7 +17,6 @@
 use std::io::ErrorKind;
 use std::pin::Pin;
 
-
 use async_trait::async_trait;
 use dubbo::filter::context::ContextFilter;
 use dubbo::filter::timeout::TimeoutFilter;
@@ -97,7 +96,6 @@ impl Echo for EchoServerImpl {
         Ok(Response::new(EchoResponse {
             message: "hello, dubbo-rust".to_string(),
         }))
-
     }
 
     async fn client_streaming_echo(
