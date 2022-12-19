@@ -14,25 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-use core::time;
-use std::future;
-use std::future::ready;
 use std::io::ErrorKind;
 use std::pin::Pin;
-use std::thread;
-use std::time::Duration;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+
 
 use async_trait::async_trait;
-use dubbo::context::Context;
-use dubbo::context::RpcContext;
-use dubbo::status::Code;
-use dubbo::status::Status;
+use dubbo::filter::context::ContextFilter;
+use dubbo::filter::timeout::TimeoutFilter;
 use futures_util::Stream;
 use futures_util::StreamExt;
-use serde_json::Value;
+
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -56,83 +47,6 @@ impl Filter for FakeFilter {
         Ok(req)
     }
 }
-
-#[derive(Clone)]
-pub struct ContextFilter {}
-
-impl Filter for ContextFilter {
-    fn call(&mut self, req: Request<()>) -> Result<Request<()>, dubbo::status::Status> {
-        let headers = &mut req.metadata.into_headers();
-
-        let timeout = headers.get("timeout-countdown");
-
-        let time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
-        let mut dead_line_in_nanos = 0_u128;
-
-        if let Some(t) = timeout {
-            let timeout: u128 = t.to_str().unwrap().parse().unwrap();
-            if timeout > 0_u128 {
-                dead_line_in_nanos = time + timeout * 1000000;
-            }
-        } else {
-            // TODO default timeout
-            let timeout: u128 = 1000_u128 * 1000000;
-            dead_line_in_nanos = time + timeout;
-        }
-
-        println!("ContextFilter tri-timeout-deadline-in-nanos : {}", dead_line_in_nanos);
-        if let Some(at) = RpcContext::get_attachments() {
-            let mut attachments = at.lock().unwrap();
-            attachments.insert(
-                String::from("tri-timeout-deadline-in-nanos"),
-                Value::from(dead_line_in_nanos.to_string()),
-            );
-        }
-
-        Ok(req)
-    }
-}
-
-#[derive(Clone)]
-pub struct TimeoutFilter {}
-
-/// timeout count
-/// 1. ContextFilter 初始化 timeout 时间，初始化后将 tri-timeout-deadline-in-nanos 放入 context 中
-/// 2. TimeoutFilter read context tri-timeout-deadline-in-nanos
-/// 3. 响应时计算 tri-timeout-deadline-in-nanos - current_nanos <= 0
-/// 
-impl Filter for TimeoutFilter {
-    fn call(&mut self, req: Request<()>) -> Result<Request<()>, dubbo::status::Status> {
-        if let Some(attachments) = RpcContext::get_attachments() {
-            let current_nanos = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos();
-
-            let attachments = attachments.lock().unwrap();
-            let tri_timeout_deadline_in_nanos =
-                attachments.get("tri-timeout-deadline-in-nanos").unwrap();
-            let tri_timeout_deadline_in_nanos: u128 = tri_timeout_deadline_in_nanos
-                .as_str()
-                .unwrap()
-                .parse()
-                .unwrap();
-
-            println!("TimeoutFilter tri-timeout-deadline-in-nanos : {}, current-nanos:{}", tri_timeout_deadline_in_nanos, current_nanos);
-            if tri_timeout_deadline_in_nanos - current_nanos <= 0 {
-                return Err(Status::new(Code::DeadlineExceeded, String::from("Timeout")));
-            }
-        }
-
-        Ok(req)
-    }
-}
-
-
 
 #[tokio::main]
 async fn main() {
