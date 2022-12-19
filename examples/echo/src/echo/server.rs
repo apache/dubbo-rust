@@ -14,13 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 use std::io::ErrorKind;
 use std::pin::Pin;
 
 use async_trait::async_trait;
+use dubbo::filter::context::ContextFilter;
+use dubbo::filter::timeout::TimeoutFilter;
 use futures_util::Stream;
 use futures_util::StreamExt;
+
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -52,12 +54,15 @@ async fn main() {
     });
     let server = EchoServerImpl::default();
     let s = EchoServer::<EchoServerImpl>::with_filter(server, FakeFilter {});
+    let timeout_filter = FilterService::new(s, TimeoutFilter {});
+    let context_filter = FilterService::new(timeout_filter, ContextFilter {});
+
     dubbo::protocol::triple::TRIPLE_SERVICES
         .write()
         .unwrap()
         .insert(
             "grpc.examples.echo.Echo".to_string(),
-            dubbo::utils::boxed_clone::BoxCloneService::new(s),
+            dubbo::utils::boxed_clone::BoxCloneService::new(context_filter),
         );
 
     // Dubbo::new().start().await;
@@ -85,6 +90,8 @@ impl Echo for EchoServerImpl {
         req: Request<EchoRequest>,
     ) -> Result<Response<EchoResponse>, dubbo::status::Status> {
         println!("EchoServer::hello {:?}", req.metadata);
+
+        // thread::sleep(time::Duration::from_millis(2000));
 
         Ok(Response::new(EchoResponse {
             message: "hello, dubbo-rust".to_string(),
