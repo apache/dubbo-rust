@@ -20,7 +20,7 @@ use hyper::client::conn::Builder;
 use tokio::time::Duration;
 use tower::ServiceBuilder;
 
-use crate::triple::client::connection::Connection;
+use crate::triple::transport::connection::Connection;
 use crate::utils::boxed::BoxService;
 
 pub type ClientBoxService =

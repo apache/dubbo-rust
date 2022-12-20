@@ -16,7 +16,6 @@
  */
 
 pub mod builder;
-pub mod connection;
 pub mod triple;
 
 pub use triple::TripleClient;

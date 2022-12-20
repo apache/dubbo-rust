@@ -21,7 +21,7 @@ use tower_service::Service;
 
 use crate::common::url::Url;
 use crate::protocol::Invoker;
-use crate::triple::client::connection::Connection;
+use crate::triple::transport::connection::Connection;
 
 #[allow(dead_code)]
 #[derive(Clone, Default)]
