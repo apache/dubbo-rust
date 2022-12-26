@@ -62,7 +62,7 @@ impl ClientBuilder {
 
     pub fn connect(self) -> ClientBoxService {
         let builder = ServiceBuilder::new();
-        let timeout = self.timeout.unwrap_or(0);
+        let timeout = self.timeout.unwrap_or(5);
         let builder = builder.timeout(Duration::from_secs(timeout));
 
         let mut b = Builder::new();
