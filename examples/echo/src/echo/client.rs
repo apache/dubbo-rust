@@ -32,8 +32,9 @@ impl Filter for FakeFilter {
 #[tokio::main]
 async fn main() {
     let mut cli = EchoClient::connect("http://127.0.0.1:8888".to_string());
-    let mut unary_cli = cli.clone().with_filter(FakeFilter {});
-    let resp = unary_cli
+    // let mut unary_cli = cli.clone().with_filter(FakeFilter {});
+    // let mut cli = EchoClient::build(ClientBuilder::from_static("http://127.0.0.1:8888"));
+    let resp = cli
         .unary_echo(Request::new(EchoRequest {
             message: "message from client".to_string(),
         }))

@@ -70,11 +70,17 @@ pub fn generate<T: Service>(
                 inner: TripleClient<T>,
             }
 
-            impl #service_ident<Connection> {
+            impl #service_ident<ClientBoxService> {
                 pub fn connect(host: String) -> Self {
                     let cli = TripleClient::connect(host);
                     #service_ident {
                         inner: cli,
+                    }
+                }
+
+                pub fn build(builder: ClientBuilder) -> Self {
+                    Self {
+                        inner: TripleClient::with_builder(builder),
                     }
                 }
             }
@@ -84,9 +90,9 @@ pub fn generate<T: Service>(
                 T: Service<http::Request<hyperBody>, Response = http::Response<BoxBody>>,
                 T::Error: Into<StdError>,
             {
-                pub fn new(inner: T) -> Self {
+                pub fn new(inner: T, builder: ClientBuilder) -> Self {
                     Self {
-                        inner: TripleClient::new(inner, None),
+                        inner: TripleClient::new(inner, builder),
                     }
                 }
 
