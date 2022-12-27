@@ -19,6 +19,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{
     codegen::Request,
     context::{Context, RpcContext},
+    filter::TRI_TIMEOUT_DEADLINE_IN_NANOS,
     status::{Code, Status},
 };
 
@@ -42,7 +43,7 @@ impl Filter for TimeoutFilter {
 
             let attachments = attachments.lock().unwrap();
             let tri_timeout_deadline_in_nanos =
-                attachments.get("tri-timeout-deadline-in-nanos").unwrap();
+                attachments.get(TRI_TIMEOUT_DEADLINE_IN_NANOS).unwrap();
             let tri_timeout_deadline_in_nanos: u128 = tri_timeout_deadline_in_nanos
                 .as_str()
                 .unwrap()

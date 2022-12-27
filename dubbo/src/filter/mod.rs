@@ -21,6 +21,10 @@ pub mod timeout;
 
 use crate::invocation::Request;
 
+pub const TRI_TIMEOUT_DEADLINE_IN_NANOS: &str = "tri-timeout-deadline-in-nanos";
+pub const TIMEOUT_COUNTDOWN: &str = "timeout-countdown";
+pub const TIMEOUT_DEFAULT: u128 = 1000;
+
 pub trait Filter {
     fn call(&mut self, req: Request<()>) -> Result<Request<()>, crate::status::Status>;
 }

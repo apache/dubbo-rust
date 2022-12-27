@@ -22,6 +22,7 @@ use serde_json::Value;
 use crate::{
     codegen::Request,
     context::{Context, RpcContext},
+    filter::{TIMEOUT_COUNTDOWN, TIMEOUT_DEFAULT, TRI_TIMEOUT_DEADLINE_IN_NANOS},
     status::Status,
 };
 
@@ -34,7 +35,7 @@ impl Filter for ContextFilter {
     fn call(&mut self, req: Request<()>) -> Result<Request<()>, Status> {
         let headers = &mut req.metadata.into_headers();
 
-        let timeout = headers.get("timeout-countdown");
+        let timeout = headers.get(TIMEOUT_COUNTDOWN);
 
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -49,8 +50,7 @@ impl Filter for ContextFilter {
                 dead_line_in_nanos = time + timeout * 1000000;
             }
         } else {
-            // TODO default timeout
-            let timeout: u128 = 1000_u128 * 1000000;
+            let timeout: u128 = TIMEOUT_DEFAULT * 1000000;
             dead_line_in_nanos = time + timeout;
         }
 
@@ -61,7 +61,7 @@ impl Filter for ContextFilter {
         if let Some(at) = RpcContext::get_attachments() {
             let mut attachments = at.lock().unwrap();
             attachments.insert(
-                String::from("tri-timeout-deadline-in-nanos"),
+                String::from(TRI_TIMEOUT_DEADLINE_IN_NANOS),
                 Value::from(dead_line_in_nanos.to_string()),
             );
         }
