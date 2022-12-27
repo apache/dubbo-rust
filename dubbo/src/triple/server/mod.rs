@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+pub mod builder;
 pub mod service;
 pub mod triple;
 

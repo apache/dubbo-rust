@@ -39,4 +39,5 @@ pub use super::{empty_body, BoxBody, BoxFuture, StdError};
 pub use crate::filter::service::FilterService;
 pub use crate::filter::Filter;
 pub use crate::triple::client::builder::{ClientBoxService, ClientBuilder};
+pub use crate::triple::server::builder::ServerBuilder;
 pub use crate::triple::transport::connection::Connection;
