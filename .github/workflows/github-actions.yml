@@ -4,45 +4,82 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: ["*"]
   pull_request:
-    branches: [ main ]
+    branches: ["*"]
 
   workflow_dispatch:
 
 jobs:
- check:
+  check:
     name: check dubbo-rust project
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        rust: [stable]
+    runs-on: ubuntu-latest
 
     env:
       RUSTFLAGS: "-D warnings"
-      
-    steps:
-    - uses: actions/checkout@main
-    - uses: actions-rs/toolchain@v1
-      with:
-          toolchain: ${{ matrix.rust }}
-    - name: Install Protoc
-      uses: arduino/setup-protoc@v1
-    - run: cargo check
-    
- fmt:
-    name: Rustfmt
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        rust: [stable]
-        
+
     steps:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
+      - name: setup protoc
+        run: |
+          mkdir $HOME/protoc/ -p &&
+          cd $HOME/protoc/ &&
+          curl --location --silent --output /tmp/protoc-21.9-linux-x86_64.zip \
+          https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip &&
+          unzip /tmp/protoc-21.9-linux-x86_64.zip &&
+          echo "$HOME/protoc/bin" >> $GITHUB_PATH
+        shell: bash
+      - run: cargo check
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@main
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
+
+  example-greeter:
+    name: example/greeter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: setup protoc
+        run: |
+          mkdir $HOME/protoc/ -p &&
+          cd $HOME/protoc/ &&
+          curl --location --silent --output /tmp/protoc-21.9-linux-x86_64.zip \
+          https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip &&
+          unzip /tmp/protoc-21.9-linux-x86_64.zip &&
+          echo "$HOME/protoc/bin" >> $GITHUB_PATH
+        shell: bash
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - run: cargo build
+        working-directory: examples/greeter
+      - name: example greeter
+        run: |
+          ../../target/debug/greeter-server &
+          sleep 1s ;
+          ../../target/debug/greeter-client
+        working-directory: examples/greeter
