@@ -41,7 +41,7 @@ impl Url {
                 tracing::error!("fail to parse url({}), err: {:?}", url, err);
             })
             .unwrap();
-        Some(Self {
+        let mut u = Self {
             uri: uri.to_string(),
             protocol: uri.scheme_str()?.to_string(),
             ip: uri.authority()?.host().to_string(),
@@ -54,7 +54,18 @@ impl Url {
                 .map(|x| x.to_string())
                 .collect::<Vec<_>>(),
             params: HashMap::new(),
-        })
+        };
+        if uri.query().is_some() {
+            u.decode(uri.query().unwrap().to_string());
+            u.service_key = u
+                .get_param("service_names".to_string())
+                .unwrap()
+                .split(',')
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>();
+        }
+
+        Some(u)
     }
 
     pub fn get_service_name(&self) -> Vec<String> {

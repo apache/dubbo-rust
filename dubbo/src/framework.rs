@@ -77,12 +77,17 @@ impl Dubbo {
                     protocol_url
                 }
             };
-            let protocol_url = format!(
-                "{}/{}/{}",
-                &protocol_url.to_url(),
-                service_config.name,
-                service_name
-            );
+            // let protocol_url = format!(
+            //     "{}/{}/{}",
+            //     &protocol_url.to_url(),
+            //     service_config.name,
+            //     service_name
+            // );
+            // service_names may be multiple
+            let protocol_url = protocol_url
+                .to_owned()
+                .add_param("service_names".to_string(), service_name.to_string());
+            let protocol_url = protocol_url.to_url();
             tracing::info!("url: {}", protocol_url);
 
             let protocol_url = Url::from_url(&protocol_url)
