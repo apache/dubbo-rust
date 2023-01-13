@@ -15,6 +15,12 @@
  * limitations under the License.
  */
 
-pub mod directory;
-pub mod loadbalance;
-pub mod support;
+use crate::cluster::loadbalance::types::BoxLoadBalance;
+use crate::invocation::{BoxInvocation, BoxRpcResult};
+use crate::protocol::BoxInvoker;
+
+pub trait ClusterInvoke {
+    fn invoke(invocation: BoxInvocation,
+              invokers: Vec<BoxInvoker>,
+              load_balance: BoxLoadBalance) -> BoxRpcResult;
+}

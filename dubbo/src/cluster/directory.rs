@@ -21,11 +21,14 @@ use std::sync::{Arc, RwLock};
 
 use crate::common::url::Url;
 use crate::invocation::{Invocation, RpcInvocation};
-use crate::registry::memory_registry::MemoryNotifyListener;
+use crate::protocol::{BoxInvoker, Invoker};
 use crate::registry::{BoxRegistry, RegistryWrapper};
+use crate::registry::memory_registry::MemoryNotifyListener;
+
+pub type BoxDirectory = Box<dyn Directory>;
 
 pub trait Directory: Debug + DirectoryClone {
-    fn list(&self, invocation: RpcInvocation) -> Vec<Url>;
+    fn list(&self, invocation: RpcInvocation) -> Vec<BoxInvoker>;
 }
 
 pub trait DirectoryClone {
@@ -33,8 +36,8 @@ pub trait DirectoryClone {
 }
 
 impl<T> DirectoryClone for T
-where
-    T: 'static + Directory + Clone,
+    where
+        T: 'static + Directory + Clone,
 {
     fn clone_box(&self) -> Box<dyn Directory> {
         Box::new(self.clone())
@@ -50,7 +53,8 @@ impl Clone for Box<dyn Directory> {
 #[derive(Debug)]
 pub struct RegistryDirectory {
     registry: RegistryWrapper,
-    service_instances: Arc<RwLock<HashMap<String, Vec<Url>>>>,
+    service_instances: Arc<RwLock<HashMap<String, BoxInvoker>>>,
+    invokers_initialized: bool,
 }
 
 impl RegistryDirectory {
@@ -60,6 +64,7 @@ impl RegistryDirectory {
                 registry: Some(registry),
             },
             service_instances: Arc::new(RwLock::new(HashMap::new())),
+            invokers_initialized: false,
         }
     }
 }
@@ -71,14 +76,14 @@ impl DirectoryClone for RegistryDirectory {
 }
 
 impl Directory for RegistryDirectory {
-    fn list(&self, invocation: RpcInvocation) -> Vec<Url> {
+    fn list(&self, invocation: RpcInvocation) -> Vec<BoxInvoker> {
         let service_name = invocation.get_target_service_unique_name();
 
         let url = Url::from_url(&format!(
             "triple://{}:{}/{}",
             "127.0.0.1", "8888", service_name
         ))
-        .unwrap();
+            .unwrap();
 
         self.registry.registry.as_ref().expect("msg").subscribe(
             url,

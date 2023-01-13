@@ -15,6 +15,25 @@
  * limitations under the License.
  */
 
-pub mod directory;
-pub mod loadbalance;
-pub mod support;
+use crate::codegen::Invoker;
+use crate::common::url::Url;
+use crate::invocation::{BoxInvocation, Invocation};
+use crate::protocol::BoxInvoker;
+
+pub type BoxLoadBalance = Box<dyn LoadBalance>;
+
+pub trait LoadBalance {
+    fn select(&self, invokers: Vec<BoxInvoker>, url: Url, invocation: BoxInvocation) -> Option<BoxInvoker>;
+}
+
+pub struct Metadata {
+    pub name: &'static str,
+}
+
+impl Metadata {
+    pub fn new(name: &'static str) -> Self {
+        Metadata {
+            name
+        }
+    }
+}

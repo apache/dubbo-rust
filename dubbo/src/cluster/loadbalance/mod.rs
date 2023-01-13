@@ -14,7 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use lazy_static::lazy_static;
 
-pub mod directory;
-pub mod loadbalance;
-pub mod support;
+use crate::cluster::loadbalance::impls::random::RandomLoadBalance;
+use crate::cluster::loadbalance::types::BoxLoadBalance;
+
+pub mod types;
+pub mod impls;
+
+lazy_static!(
+    pub static ref LOAD_BALANCE_EXTENSIONS:Vec<BoxLoadBalance> = init_loadbalance_extensions();
+);
+
+fn init_loadbalance_extensions() -> Vec<BoxLoadBalance> {
+    let mut vec = Vec::new();
+    vec.push(Box::new(RandomLoadBalance::new()));
+    vec
+}
+
