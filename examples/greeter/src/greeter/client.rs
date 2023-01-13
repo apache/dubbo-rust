@@ -15,19 +15,20 @@
  * limitations under the License.
  */
 
+use std::{env, str::FromStr, time::Duration};
+
+use http;
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
+
+use dubbo::{cluster::directory::RegistryDirectory, codegen::*, invocation::RpcInvocation};
+use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
+use protos::{greeter_client::GreeterClient, GreeterRequest};
+
 pub mod protos {
     #![allow(non_camel_case_types)]
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
 }
-use std::{str::FromStr, time::Duration, env};
-
-use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
-
-use dubbo::{cluster::directory::RegistryDirectory, codegen::*, invocation::RpcInvocation};
-use http;
-use protos::{greeter_client::GreeterClient, GreeterRequest};
-use tracing::Level;
-use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() {
@@ -53,21 +54,20 @@ async fn main() {
     let mut cli = GreeterClient::new(Connection::new().with_host(http_uri));
     cli = cli.with_directory(Box::new(directory));
     //let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
-
-    println!("# unary call");
-    let resp = cli
-        .greet(Request::new(GreeterRequest {
-            name: "message from client".to_string(),
-        }))
-        .await;
-    let resp = match resp {
-        Ok(resp) => resp,
-        Err(err) => return println!("{:?}", err),
-    };
-    let (_parts, body) = resp.into_parts();
-    println!("Response: {:?}", body);
-
     loop {
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        println!("# unary call");
+        let resp = cli
+            .greet(Request::new(GreeterRequest {
+                name: "message from client".to_string(),
+            }))
+            .await;
+        let resp = match resp {
+            Ok(resp) => resp,
+            Err(err) => return println!("{:?}", err),
+        };
+        let (_parts, body) = resp.into_parts();
+        println!("Response: {:?}", body);
+
+        tokio::time::sleep(Duration::from_millis(2000)).await;
     }
 }
