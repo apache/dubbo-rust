@@ -21,7 +21,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::common::url::Url;
 use crate::invocation::{Invocation, RpcInvocation};
-use crate::protocol::{BoxInvoker, Invoker};
+use crate::protocol::{BoxInvoker};
 use crate::registry::{BoxRegistry, RegistryWrapper};
 use crate::registry::memory_registry::MemoryNotifyListener;
 

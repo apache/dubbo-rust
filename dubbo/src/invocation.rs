@@ -16,6 +16,7 @@
  */
 
 use std::{collections::HashMap, str::FromStr};
+use std::fmt::Debug;
 
 use futures_core::Stream;
 
@@ -203,7 +204,7 @@ pub trait Invocation {
     fn get_method_name(&self) -> String;
 }
 
-pub type BoxInvocation = Box<dyn Invocation>;
+pub type BoxInvocation = Box<impl Invocation>;
 
 #[derive(Default)]
 pub struct RpcInvocation {

@@ -33,6 +33,9 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Duration;
 use zookeeper::{WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
+use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
+use dubbo::codegen::BoxRegistry;
+use dubbo::registry::integration::ClusterRegistryIntegration;
 
 // 从url中获取服务注册的元数据
 /// rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)
@@ -264,6 +267,12 @@ impl NotifyListener for ServiceInstancesChangedListener {
     }
 
     fn notify_all(&self, event: ServiceEvent) {
+        todo!()
+    }
+}
+
+impl ClusterRegistryIntegration for ZookeeperRegistry {
+    fn get_invoker(registry: BoxRegistry) -> Option<&ClusterInvoker> {
         todo!()
     }
 }

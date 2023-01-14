@@ -16,11 +16,19 @@
  */
 
 use crate::cluster::loadbalance::types::BoxLoadBalance;
+use crate::cluster::support::cluster_invoker::ClusterInvoker;
 use crate::invocation::{BoxInvocation, BoxRpcResult};
 use crate::protocol::BoxInvoker;
 
 pub trait ClusterInvoke {
-    fn invoke(invocation: BoxInvocation,
+    fn invoke(&self, invocation: BoxInvocation,
               invokers: Vec<BoxInvoker>,
-              load_balance: BoxLoadBalance) -> BoxRpcResult;
+              loadbalance: BoxLoadBalance) -> BoxRpcResult;
+}
+
+impl ClusterInvoke for ClusterInvoker {
+    fn invoke(&self, invocation: BoxInvocation, invokers: Vec<BoxInvoker>, loadbalance: BoxLoadBalance) -> BoxRpcResult {
+        // let loadbalance = self.init_loadbalance(invokers, invocation);
+        todo!()
+    }
 }

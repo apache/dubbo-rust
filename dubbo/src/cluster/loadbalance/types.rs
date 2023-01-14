@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-use crate::codegen::Invoker;
+use std::fmt::Debug;
 use crate::common::url::Url;
-use crate::invocation::{BoxInvocation, Invocation};
+use crate::invocation::{BoxInvocation};
 use crate::protocol::BoxInvoker;
 
-pub type BoxLoadBalance = Box<dyn LoadBalance>;
+pub type BoxLoadBalance = Box<dyn LoadBalance + Send + Sync>;
 
 pub trait LoadBalance {
     fn select(&self, invokers: Vec<BoxInvoker>, url: Url, invocation: BoxInvocation) -> Option<BoxInvoker>;

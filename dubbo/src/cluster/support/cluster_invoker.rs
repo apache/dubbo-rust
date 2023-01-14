@@ -14,42 +14,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::cluster::loadbalance::types::BoxLoadBalance;
-use crate::cluster::directory::BoxDirectory;
-use crate::codegen::{Directory, RegistryDirectory};
-use crate::invocation::{BoxInvocation, Invocation, Response, RpcInvocation, RpcResult};
-use crate::protocol::{BoxInvoker, Invoker};
-use crate::registry::BoxRegistry;
 
-#[derive(Debug)]
-pub struct ClusterInvoker {
-    directory: RegistryDirectory,
+use crate::cluster::loadbalance::LOAD_BALANCE_EXTENSIONS;
+use crate::cluster::loadbalance::types::BoxLoadBalance;
+use crate::cluster::support::DEFAULT_LOADBALANCE;
+use crate::codegen::{Directory, RegistryDirectory};
+use crate::invocation::{BoxInvocation, RpcInvocation};
+use crate::protocol::BoxInvoker;
+
+#[derive(Debug, Clone)]
+pub struct ClusterInvoker<'a> {
+    directory: &'a RegistryDirectory,
     destroyed: bool,
-    load_balances: Vec<BoxLoadBalance>,
+    loadbalance_impls: &'a Vec<BoxLoadBalance>,
 }
 
 pub trait ClusterInvokerSelector {
     /// Select a invoker using loadbalance policy.
     fn select(&self,
-              load_balance: BoxLoadBalance,
+              loadbalance: BoxLoadBalance,
               invocation: RpcInvocation,
               invokers: Vec<BoxInvoker>,
               excluded: Vec<BoxInvoker>) -> Option<&BoxInvoker>;
 }
 
 impl ClusterInvoker {
-    pub fn new_with_registry(registry: BoxRegistry) -> Self {
+    pub fn with_directory(registry_directory: RegistryDirectory) -> Self {
         ClusterInvoker {
-            directory: RegistryDirectory::new(registry),
+            directory: &registry_directory,
             destroyed: false,
-            load_balances: Vec::new(),
+            loadbalance_impls: &Vec::new(),
         }
     }
 
-    pub fn init_load_balance()  {}
+    pub fn init_loadbalance(&self, invokers: Vec<BoxLoadBalance>, invocation: BoxInvocation) -> &BoxLoadBalance {
+        LOAD_BALANCE_EXTENSIONS.get(DEFAULT_LOADBALANCE).unwrap()
+    }
 
-    pub fn is_available(&self) -> bool {
-        !self.destroyed() && !self.directory.list().is_empty()
+    pub fn is_available(&self, invocation: RpcInvocation) -> bool {
+        !self.destroyed() && !self.directory.list(invocation).is_empty()
     }
 
     pub fn destroyed(&self) -> bool {
@@ -59,12 +62,12 @@ impl ClusterInvoker {
 
 impl ClusterInvokerSelector for ClusterInvoker {
     fn select(&self,
-              load_balance: BoxLoadBalance,
+              loadbalance: BoxLoadBalance,
               invocation: RpcInvocation,
               invokers: Vec<BoxInvoker>,
               excluded: Vec<BoxInvoker>) -> Option<&BoxInvoker> {
         if invokers.is_empty() { return None; }
         todo!()
-        // load_balance.select(invokers)
+        // loadbalance.select(invokers)
     }
 }

@@ -105,6 +105,11 @@ pub fn generate<T: Service>(
                     self
                 }
 
+                pub fn with_cluster(mut self, invoker: ClusterInvoker) -> Self {
+                    self.inner = self.inner.with_cluster(invoker);
+                    self
+                }
+
                 #methods
 
             }

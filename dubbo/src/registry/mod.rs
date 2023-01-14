@@ -18,6 +18,7 @@
 #![allow(unused_variables, dead_code, missing_docs)]
 pub mod memory_registry;
 pub mod protocol;
+pub mod integration;
 
 use std::fmt::Debug;
 
