@@ -16,11 +16,13 @@
  */
 
 #![allow(unused_variables, dead_code, missing_docs)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
 
 use crate::common::url::Url;
+use crate::protocol::BoxInvoker;
 
 use super::{NotifyListener, Registry};
 
@@ -62,7 +64,7 @@ impl Registry for MemoryRegistry {
 
         url.params.insert("anyhost".to_string(), "true".to_string());
         // define triple url path
-        let raw_url = format!("{}?{}", url.to_url(), url.encode_param(),);
+        let raw_url = format!("{}?{}", url.to_url(), url.encode_param(), );
 
         self.registries.write().unwrap().insert(dubbo_path, raw_url);
         Ok(())
@@ -108,9 +110,9 @@ pub struct MemoryNotifyListener {
 
 impl NotifyListener for MemoryNotifyListener {
     fn notify(&self, event: super::ServiceEvent) {
-        let mut map=self.service_instances.write().expect("msg");
+        let mut map = self.service_instances.write().expect("msg");
         match event.action.as_str() {
-            "ADD"=> map.insert(event.key, event.service),
+            "ADD" => map.insert(event.key, event.service),
             &_ => todo!()
         };
     }

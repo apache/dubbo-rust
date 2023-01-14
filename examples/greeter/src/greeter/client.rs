@@ -21,7 +21,7 @@ use http;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use dubbo::{cluster::directory::RegistryDirectory, codegen::*, invocation::RpcInvocation};
+use dubbo::{cluster::directory::RegistryDirectory, codegen::*};
 use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
 use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
@@ -49,11 +49,12 @@ async fn main() {
     };
     let zkr = ZookeeperRegistry::new(&zk_connect_string);
     let directory = RegistryDirectory::new(Box::new(zkr));
-    let invoker= ClusterInvoker::with_directory(directory);
+    let cluster_invoker= ClusterInvoker::with_directory(directory);
     let http_uri = http::Uri::from_str(&"http://1.1.1.1:8888").unwrap();
 
     let mut cli = GreeterClient::new(Connection::new().with_host(http_uri));
-    cli = cli.with_directory(Box::new(directory));
+    //cli = cli.with_directory(Box::new(directory));
+    cli = cli.with_cluster(cluster_invoker);
     //let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
     loop {
         println!("# unary call");

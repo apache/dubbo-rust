@@ -41,6 +41,7 @@ pub use super::triple::server::TripleServer;
 pub use super::{empty_body, BoxBody, BoxFuture, StdError};
 pub use super::invocation::RpcInvocation;
 pub use super::cluster::directory::Directory;
+pub use super::cluster::support::cluster_invoker::ClusterInvoker;
 pub use super::cluster::directory::RegistryDirectory;
 pub use crate::filter::service::FilterService;
 pub use crate::filter::Filter;

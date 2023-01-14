@@ -26,13 +26,13 @@ pub mod types;
 pub mod impls;
 
 lazy_static!(
-    pub static ref LOAD_BALANCE_EXTENSIONS:HashMap<&str,BoxLoadBalance> = init_loadbalance_extensions();
+    pub static ref LOAD_BALANCE_EXTENSIONS:HashMap<String,BoxLoadBalance> = init_loadbalance_extensions();
 );
 
-fn init_loadbalance_extensions() -> HashMap<&str, BoxLoadBalance> {
-    let mut loadbalance_map: HashMap<&str, BoxLoadBalance> = HashMap::new();
-    loadbalance_map.insert("random", Box::new(RandomLoadBalance::new()));
-    loadbalance_map.insert("roundrobin", Box::new(RoundRobinLoadBalance::new()));
+fn init_loadbalance_extensions() -> HashMap<String, BoxLoadBalance> {
+    let mut loadbalance_map: HashMap<String, BoxLoadBalance> = HashMap::new();
+    loadbalance_map.insert("random".to_string(), Box::new(RandomLoadBalance::new()));
+    loadbalance_map.insert("roundrobin".to_string(), Box::new(RoundRobinLoadBalance::new()));
     loadbalance_map
 }
 

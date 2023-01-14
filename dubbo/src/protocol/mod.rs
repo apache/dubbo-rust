@@ -15,9 +15,7 @@
  * limitations under the License.
  */
 
-pub mod server_desc;
-pub mod triple;
-
+use std::fmt::Debug;
 use std::future::Future;
 use std::task::{Context, Poll};
 
@@ -25,6 +23,9 @@ use async_trait::async_trait;
 use tower_service::Service;
 
 use crate::common::url::Url;
+
+pub mod server_desc;
+pub mod triple;
 
 #[async_trait]
 pub trait Protocol {
@@ -39,12 +40,12 @@ pub trait Exporter {
     fn unexport(&self);
 }
 
-pub trait Invoker<ReqBody> {
+pub trait Invoker<ReqBody>: Debug {
     type Response;
 
     type Error;
 
-    type Future: Future<Output = Result<Self::Response, Self::Error>>;
+    type Future: Future<Output=Result<Self::Response, Self::Error>>;
 
     fn get_url(&self) -> Url;
 
@@ -54,20 +55,20 @@ pub trait Invoker<ReqBody> {
 pub type BoxExporter = Box<dyn Exporter + Send + Sync>;
 pub type BoxInvoker = Box<
     dyn Invoker<
-            http::Request<hyper::Body>,
-            Response = http::Response<crate::BoxBody>,
-            Error = crate::Error,
-            Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
-        > + Send
-        + Sync,
+        http::Request<hyper::Body>,
+        Response=http::Response<crate::BoxBody>,
+        Error=crate::Error,
+        Future=crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
+    > + Send
+    + Sync,
 >;
 
 pub struct WrapperInvoker<T>(T);
 
 impl<T, ReqBody> Service<http::Request<ReqBody>> for WrapperInvoker<T>
-where
-    T: Invoker<http::Request<ReqBody>, Response = http::Response<crate::BoxBody>>,
-    T::Error: Into<crate::Error>,
+    where
+        T: Invoker<http::Request<ReqBody>, Response=http::Response<crate::BoxBody>>,
+        T::Error: Into<crate::Error>,
 {
     type Response = T::Response;
 

@@ -40,7 +40,7 @@ pub struct TripleClient<T> {
     inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
     directory: Option<Box<dyn Directory>>,
-    cluster_invoker: Option<ClusterInvoker<'static>>,
+    cluster_invoker: Option<ClusterInvoker>,
 }
 
 impl TripleClient<Connection> {
@@ -89,7 +89,7 @@ impl<T> TripleClient<T> {
         }
     }
 
-    pub fn with_cluster_invoker(self, invoker: ClusterInvoker) -> Self {
+    pub fn with_cluster(self, invoker: ClusterInvoker) -> Self {
         TripleClient{
             cluster_invoker: Some(invoker),
             ..self

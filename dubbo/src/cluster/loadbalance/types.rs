@@ -16,14 +16,19 @@
  */
 
 use std::fmt::Debug;
+use std::sync::Arc;
+
+use crate::codegen::RpcInvocation;
+use crate::common::url;
 use crate::common::url::Url;
-use crate::invocation::{BoxInvocation};
+use crate::invocation;
+use crate::invocation::BoxInvocation;
 use crate::protocol::BoxInvoker;
 
 pub type BoxLoadBalance = Box<dyn LoadBalance + Send + Sync>;
 
-pub trait LoadBalance {
-    fn select(&self, invokers: Vec<BoxInvoker>, url: Url, invocation: BoxInvocation) -> Option<BoxInvoker>;
+pub trait LoadBalance: Debug {
+    fn select(&self, invokers: Vec<Arc<BoxInvoker>>, url: Url, invocation: RpcInvocation) -> Option<Arc<BoxInvoker>>;
 }
 
 pub struct Metadata {

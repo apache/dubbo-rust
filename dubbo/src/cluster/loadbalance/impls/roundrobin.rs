@@ -1,5 +1,10 @@
+use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
 use crate::cluster::loadbalance::types::{LoadBalance, Metadata};
+use crate::codegen::RpcInvocation;
+use crate::common::url;
 use crate::common::url::Url;
+use crate::invocation;
 use crate::invocation::BoxInvocation;
 use crate::protocol::BoxInvoker;
 
@@ -15,14 +20,20 @@ impl RoundRobinLoadBalance {
     }
 }
 
+impl Debug for RoundRobinLoadBalance {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
 impl LoadBalance for RoundRobinLoadBalance {
-    fn select(&self, invokers: Vec<BoxInvoker>, url: Url, invocation: BoxInvocation) -> Option<&BoxInvoker> {
+    fn select(&self, invokers: Vec<Arc<BoxInvoker>>, url: Url, invocation: RpcInvocation) -> Option<Arc<BoxInvoker>> {
         if invokers.is_empty() {
             return None;
         }
         println!("{:?}", url);
         println!("{:?}", invocation);
-        invokers.get(0)
+        Some(Arc::clone(invokers.get(0).unwrap()))
     }
 }
 

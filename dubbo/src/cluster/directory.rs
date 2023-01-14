@@ -28,7 +28,7 @@ use crate::registry::memory_registry::MemoryNotifyListener;
 pub type BoxDirectory = Box<dyn Directory>;
 
 pub trait Directory: Debug + DirectoryClone {
-    fn list(&self, invocation: RpcInvocation) -> Vec<BoxInvoker>;
+    fn list(&self, invocation: RpcInvocation) -> Vec<Url>;
 }
 
 pub trait DirectoryClone {
@@ -50,10 +50,10 @@ impl Clone for Box<dyn Directory> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct RegistryDirectory {
     registry: RegistryWrapper,
-    service_instances: Arc<RwLock<HashMap<String, BoxInvoker>>>,
+    service_instances: Arc<RwLock<HashMap<String, Vec<Url>>>>,
     invokers_initialized: bool,
 }
 
@@ -69,14 +69,14 @@ impl RegistryDirectory {
     }
 }
 
-impl DirectoryClone for RegistryDirectory {
-    fn clone_box(&self) -> Box<dyn Directory> {
-        todo!()
-    }
-}
+// impl DirectoryClone for RegistryDirectory {
+//     fn clone_box(&self) -> Box<dyn Directory> {
+//         todo!()
+//     }
+// }
 
 impl Directory for RegistryDirectory {
-    fn list(&self, invocation: RpcInvocation) -> Vec<BoxInvoker> {
+    fn list(&self, invocation: RpcInvocation) -> Vec<Url> {
         let service_name = invocation.get_target_service_unique_name();
 
         let url = Url::from_url(&format!(

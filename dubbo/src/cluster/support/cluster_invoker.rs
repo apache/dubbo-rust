@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+use std::sync::Arc;
 use crate::cluster::loadbalance::LOAD_BALANCE_EXTENSIONS;
 use crate::cluster::loadbalance::types::BoxLoadBalance;
 use crate::cluster::support::DEFAULT_LOADBALANCE;
@@ -23,10 +24,10 @@ use crate::invocation::{BoxInvocation, RpcInvocation};
 use crate::protocol::BoxInvoker;
 
 #[derive(Debug, Clone)]
-pub struct ClusterInvoker<'a> {
-    directory: &'a RegistryDirectory,
+pub struct ClusterInvoker {
+    directory:  RegistryDirectory,
     destroyed: bool,
-    loadbalance_impls: &'a Vec<BoxLoadBalance>,
+    loadbalance_impls: Arc<Vec<BoxLoadBalance>>,
 }
 
 pub trait ClusterInvokerSelector {
@@ -41,9 +42,9 @@ pub trait ClusterInvokerSelector {
 impl ClusterInvoker {
     pub fn with_directory(registry_directory: RegistryDirectory) -> Self {
         ClusterInvoker {
-            directory: &registry_directory,
+            directory: registry_directory,
             destroyed: false,
-            loadbalance_impls: &Vec::new(),
+            loadbalance_impls: Arc::new(Vec::new()),
         }
     }
 

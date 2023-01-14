@@ -272,7 +272,7 @@ impl NotifyListener for ServiceInstancesChangedListener {
 }
 
 impl ClusterRegistryIntegration for ZookeeperRegistry {
-    fn get_invoker(registry: BoxRegistry) -> Option<&ClusterInvoker> {
+    fn get_invoker(registry: BoxRegistry) -> Option<Arc<ClusterInvoker>> {
         todo!()
     }
 }

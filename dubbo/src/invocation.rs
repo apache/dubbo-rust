@@ -204,9 +204,9 @@ pub trait Invocation {
     fn get_method_name(&self) -> String;
 }
 
-pub type BoxInvocation = Box<impl Invocation>;
+pub type BoxInvocation = Box<dyn Invocation>;
 
-#[derive(Default)]
+#[derive(Default,Debug)]
 pub struct RpcInvocation {
     target_service_unique_name: String,
     method_name: String,
