@@ -32,6 +32,8 @@ github:
     issues: true
     # Enable projects for project management boards
     projects: true
+  collaborators:  # Note: the number of collaborators is limited to 20
+    - robberphex
   enabled_merge_buttons:
     # enable squash button:
     squash: true
