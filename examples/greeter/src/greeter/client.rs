@@ -19,14 +19,42 @@ pub mod protos {
     #![allow(non_camel_case_types)]
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
 }
+use std::str::FromStr;
 
-use dubbo::codegen::*;
+use dubbo::{cluster::directory::StaticDirectory, codegen::*};
 use futures_util::StreamExt;
+use http;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() {
-    let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
+    // a builder for `FmtSubscriber`.
+    let subscriber = FmtSubscriber::builder()
+        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+        // will be written to stdout.
+        .with_max_level(Level::INFO)
+        // completes the builder.
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
+    let http_uri = http::Uri::from_str(&"http://1.1.1.1:8888").unwrap();
+
+    let mut cli = GreeterClient::new(Connection::new().with_host(http_uri), ClientBuilder::new());
+    let directory = StaticDirectory::new("http://127.0.0.1:8888");
+    cli = cli.with_directory(Box::new(directory));
+    //let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
+
+    // Here is example for zk
+    // let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {
+    //     Ok(val) => val,
+    //     Err(_) => "localhost:2181".to_string(),
+    // };
+    // let zkr = ZookeeperRegistry::new(&zk_connect_string);
+    // let directory = RegistryDirectory::new(Box::new(zkr));
+    // cli = cli.with_directory(Box::new(directory));
 
     println!("# unary call");
     let resp = cli

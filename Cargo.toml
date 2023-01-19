@@ -2,6 +2,7 @@
 members = [
   "xds",
   "registry",
+  "registry-zookeeper",
   "metadata",
   "common",
   "config",

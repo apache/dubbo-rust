@@ -77,7 +77,7 @@ impl RootConfig {
                 v
             }
             Err(err) => {
-                tracing::error!(
+                tracing::warn!(
                     "error loading config_path: {:?}, use default path: {:?}",
                     err,
                     DUBBO_CONFIG_PATH
