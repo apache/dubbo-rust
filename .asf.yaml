@@ -41,3 +41,5 @@ github:
     rebase: false
   protected_branches:
     main: {}
+  collaborators:
+    - robberphex
