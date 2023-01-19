@@ -115,7 +115,8 @@ impl RootConfig {
         let triple_config = ProtocolConfig::default()
             .name("triple".to_string())
             .ip("0.0.0.0".to_string())
-            .port("8888".to_string());
+            .port("8888".to_string())
+            .listener("tcp".to_string());
 
         let service_config = service_config.add_protocol_configs(triple_config);
         self.service
@@ -135,7 +136,8 @@ impl RootConfig {
             ProtocolConfig::default()
                 .name("triple".to_string())
                 .ip("0.0.0.0".to_string())
-                .port("8889".to_string()),
+                .port("8889".to_string())
+                .listener("tcp".to_string()),
         );
 
         provider.services = self.service.clone();

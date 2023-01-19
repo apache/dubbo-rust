@@ -27,7 +27,7 @@ use super::listener::get_listener;
 use super::router::DubboRouter;
 use crate::BoxBody;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct DubboServer {
     accept_http2: bool,
     init_stream_window_size: Option<u32>,

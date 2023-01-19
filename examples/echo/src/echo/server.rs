@@ -27,8 +27,8 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use dubbo::codegen::*;
-use dubbo::Dubbo;
-use dubbo_config::RootConfig;
+// use dubbo::Dubbo;
+// use dubbo_config::RootConfig;
 use example_echo::protos::hello_echo::{
     echo_server::{register_server, Echo, EchoServer},
     EchoRequest, EchoResponse,
@@ -65,15 +65,25 @@ async fn main() {
             dubbo::utils::boxed_clone::BoxCloneService::new(context_filter),
         );
 
+    // 1. 通过读取配置文件来初始化
     // Dubbo::new().start().await;
-    Dubbo::new()
-        .with_config({
-            let mut r = RootConfig::new();
-            r.test_config();
-            r
-        })
-        .start()
-        .await;
+
+    // 2. 通过自定义配置来初始化
+    // Dubbo::new()
+    //     .with_config({
+    //         let mut r = RootConfig::new();
+    //         r.test_config();
+    //         r
+    //     })
+    //     .start()
+    //     .await;
+
+    // 3. 通过serverbuilder来初始化Server
+    let builder = ServerBuilder::new()
+        .with_listener("tcp".to_string())
+        .with_service_names(vec!["grpc.examples.echo.Echo".to_string()])
+        .with_addr("0.0.0.0:8888");
+    builder.build().serve().await.unwrap();
 }
 
 #[allow(dead_code)]

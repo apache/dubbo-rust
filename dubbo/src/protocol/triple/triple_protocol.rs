@@ -60,10 +60,10 @@ impl Protocol for TripleProtocol {
     }
 
     async fn export(mut self, url: Url) -> BoxExporter {
-        let server = TripleServer::new(url.service_key.clone());
+        let server = TripleServer::new();
         self.servers
             .insert(url.service_key.join(","), server.clone());
-        server.serve(url.to_url()).await;
+        server.serve(url).await;
 
         Box::new(TripleExporter::new())
     }

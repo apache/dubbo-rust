@@ -73,8 +73,8 @@ where
     }
 }
 
-pub fn get_connector(connector: String) -> BoxCloneService<Uri, BoxIO, crate::Error> {
-    match connector.as_str() {
+pub fn get_connector(connector: &'static str) -> BoxCloneService<Uri, BoxIO, crate::Error> {
+    match connector {
         "http" => {
             let c = http_connector::HttpConnector::new();
             BoxCloneService::new(Connector::new(c))
