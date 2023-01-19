@@ -16,7 +16,7 @@
  */
 
 pub mod tcp_listener;
-#[cfg(any(target_os = "macos", target_os="unix"))]
+#[cfg(any(target_os = "macos", target_os = "unix"))]
 pub mod unix_listener;
 
 use std::net::SocketAddr;
@@ -64,7 +64,7 @@ impl<T: Listener> Listener for WrappedListener<T> {
 pub async fn get_listener(name: String, addr: SocketAddr) -> Result<BoxListener, crate::Error> {
     match name.as_str() {
         "tcp" => Ok(TcpListener::bind(addr).await?.boxed()),
-        #[cfg(any(target_os = "macos", target_os="unix"))]
+        #[cfg(any(target_os = "macos", target_os = "unix"))]
         "unix" => Ok(unix_listener::UnixListener::bind(addr).await?.boxed()),
         _ => {
             tracing::warn!("no support listener: {:?}", name);
