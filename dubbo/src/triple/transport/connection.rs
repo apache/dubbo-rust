@@ -87,6 +87,7 @@ where
         let uri = self.host.clone();
         let fut = async move {
             let mut con = connector.call(uri).await.unwrap();
+
             con.call(req)
                 .await
                 .map_err(|err| err.into())

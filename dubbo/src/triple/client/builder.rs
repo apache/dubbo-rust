@@ -60,6 +60,13 @@ impl ClientBuilder {
         }
     }
 
+    pub fn with_connector(self, connector: &'static str) -> Self {
+        Self {
+            connector: connector,
+            ..self
+        }
+    }
+
     pub fn connect(self) -> ClientBoxService {
         let builder = ServiceBuilder::new();
         let timeout = self.timeout.unwrap_or(5);
