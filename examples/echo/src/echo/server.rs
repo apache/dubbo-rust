@@ -80,9 +80,9 @@ async fn main() {
 
     // 3. 通过serverbuilder来初始化Server
     let builder = ServerBuilder::new()
-        .with_listener("tcp".to_string())
+        .with_listener("unix".to_string())
         .with_service_names(vec!["grpc.examples.echo.Echo".to_string()])
-        .with_addr("0.0.0.0:8888");
+        .with_addr("127.0.0.1:8888");
     builder.build().serve().await.unwrap();
 }
 
