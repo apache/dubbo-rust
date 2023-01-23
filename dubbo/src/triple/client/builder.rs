@@ -88,7 +88,7 @@ impl From<Uri> for ClientBuilder {
         Self {
             uri: u,
             timeout: None,
-            connector: "",
+            connector: "tcp",
         }
     }
 }
