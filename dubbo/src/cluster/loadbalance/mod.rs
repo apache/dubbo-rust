@@ -31,8 +31,8 @@ lazy_static!(
 
 fn init_loadbalance_extensions() -> HashMap<String, BoxLoadBalance> {
     let mut loadbalance_map: HashMap<String, BoxLoadBalance> = HashMap::new();
-    loadbalance_map.insert("random".to_string(), Box::new(RandomLoadBalance::new()));
-    loadbalance_map.insert("roundrobin".to_string(), Box::new(RoundRobinLoadBalance::new()));
+    loadbalance_map.insert("random".to_string(), Box::new(RandomLoadBalance::default()));
+    loadbalance_map.insert("roundrobin".to_string(), Box::new(RoundRobinLoadBalance::default()));
     loadbalance_map
 }
 

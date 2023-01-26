@@ -187,7 +187,7 @@ fn generate_unary<T: Method>(
                 request,
                 codec,
                 path,
-                invocation,
+                Arc::new(invocation),
             )
             .await
         }

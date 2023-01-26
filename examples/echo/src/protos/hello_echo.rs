@@ -67,7 +67,7 @@ pub mod echo_client {
             let codec =
                 dubbo::codegen::ProstCodec::<super::EchoRequest, super::EchoResponse>::default();
             let path = http::uri::PathAndQuery::from_static("/grpc.examples.echo.Echo/UnaryEcho");
-            self.inner.unary(request, codec, path, RpcInvocation::default()).await
+            self.inner.unary(request, codec, path, Arc::new(RpcInvocation::default())).await
         }
         /// ServerStreamingEcho is server side streaming.
         pub async fn server_streaming_echo(

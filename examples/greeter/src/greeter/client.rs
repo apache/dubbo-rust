@@ -55,7 +55,8 @@ async fn main() {
     let mut cli = GreeterClient::new(Connection::new().with_host(http_uri));
     //cli = cli.with_directory(Box::new(directory));
     cli = cli.with_cluster(cluster_invoker);
-    //let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
+    // let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
+    // using loop for loadbalance test
     loop {
         println!("# unary call");
         let resp = cli

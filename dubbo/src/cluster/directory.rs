@@ -21,14 +21,13 @@ use std::sync::{Arc, RwLock};
 
 use crate::common::url::Url;
 use crate::invocation::{Invocation, RpcInvocation};
-use crate::protocol::{BoxInvoker};
 use crate::registry::{BoxRegistry, RegistryWrapper};
 use crate::registry::memory_registry::MemoryNotifyListener;
 
 pub type BoxDirectory = Box<dyn Directory>;
 
 pub trait Directory: Debug + DirectoryClone {
-    fn list(&self, invocation: RpcInvocation) -> Vec<Url>;
+    fn list(&self, invocation: Arc<RpcInvocation>) -> Arc<Vec<Url>>;
 }
 
 pub trait DirectoryClone {
@@ -54,7 +53,6 @@ impl Clone for Box<dyn Directory> {
 pub struct RegistryDirectory {
     registry: RegistryWrapper,
     service_instances: Arc<RwLock<HashMap<String, Vec<Url>>>>,
-    invokers_initialized: bool,
 }
 
 impl RegistryDirectory {
@@ -64,7 +62,6 @@ impl RegistryDirectory {
                 registry: Some(registry),
             },
             service_instances: Arc::new(RwLock::new(HashMap::new())),
-            invokers_initialized: false,
         }
     }
 }
@@ -76,7 +73,7 @@ impl RegistryDirectory {
 // }
 
 impl Directory for RegistryDirectory {
-    fn list(&self, invocation: RpcInvocation) -> Vec<Url> {
+    fn list(&self, invocation: Arc<RpcInvocation>) -> Arc<Vec<Url>> {
         let service_name = invocation.get_target_service_unique_name();
 
         let url = Url::from_url(&format!(
@@ -95,6 +92,6 @@ impl Directory for RegistryDirectory {
         let map = self.service_instances.read().expect("service_instances.read");
         let binding = Vec::new();
         let url_vec = map.get(&service_name).unwrap_or(&binding);
-        url_vec.to_vec()
+        Arc::new(url_vec.to_vec())
     }
 }
