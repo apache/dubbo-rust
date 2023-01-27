@@ -213,7 +213,7 @@ pub struct RpcInvocation {
 }
 
 impl RpcInvocation {
-    pub fn with_servie_unique_name(mut self, service_unique_name: String) -> Self {
+    pub fn with_service_unique_name(mut self, service_unique_name: String) -> Self {
         self.target_service_unique_name = service_unique_name;
         self
     }
