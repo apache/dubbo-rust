@@ -40,8 +40,10 @@ pub struct RootConfig {
     #[serde(skip_serializing, skip_deserializing)]
     pub service: HashMap<String, ServiceConfig>,
     pub protocols: HashMap<String, ProtocolConfig>,
+    #[serde(default)]
     pub registries: HashMap<String, String>,
 
+    #[serde(default)]
     pub provider: ProviderConfig,
 
     #[serde(skip_serializing, skip_deserializing)]

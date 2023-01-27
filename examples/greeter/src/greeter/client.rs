@@ -57,7 +57,7 @@ async fn main() {
     cli = cli.with_cluster(cluster_invoker);
     // let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
     // using loop for loadbalance test
-    loop {
+    for _ in 0..10 {
         println!("# unary call");
         let resp = cli
             .greet(Request::new(GreeterRequest {
