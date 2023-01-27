@@ -21,8 +21,8 @@ use std::sync::{Arc, RwLock};
 
 use crate::common::url::Url;
 use crate::invocation::{Invocation, RpcInvocation};
-use crate::registry::{BoxRegistry, RegistryWrapper};
 use crate::registry::memory_registry::MemoryNotifyListener;
+use crate::registry::{BoxRegistry, RegistryWrapper};
 
 pub type BoxDirectory = Box<dyn Directory>;
 
@@ -35,8 +35,8 @@ pub trait DirectoryClone {
 }
 
 impl<T> DirectoryClone for T
-    where
-        T: 'static + Directory + Clone,
+where
+    T: 'static + Directory + Clone,
 {
     fn clone_box(&self) -> Box<dyn Directory> {
         Box::new(self.clone())
@@ -49,7 +49,7 @@ impl Clone for Box<dyn Directory> {
     }
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct RegistryDirectory {
     registry: RegistryWrapper,
     service_instances: Arc<RwLock<HashMap<String, Vec<Url>>>>,
@@ -80,16 +80,24 @@ impl Directory for RegistryDirectory {
             "triple://{}:{}/{}",
             "127.0.0.1", "8888", service_name
         ))
-            .unwrap();
+        .unwrap();
 
-        self.registry.registry.as_ref().expect("msg").subscribe(
-            url,
-            MemoryNotifyListener {
-                service_instances: Arc::clone(&self.service_instances),
-            },
-        ).expect("subscribe");
+        self.registry
+            .registry
+            .as_ref()
+            .expect("msg")
+            .subscribe(
+                url,
+                MemoryNotifyListener {
+                    service_instances: Arc::clone(&self.service_instances),
+                },
+            )
+            .expect("subscribe");
 
-        let map = self.service_instances.read().expect("service_instances.read");
+        let map = self
+            .service_instances
+            .read()
+            .expect("service_instances.read");
         let binding = Vec::new();
         let url_vec = map.get(&service_name).unwrap_or(&binding);
         Arc::new(url_vec.to_vec())

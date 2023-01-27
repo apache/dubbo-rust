@@ -24,7 +24,12 @@ impl Debug for RandomLoadBalance {
 }
 
 impl LoadBalance for RandomLoadBalance {
-    fn select(&self, invokers: Arc<Vec<Url>>, _url: Option<Url>, _invocation: Arc<RpcInvocation>) -> Option<Url> {
+    fn select(
+        &self,
+        invokers: Arc<Vec<Url>>,
+        _url: Option<Url>,
+        _invocation: Arc<RpcInvocation>,
+    ) -> Option<Url> {
         if invokers.is_empty() {
             return None;
         }

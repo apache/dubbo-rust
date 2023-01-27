@@ -45,7 +45,7 @@ pub trait Invoker<ReqBody>: Debug {
 
     type Error;
 
-    type Future: Future<Output=Result<Self::Response, Self::Error>>;
+    type Future: Future<Output = Result<Self::Response, Self::Error>>;
 
     fn get_url(&self) -> Url;
 
@@ -55,20 +55,20 @@ pub trait Invoker<ReqBody>: Debug {
 pub type BoxExporter = Box<dyn Exporter + Send + Sync>;
 pub type BoxInvoker = Box<
     dyn Invoker<
-        http::Request<hyper::Body>,
-        Response=http::Response<crate::BoxBody>,
-        Error=crate::Error,
-        Future=crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
-    > + Send
-    + Sync,
+            http::Request<hyper::Body>,
+            Response = http::Response<crate::BoxBody>,
+            Error = crate::Error,
+            Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
+        > + Send
+        + Sync,
 >;
 
 pub struct WrapperInvoker<T>(T);
 
 impl<T, ReqBody> Service<http::Request<ReqBody>> for WrapperInvoker<T>
-    where
-        T: Invoker<http::Request<ReqBody>, Response=http::Response<crate::BoxBody>>,
-        T::Error: Into<crate::Error>,
+where
+    T: Invoker<http::Request<ReqBody>, Response = http::Response<crate::BoxBody>>,
+    T::Error: Into<crate::Error>,
 {
     type Response = T::Response;
 

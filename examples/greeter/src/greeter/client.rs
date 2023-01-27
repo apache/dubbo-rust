@@ -21,8 +21,8 @@ use http;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use dubbo::{cluster::directory::RegistryDirectory, codegen::*};
 use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
+use dubbo::{cluster::directory::RegistryDirectory, codegen::*};
 use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
 
@@ -49,7 +49,7 @@ async fn main() {
     };
     let zkr = ZookeeperRegistry::new(&zk_connect_string);
     let directory = RegistryDirectory::new(Box::new(zkr));
-    let cluster_invoker= ClusterInvoker::with_directory(directory);
+    let cluster_invoker = ClusterInvoker::with_directory(directory);
     let http_uri = http::Uri::from_str(&"http://1.1.1.1:8888").unwrap();
 
     let mut cli = GreeterClient::new(Connection::new().with_host(http_uri));

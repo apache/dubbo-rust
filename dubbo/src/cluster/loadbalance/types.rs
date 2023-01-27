@@ -24,7 +24,12 @@ use crate::common::url::Url;
 pub type BoxLoadBalance = Box<dyn LoadBalance + Send + Sync>;
 
 pub trait LoadBalance: Debug {
-    fn select(&self, invokers: Arc<Vec<Url>>, url: Option<Url>, invocation: Arc<RpcInvocation>) -> Option<Url>;
+    fn select(
+        &self,
+        invokers: Arc<Vec<Url>>,
+        url: Option<Url>,
+        invocation: Arc<RpcInvocation>,
+    ) -> Option<Url>;
 }
 
 pub struct Metadata {
@@ -33,8 +38,6 @@ pub struct Metadata {
 
 impl Metadata {
     pub fn new(name: &'static str) -> Self {
-        Metadata {
-            name
-        }
+        Metadata { name }
     }
 }

@@ -16,29 +16,28 @@
  */
 
 #![allow(unused_variables, dead_code, missing_docs)]
-
+use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
+use dubbo::codegen::BoxRegistry;
 use dubbo::common::url::Url;
+use dubbo::registry::integration::ClusterRegistryIntegration;
 use dubbo::registry::memory_registry::MemoryNotifyListener;
 use dubbo::registry::NotifyListener;
 use dubbo::registry::Registry;
 use dubbo::registry::ServiceEvent;
 use dubbo::StdError;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Duration;
+use tracing::info;
 #[allow(unused_imports)]
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
-use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
-use dubbo::codegen::BoxRegistry;
-use dubbo::registry::integration::ClusterRegistryIntegration;
 
 // 从url中获取服务注册的元数据
-/// rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)
-/// dubboPath = fmt.Sprintf("/%s/%s/%s", r.URL.GetParam(constant.RegistryGroupKey, "dubbo"), r.service(c), common.DubboNodes[common.PROVIDER])
+// rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)
+// dubboPath = fmt.Sprintf("/%s/%s/%s", r.URL.GetParam(constant.RegistryGroupKey, "dubbo"), r.service(c), common.DubboNodes[common.PROVIDER])
 
 pub const REGISTRY_GROUP_KEY: &str = "registry.group";
 

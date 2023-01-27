@@ -22,17 +22,20 @@ use crate::cluster::loadbalance::impls::random::RandomLoadBalance;
 use crate::cluster::loadbalance::impls::roundrobin::RoundRobinLoadBalance;
 use crate::cluster::loadbalance::types::BoxLoadBalance;
 
-pub mod types;
 pub mod impls;
+pub mod types;
 
-lazy_static!(
-    pub static ref LOAD_BALANCE_EXTENSIONS:HashMap<String,BoxLoadBalance> = init_loadbalance_extensions();
-);
+lazy_static! {
+    pub static ref LOAD_BALANCE_EXTENSIONS: HashMap<String, BoxLoadBalance> =
+        init_loadbalance_extensions();
+}
 
 fn init_loadbalance_extensions() -> HashMap<String, BoxLoadBalance> {
     let mut loadbalance_map: HashMap<String, BoxLoadBalance> = HashMap::new();
     loadbalance_map.insert("random".to_string(), Box::new(RandomLoadBalance::default()));
-    loadbalance_map.insert("roundrobin".to_string(), Box::new(RoundRobinLoadBalance::default()));
+    loadbalance_map.insert(
+        "roundrobin".to_string(),
+        Box::new(RoundRobinLoadBalance::default()),
+    );
     loadbalance_map
 }
-

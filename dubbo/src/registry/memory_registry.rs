@@ -63,7 +63,7 @@ impl Registry for MemoryRegistry {
 
         url.params.insert("anyhost".to_string(), "true".to_string());
         // define triple url path
-        let raw_url = format!("{}?{}", url.to_url(), url.encode_param(), );
+        let raw_url = format!("{}?{}", url.to_url(), url.encode_param(),);
 
         self.registries.write().unwrap().insert(dubbo_path, raw_url);
         Ok(())
@@ -112,7 +112,7 @@ impl NotifyListener for MemoryNotifyListener {
         let mut map = self.service_instances.write().expect("msg");
         match event.action.as_str() {
             "ADD" => map.insert(event.key, event.service),
-            &_ => todo!()
+            &_ => todo!(),
         };
     }
 

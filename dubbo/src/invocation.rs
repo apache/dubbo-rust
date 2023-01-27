@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-use std::{collections::HashMap, str::FromStr};
 use std::fmt::Debug;
+use std::{collections::HashMap, str::FromStr};
 
 use futures_core::Stream;
 
@@ -69,8 +69,8 @@ impl<T> Request<T> {
     }
 
     pub fn map<F, U>(self, f: F) -> Request<U>
-        where
-            F: FnOnce(T) -> U,
+    where
+        F: FnOnce(T) -> U,
     {
         let m = f(self.message);
         Request {
@@ -125,8 +125,8 @@ impl<T> Response<T> {
     }
 
     pub fn map<F, U>(self, f: F) -> Response<U>
-        where
-            F: FnOnce(T) -> U,
+    where
+        F: FnOnce(T) -> U,
     {
         let u = f(self.message);
         Response {
@@ -137,16 +137,16 @@ impl<T> Response<T> {
 }
 
 pub trait IntoStreamingRequest {
-    type Stream: Stream<Item=Self::Message> + Send + 'static;
+    type Stream: Stream<Item = Self::Message> + Send + 'static;
     type Message;
 
     fn into_streaming_request(self) -> Request<Self::Stream>;
 }
 
 impl<T> IntoStreamingRequest for T
-    where
-        T: Stream + Send + 'static,
-// T::Item: Result<Self::Message, std::convert::Infallible>,
+where
+    T: Stream + Send + 'static,
+    // T::Item: Result<Self::Message, std::convert::Infallible>,
 {
     type Stream = T;
 
@@ -225,7 +225,6 @@ impl RpcInvocation {
         format!("{}#{}", self.target_service_unique_name, self.method_name)
     }
 }
-
 
 impl Invocation for RpcInvocation {
     fn get_target_service_unique_name(&self) -> String {

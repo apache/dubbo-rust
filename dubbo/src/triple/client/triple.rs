@@ -23,9 +23,9 @@ use http::HeaderValue;
 use tower_service::Service;
 
 use crate::cluster::support::cluster_invoker::{ClusterInvoker, ClusterRequestBuilder};
-use crate::codegen::{ RpcInvocation};
-use crate::filter::Filter;
+use crate::codegen::RpcInvocation;
 use crate::filter::service::FilterService;
+use crate::filter::Filter;
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
 use crate::triple::codec::Codec;
 use crate::triple::compression::CompressionEncoding;
@@ -72,8 +72,8 @@ impl<T> TripleClient<T> {
     }
 
     pub fn with_filter<F>(self, filter: F) -> TripleClient<FilterService<T, F>>
-        where
-            F: Filter,
+    where
+        F: Filter,
     {
         TripleClient::new(FilterService::new(self.inner, filter), self.host)
     }
@@ -87,9 +87,9 @@ impl<T> TripleClient<T> {
 }
 
 impl<T> TripleClient<T>
-    where
-        T: Service<http::Request<hyper::Body>, Response=http::Response<crate::BoxBody>>,
-        T::Error: Into<crate::Error>,
+where
+    T: Service<http::Request<hyper::Body>, Response = http::Response<crate::BoxBody>>,
+    T::Error: Into<crate::Error>,
 {
     pub fn new_map_request(
         &self,
@@ -247,10 +247,10 @@ impl<T> TripleClient<T>
         path: http::uri::PathAndQuery,
         invocation: Arc<RpcInvocation>,
     ) -> Result<Response<M2>, crate::status::Status>
-        where
-            C: Codec<Encode=M1, Decode=M2>,
-            M1: Send + Sync + 'static,
-            M2: Send + Sync + 'static,
+    where
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
     {
         let req = req.map(|m| stream::once(future::ready(m)));
         let body_stream = encode(
@@ -258,7 +258,7 @@ impl<T> TripleClient<T>
             req.into_inner().map(Ok),
             self.send_compression_encoding,
         )
-            .into_stream();
+        .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
 
         // let url_list = self.directory.as_ref().expect("msg").list(invocation);
@@ -268,8 +268,11 @@ impl<T> TripleClient<T>
         //     http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
         //
         // let req = self.new_map_request(http_uri.clone(), path, body);
-        let req = self.cluster_invoker.as_ref().unwrap()
-            .build_req(self, path, invocation.clone(), body);
+        let req =
+            self.cluster_invoker
+                .as_ref()
+                .unwrap()
+                .build_req(self, path, invocation.clone(), body);
         let mut conn = Connection::new().with_host(req.uri().clone());
         let response = conn
             .call(req)
@@ -306,14 +309,14 @@ impl<T> TripleClient<T>
 
     pub async fn bidi_streaming<C, M1, M2>(
         &mut self,
-        req: impl IntoStreamingRequest<Message=M1>,
+        req: impl IntoStreamingRequest<Message = M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
-        where
-            C: Codec<Encode=M1, Decode=M2>,
-            M1: Send + Sync + 'static,
-            M2: Send + Sync + 'static,
+    where
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
     {
         let req = req.into_streaming_request();
         let en = encode(
@@ -321,7 +324,7 @@ impl<T> TripleClient<T>
             req.into_inner().map(Ok),
             self.send_compression_encoding,
         )
-            .into_stream();
+        .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
         let req = self.map_request(path, body);
@@ -346,14 +349,14 @@ impl<T> TripleClient<T>
 
     pub async fn client_streaming<C, M1, M2>(
         &mut self,
-        req: impl IntoStreamingRequest<Message=M1>,
+        req: impl IntoStreamingRequest<Message = M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
     ) -> Result<Response<M2>, crate::status::Status>
-        where
-            C: Codec<Encode=M1, Decode=M2>,
-            M1: Send + Sync + 'static,
-            M2: Send + Sync + 'static,
+    where
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
     {
         let req = req.into_streaming_request();
         let en = encode(
@@ -361,7 +364,7 @@ impl<T> TripleClient<T>
             req.into_inner().map(Ok),
             self.send_compression_encoding,
         )
-            .into_stream();
+        .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
         let req = self.map_request(path, body);
@@ -406,10 +409,10 @@ impl<T> TripleClient<T>
         mut codec: C,
         path: http::uri::PathAndQuery,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
-        where
-            C: Codec<Encode=M1, Decode=M2>,
-            M1: Send + Sync + 'static,
-            M2: Send + Sync + 'static,
+    where
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
     {
         let req = req.map(|m| stream::once(future::ready(m)));
         let en = encode(
@@ -417,7 +420,7 @@ impl<T> TripleClient<T>
             req.into_inner().map(Ok),
             self.send_compression_encoding,
         )
-            .into_stream();
+        .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
         let req = self.map_request(path, body);
