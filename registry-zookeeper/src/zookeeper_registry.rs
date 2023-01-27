@@ -30,6 +30,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Duration;
+#[allow(unused_imports)]
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
 use dubbo::codegen::BoxRegistry;

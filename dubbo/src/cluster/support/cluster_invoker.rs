@@ -45,6 +45,7 @@ pub trait ClusterInvokerSelector {
               excluded: Arc<Vec<Url>>) -> Option<Url>;
 
     fn do_select(&self,
+                 loadbalance_key: Option<&str>,
                  invocation: Arc<RpcInvocation>,
                  invokers: Arc<Vec<Url>>,
     ) -> Option<Url>;
@@ -74,8 +75,13 @@ impl ClusterInvoker {
         self.directory.clone()
     }
 
-    pub fn init_loadbalance(&self) -> &BoxLoadBalance {
-        LOAD_BALANCE_EXTENSIONS.get(DEFAULT_LOADBALANCE).unwrap()
+    pub fn init_loadbalance(&self, loadbalance_key: &str) -> &BoxLoadBalance {
+        if LOAD_BALANCE_EXTENSIONS.contains_key(loadbalance_key) {
+            LOAD_BALANCE_EXTENSIONS.get(loadbalance_key).unwrap()
+        }else {
+            println!("loadbalance {} not found, use default loadbalance {}", loadbalance_key, DEFAULT_LOADBALANCE);
+            LOAD_BALANCE_EXTENSIONS.get(DEFAULT_LOADBALANCE).unwrap()
+        }
     }
 
     pub fn is_available(&self, invocation: Arc<RpcInvocation>) -> bool {
@@ -98,16 +104,18 @@ impl ClusterInvokerSelector for ClusterInvoker {
         return if instance_count == 1 {
             Some(invokers.as_ref().first()?.clone())
         } else {
-            self.do_select(invocation, invokers)
+            let loadbalance = Some(DEFAULT_LOADBALANCE);
+            self.do_select(loadbalance, invocation, invokers)
         };
     }
 
     /// picking instance invoker url from registry directory
     fn do_select(&self,
+                 loadbalance_key: Option<&str>,
                  invocation: Arc<RpcInvocation>,
                  invokers: Arc<Vec<Url>>,
     ) -> Option<Url> {
-        let loadbalance = self.init_loadbalance();
+        let loadbalance = self.init_loadbalance(loadbalance_key.unwrap_or(DEFAULT_LOADBALANCE));
         loadbalance.select(invokers, None, invocation)
     }
 }
