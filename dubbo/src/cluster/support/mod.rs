@@ -16,7 +16,6 @@
  */
 
 pub mod cluster_invoker;
-pub mod cluster_invoke;
 
-pub const DEFAULT_LOADBALANCE: &str = "random";
+pub const DEFAULT_LOADBALANCE: &str = "roundrobin";
 

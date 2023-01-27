@@ -20,11 +20,10 @@ use std::sync::Arc;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
-use rand::prelude::SliceRandom;
 use tower_service::Service;
 
 use crate::cluster::support::cluster_invoker::{ClusterInvoker, ClusterRequestBuilder};
-use crate::codegen::{Directory, RpcInvocation};
+use crate::codegen::{ RpcInvocation};
 use crate::filter::Filter;
 use crate::filter::service::FilterService;
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
@@ -40,8 +39,6 @@ pub struct TripleClient<T> {
     host: Option<http::Uri>,
     inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
-    #[deprecated]
-    directory: Option<Box<dyn Directory>>,
     cluster_invoker: Option<ClusterInvoker>,
 }
 
@@ -59,7 +56,6 @@ impl TripleClient<Connection> {
             host: uri.clone(),
             inner: Connection::new().with_host(uri.unwrap()),
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            directory: None,
             cluster_invoker: None,
         }
     }
@@ -71,7 +67,6 @@ impl<T> TripleClient<T> {
             host,
             inner,
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            directory: None,
             cluster_invoker: None,
         }
     }
@@ -81,14 +76,6 @@ impl<T> TripleClient<T> {
             F: Filter,
     {
         TripleClient::new(FilterService::new(self.inner, filter), self.host)
-    }
-
-    /// host: http://0.0.0.0:8888
-    pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
-        TripleClient {
-            directory: Some(directory),
-            ..self
-        }
     }
 
     pub fn with_cluster(self, invoker: ClusterInvoker) -> Self {

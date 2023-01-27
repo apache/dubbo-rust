@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use crate::codegen::RpcInvocation;
 use crate::common::url::Url;
-use crate::protocol::BoxInvoker;
 
 pub type BoxLoadBalance = Box<dyn LoadBalance + Send + Sync>;
 

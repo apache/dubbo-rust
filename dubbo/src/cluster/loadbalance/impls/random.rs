@@ -19,7 +19,7 @@ impl Default for RandomLoadBalance {
 
 impl Debug for RandomLoadBalance {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        write!(f, "RandomLoadBalance")
     }
 }
 

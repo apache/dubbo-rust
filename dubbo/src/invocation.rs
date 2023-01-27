@@ -206,7 +206,7 @@ pub trait Invocation {
 
 pub type BoxInvocation = Box<dyn Invocation>;
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub struct RpcInvocation {
     target_service_unique_name: String,
     method_name: String,
@@ -220,6 +220,9 @@ impl RpcInvocation {
     pub fn with_method_name(mut self, method_name: String) -> Self {
         self.method_name = method_name;
         self
+    }
+    pub fn unique_fingerprint(&self) -> String {
+        format!("{}#{}", self.target_service_unique_name, self.method_name)
     }
 }
 

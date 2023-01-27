@@ -21,10 +21,8 @@ pub mod protocol;
 pub mod integration;
 
 use std::fmt::Debug;
-use std::sync::Arc;
 
 use crate::common::url::Url;
-use crate::protocol::{BoxInvoker, Invoker};
 
 pub trait Registry {
     type NotifyListener;

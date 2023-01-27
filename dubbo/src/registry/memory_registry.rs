@@ -22,7 +22,6 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use crate::common::url::Url;
-use crate::protocol::BoxInvoker;
 
 use super::{NotifyListener, Registry};
 

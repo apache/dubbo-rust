@@ -1,4 +1,5 @@
 #![feature(associated_type_defaults)]
+#![feature(option_result_contains)]
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with

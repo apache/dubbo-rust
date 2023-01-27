@@ -100,11 +100,6 @@ pub fn generate<T: Service>(
                     }
                 }
 
-                pub fn with_directory(mut self, directory: Box<dyn Directory>) -> Self {
-                    self.inner = self.inner.with_directory(directory);
-                    self
-                }
-
                 pub fn with_cluster(mut self, invoker: ClusterInvoker) -> Self {
                     self.inner = self.inner.with_cluster(invoker);
                     self

@@ -28,14 +28,13 @@ use crate::cluster::loadbalance::types::BoxLoadBalance;
 use crate::cluster::support::DEFAULT_LOADBALANCE;
 use crate::codegen::{Directory, RegistryDirectory, TripleClient};
 use crate::common::url::Url;
-use crate::invocation::{BoxInvocation, RpcInvocation};
+use crate::invocation::RpcInvocation;
 use crate::triple;
 
 #[derive(Debug, Clone)]
 pub struct ClusterInvoker {
     directory: Arc<RegistryDirectory>,
     destroyed: bool,
-    loadbalance_impls: Arc<Vec<BoxLoadBalance>>,
 }
 
 pub trait ClusterInvokerSelector {
@@ -68,7 +67,6 @@ impl ClusterInvoker {
         ClusterInvoker {
             directory: Arc::new(registry_directory),
             destroyed: false,
-            loadbalance_impls: Arc::new(Vec::new()),
         }
     }
 
@@ -104,7 +102,7 @@ impl ClusterInvokerSelector for ClusterInvoker {
         };
     }
 
-    /// pick url from directory
+    /// picking instance invoker url from registry directory
     fn do_select(&self,
                  invocation: Arc<RpcInvocation>,
                  invokers: Arc<Vec<Url>>,
