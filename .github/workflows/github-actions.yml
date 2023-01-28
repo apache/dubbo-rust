@@ -91,7 +91,7 @@ jobs:
       - name: example greeter
         run: |
           ../../target/debug/greeter-server &
-          sleep 1s ;
+          sleep 5s ;
           ../../target/debug/greeter-client
         env:
           ZOOKEEPER_SERVERS: 127.0.0.1:2181
