@@ -45,10 +45,9 @@ jobs:
           toolchain: stable
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
-
-  middlewares:
+  example-greeter:
+    name: example/greeter
     runs-on: ubuntu-latest
-    container: middlewares/zookeeper
     services:
       zoo1:
         image: zookeeper:3.8
@@ -77,10 +76,6 @@ jobs:
         environment:
           ZOO_MY_ID: 3
           ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
-
-  example-greeter:
-    name: example/greeter
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
