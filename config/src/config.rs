@@ -24,7 +24,7 @@ use super::protocol::ProtocolConfig;
 use super::provider::ProviderConfig;
 use super::service::ServiceConfig;
 
-pub const DUBBO_CONFIG_PATH: &str = "./dubbo.yaml";
+pub const DUBBO_CONFIG_PATH: &str = "dubbo.yaml";
 
 lazy_static! {
     pub static ref GLOBAL_ROOT_CONFIG: RwLock<Option<RootConfig>> = RwLock::new(None);

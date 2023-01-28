@@ -85,6 +85,7 @@ jobs:
           echo "$HOME/protoc/bin" >> $GITHUB_PATH
         env:
           ZOOKEEPER_SERVERS: 127.0.0.1:2181
+          DUBBO_CONFIG_PATH: dubbo.yaml
         shell: bash
       - name: Set up cargo cache
         uses: actions/cache@v3
