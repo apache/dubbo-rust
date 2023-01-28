@@ -53,9 +53,11 @@ jobs:
         image: zookeeper:3.8
         ports:
           - 2181:2181
+          - 12888:2888
+          - 13888:3888
         env:
           ZOO_MY_ID: 1
-          ZOO_SERVERS: server.1=127.0.0.1:2888:3888;2181 server.2=127.0.0.1:2888:3888;2181 server.3=127.0.0.1:2888:3888;2181
+          ZOO_SERVERS: server.1=127.0.0.1:12888:13888;2181 server.2=127.0.0.1:22888:23888;2182 server.3=127.0.0.1:32888:33888;2183
         options: >-
           --health-cmd "[ $(echo ruok | nc 127.0.0.1:2181) == "imok" ] || exit 1"
           --health-interval 10s
@@ -65,9 +67,11 @@ jobs:
         image: zookeeper:3.8
         ports:
           - 2182:2181
+          - 22888:2888
+          - 23888:3888
         env:
           ZOO_MY_ID: 2
-          ZOO_SERVERS: server.1=127.0.0.1:2888:3888;2181 server.2=127.0.0.1:2888:3888;2181 server.3=127.0.0.1:2888:3888;2181
+          ZOO_SERVERS: server.1=127.0.0.1:12888:13888;2181 server.2=127.0.0.1:22888:23888;2182 server.3=127.0.0.1:32888:33888;2183
         options: >-
           --health-cmd "[ $(echo ruok | nc 127.0.0.1:2181) == "imok" ] || exit 1"
           --health-interval 10s
@@ -77,9 +81,11 @@ jobs:
         image: zookeeper:3.8
         ports:
           - 2183:2181
+          - 32888:2888
+          - 33888:3888
         env:
           ZOO_MY_ID: 3
-          ZOO_SERVERS: server.1=127.0.0.1:2888:3888;2181 server.2=127.0.0.1:2888:3888;2181 server.3=127.0.0.1:2888:3888;2181
+          ZOO_SERVERS: server.1=127.0.0.1:12888:13888;2181 server.2=127.0.0.1:22888:23888;2182 server.3=127.0.0.1:32888:33888;2183
         options: >-
           --health-cmd "[ $(echo ruok | nc 127.0.0.1:2181) == "imok" ] || exit 1" 
           --health-interval 10s
