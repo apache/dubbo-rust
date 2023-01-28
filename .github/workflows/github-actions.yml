@@ -46,6 +46,38 @@ jobs:
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
 
+  middlewares:
+    runs-on: ubuntu-latest
+    container: middlewares/zookeeper
+    services:
+      zoo1:
+        image: zookeeper:3.8
+        restart: always
+        hostname: zoo1
+        ports:
+          - 2181:2181
+        environment:
+          ZOO_MY_ID: 1
+          ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+      zoo2:
+        image: zookeeper:3.8
+        restart: always
+        hostname: zoo2
+        ports:
+          - 2182:2181
+        environment:
+          ZOO_MY_ID: 2
+          ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+      zoo3:
+        image: zookeeper:3.8
+        restart: always
+        hostname: zoo3
+        ports:
+          - 2183:2181
+        environment:
+          ZOO_MY_ID: 3
+          ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+
   example-greeter:
     name: example/greeter
     runs-on: ubuntu-latest
@@ -62,6 +94,8 @@ jobs:
           https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip &&
           unzip /tmp/protoc-21.9-linux-x86_64.zip &&
           echo "$HOME/protoc/bin" >> $GITHUB_PATH
+        env:
+          ZOOKEEPER_SERVERS: zoo1:2181
         shell: bash
       - name: Set up cargo cache
         uses: actions/cache@v3
