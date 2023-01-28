@@ -55,11 +55,11 @@ jobs:
           - 2181:2181
         env:
           ZOO_MY_ID: 1
-        options: >-
-          --health-cmd "[ $(echo ruok | nc 127.0.0.1:2181) == "imok" ]"
-          --health-interval 30s
-          --health-timeout 5s
-          --health-retries 5
+#        options: >-
+#          --health-cmd "[ $(echo ruok | nc 127.0.0.1:2181) == "imok" ]"
+#          --health-interval 30s
+#          --health-timeout 5s
+#          --health-retries 5
     steps:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
