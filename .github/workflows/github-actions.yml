@@ -56,9 +56,9 @@ jobs:
         env:
           ZOO_MY_ID: 1
         options: >-
-          --health-cmd "[ $(echo ruok | nc 127.0.0.1:2181) == "imok" ] || exit 1"
-          --health-interval 60s
-          --health-timeout 25s
+          --health-cmd "[ $(echo ruok | nc 127.0.0.1:2181) == "imok" ]"
+          --health-interval 30s
+          --health-timeout 5s
           --health-retries 5
     steps:
       - uses: actions/checkout@main
