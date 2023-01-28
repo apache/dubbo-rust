@@ -93,6 +93,7 @@ impl ZookeeperRegistry {
     pub fn new(connect_string: &str) -> ZookeeperRegistry {
         let zk_client =
             ZooKeeper::connect(connect_string, Duration::from_secs(15), LoggingWatcher).unwrap();
+        info!("zk server connect string: {}", connect_string);
         ZookeeperRegistry {
             root_path: "/services".to_string(),
             zk_client: Arc::new(zk_client),

@@ -18,7 +18,7 @@
 use std::{env, str::FromStr, time::Duration};
 
 use http;
-use tracing::Level;
+use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
@@ -45,7 +45,14 @@ async fn main() {
 
     let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {
         Ok(val) => val,
-        Err(_) => "localhost:2181".to_string(),
+        Err(_) => {
+            let default_connect_string = "localhost:2181";
+            info!(
+                "No ZOOKEEPER_SERVERS env value, using {} as default.",
+                default_connect_string
+            );
+            default_connect_string.to_string()
+        }
     };
     let zkr = ZookeeperRegistry::new(&zk_connect_string);
     let directory = RegistryDirectory::new(Box::new(zkr));

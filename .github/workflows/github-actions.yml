@@ -56,6 +56,11 @@ jobs:
         env:
           ZOO_MY_ID: 1
           ZOO_SERVERS: server.1=127.0.0.1:2888:3888;2181 server.2=127.0.0.1:2888:3888;2181 server.3=127.0.0.1:2888:3888;2181
+        options: >-
+          --health-cmd nc -z 127.0.0.1 2181 || exit -1 
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       zoo2:
         image: zookeeper:3.8
         ports:
@@ -63,6 +68,11 @@ jobs:
         env:
           ZOO_MY_ID: 2
           ZOO_SERVERS: server.1=127.0.0.1:2888:3888;2181 server.2=127.0.0.1:2888:3888;2181 server.3=127.0.0.1:2888:3888;2181
+        options: >-
+          --health-cmd nc -z 127.0.0.1 2181 || exit -1 
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       zoo3:
         image: zookeeper:3.8
         ports:
@@ -70,6 +80,11 @@ jobs:
         env:
           ZOO_MY_ID: 3
           ZOO_SERVERS: server.1=127.0.0.1:2888:3888;2181 server.2=127.0.0.1:2888:3888;2181 server.3=127.0.0.1:2888:3888;2181
+        options: >-
+          --health-cmd nc -z 127.0.0.1 2181 || exit -1 
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
