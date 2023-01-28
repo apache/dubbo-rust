@@ -83,9 +83,6 @@ jobs:
           https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip &&
           unzip /tmp/protoc-21.9-linux-x86_64.zip &&
           echo "$HOME/protoc/bin" >> $GITHUB_PATH
-        env:
-          ZOOKEEPER_SERVERS: 127.0.0.1:2181
-          DUBBO_CONFIG_PATH: ../../dubbo.yaml
         shell: bash
       - name: Set up cargo cache
         uses: actions/cache@v3
@@ -106,4 +103,7 @@ jobs:
           ../../target/debug/greeter-server &
           sleep 1s ;
           ../../target/debug/greeter-client
+        env:
+          ZOOKEEPER_SERVERS: 127.0.0.1:2181
+          DUBBO_CONFIG_PATH: ../../dubbo.yaml
         working-directory: examples/greeter
