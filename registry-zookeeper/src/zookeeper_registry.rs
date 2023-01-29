@@ -20,8 +20,8 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
-use std::sync::Arc;
 use std::sync::RwLock;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -56,9 +56,8 @@ impl Watcher for LoggingWatcher {
 pub struct ZookeeperRegistry {
     root_path: String,
     zk_client: Arc<ZooKeeper>,
-
     listeners: RwLock<HashMap<String, Arc<<ZookeeperRegistry as Registry>::NotifyListener>>>,
-    memory_registry: Arc<MemoryRegistry>,
+    memory_registry: Arc<Mutex<MemoryRegistry>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -91,7 +90,7 @@ impl ZookeeperRegistry {
             root_path: "/services".to_string(),
             zk_client: Arc::new(zk_client),
             listeners: RwLock::new(HashMap::new()),
-            memory_registry: Arc::new(MemoryRegistry::new()),
+            memory_registry: Arc::new(Mutex::new(MemoryRegistry::default())),
         }
     }
 
@@ -150,11 +149,11 @@ impl Registry for ZookeeperRegistry {
     type NotifyListener = MemoryNotifyListener;
 
     fn register(&mut self, url: Url) -> Result<(), StdError> {
-        todo!();
+        self.memory_registry.lock().unwrap().register(url)
     }
 
     fn unregister(&mut self, url: Url) -> Result<(), StdError> {
-        todo!();
+        self.memory_registry.lock().unwrap().unregister(url)
     }
 
     fn subscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), StdError> {

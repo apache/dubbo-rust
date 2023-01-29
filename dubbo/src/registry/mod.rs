@@ -20,9 +20,10 @@ pub mod integration;
 pub mod memory_registry;
 pub mod protocol;
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 
 use crate::common::url::Url;
+use crate::registry::memory_registry::MemoryNotifyListener;
 
 pub trait Registry {
     type NotifyListener;
@@ -46,12 +47,17 @@ pub struct ServiceEvent {
     pub service: Vec<Url>,
 }
 
-pub type BoxRegistry =
-    Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener> + Send + Sync>;
+pub type BoxRegistry = Box<dyn Registry<NotifyListener = MemoryNotifyListener> + Send + Sync>;
+
+impl Debug for BoxRegistry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
 
 #[derive(Default)]
 pub struct RegistryWrapper {
-    pub registry: Option<Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener>>>,
+    pub registry: Option<Box<dyn Registry<NotifyListener = MemoryNotifyListener>>>,
 }
 
 impl Clone for RegistryWrapper {

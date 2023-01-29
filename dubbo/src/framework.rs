@@ -18,7 +18,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use futures::future;
 use futures::Future;
@@ -36,11 +36,13 @@ use crate::registry::BoxRegistry;
 #[derive(Default)]
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
+    #[deprecated]
     registries: HashMap<String, Url>,
+    #[deprecated]
     service_registry: HashMap<String, Vec<Url>>, // registry: Urls
     config: Option<RootConfig>,
     use_external_registry: bool,
-    external_registry: Option<Arc<RefCell<BoxRegistry>>>,
+    external_registry: Option<Arc<Mutex<BoxRegistry>>>,
 }
 
 impl Dubbo {
@@ -63,7 +65,7 @@ impl Dubbo {
 
     pub fn with_external_registry(mut self, registry: BoxRegistry) -> Self {
         self.use_external_registry = true;
-        self.external_registry = Some(Arc::new(RefCell::new(registry)));
+        self.external_registry = Some(Arc::new(Mutex::new(registry)));
         self
     }
 
@@ -74,11 +76,6 @@ impl Dubbo {
 
         let conf = self.config.as_ref().unwrap();
         tracing::debug!("global conf: {:?}", conf);
-
-        for (name, url) in conf.registries.iter() {
-            self.registries
-                .insert(name.to_string(), Url::from_url(url).unwrap());
-        }
 
         for (_, c) in conf.provider.services.iter() {
             let u = if c.protocol_configs.is_empty() {
@@ -102,23 +99,12 @@ impl Dubbo {
                 let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
                 Url::from_url(&protocol_url)
             };
-            tracing::info!("url: {:?}", u);
+            info!("url: {:?}", u);
             if u.is_none() {
                 continue;
             }
 
             let u = u.unwrap();
-
-            let reg_url = self.registries.get(&c.registry).unwrap();
-            if self.service_registry.get(&c.name).is_some() {
-                self.service_registry
-                    .get_mut(&c.name)
-                    .unwrap()
-                    .push(reg_url.clone());
-            } else {
-                self.service_registry
-                    .insert(c.name.clone(), vec![reg_url.clone()]);
-            }
 
             if self.protocols.get(&c.protocol).is_some() {
                 self.protocols.get_mut(&c.protocol).unwrap().push(u);
@@ -144,7 +130,8 @@ impl Dubbo {
                 if self.use_external_registry {
                     let external_registry = self.external_registry.clone().unwrap();
                     external_registry
-                        .borrow_mut()
+                        .lock()
+                        .unwrap()
                         .register(url.clone())
                         .expect("registry err.");
                 }

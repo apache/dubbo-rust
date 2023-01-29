@@ -40,8 +40,6 @@ pub struct RootConfig {
     #[serde(skip_serializing, skip_deserializing)]
     pub service: HashMap<String, ServiceConfig>,
     pub protocols: HashMap<String, ProtocolConfig>,
-    #[serde(default)]
-    pub registries: HashMap<String, String>,
 
     #[serde(default)]
     pub provider: ProviderConfig,
@@ -71,7 +69,6 @@ impl RootConfig {
             name: "dubbo".to_string(),
             service: HashMap::new(),
             protocols: HashMap::new(),
-            registries: HashMap::new(),
             provider: ProviderConfig::new(),
             data: HashMap::new(),
         }

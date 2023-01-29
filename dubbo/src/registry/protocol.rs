@@ -41,7 +41,14 @@ pub struct RegistryProtocol {
 
 impl Debug for RegistryProtocol {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(format!("{:?}", self.services).as_str())
+        f.write_str(
+            format!(
+                "RegistryProtocol services{:#?},registries,{:#?}",
+                self.services,
+                self.registries.clone()
+            )
+            .as_str(),
+        )
     }
 }
 

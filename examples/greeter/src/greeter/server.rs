@@ -22,6 +22,7 @@ use futures_util::Stream;
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
+use tracing::info;
 
 use dubbo::{codegen::*, Dubbo};
 use dubbo_config::RootConfig;
@@ -41,6 +42,9 @@ type ResponseStream =
 
 #[tokio::main]
 async fn main() {
+    use tracing::{span, Level};
+    let span = span!(Level::DEBUG, "greeter.server");
+    let _enter = span.enter();
     register_server(GreeterServerImpl {
         name: "greeter".to_string(),
     });
@@ -69,7 +73,7 @@ impl Greeter for GreeterServerImpl {
         &self,
         request: Request<GreeterRequest>,
     ) -> Result<Response<GreeterReply>, dubbo::status::Status> {
-        println!("GreeterServer::greet {:?}", request.metadata);
+        info!("GreeterServer::greet {:?}", request.metadata);
 
         Ok(Response::new(GreeterReply {
             message: "hello, dubbo-rust".to_string(),
