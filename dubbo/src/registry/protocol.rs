@@ -16,6 +16,7 @@
  */
 
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, RwLock};
 
 use super::memory_registry::MemoryRegistry;
@@ -36,6 +37,12 @@ pub struct RegistryProtocol {
     exporters: Arc<RwLock<HashMap<String, BoxExporter>>>,
     // serviceName: registryUrls
     services: HashMap<String, Vec<Url>>,
+}
+
+impl Debug for RegistryProtocol {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(format!("{:?}", self.services).as_str())
+    }
 }
 
 impl RegistryProtocol {

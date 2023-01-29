@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-use std::{env, str::FromStr, time::Duration};
+use std::time::Duration;
 
-use http;
-use tracing::{info, Level};
+use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
 use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
@@ -43,26 +42,12 @@ async fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {
-        Ok(val) => val,
-        Err(_) => {
-            let default_connect_string = "localhost:2181";
-            info!(
-                "No ZOOKEEPER_SERVERS env value, using {} as default.",
-                default_connect_string
-            );
-            default_connect_string.to_string()
-        }
-    };
-    let zkr = ZookeeperRegistry::new(&zk_connect_string);
+    let zkr = ZookeeperRegistry::default();
     let directory = RegistryDirectory::new(Box::new(zkr));
     let cluster_invoker = ClusterInvoker::with_directory(directory);
-    let http_uri = http::Uri::from_str(&"http://1.1.1.1:8888").unwrap();
 
-    let mut cli = GreeterClient::new(Connection::new().with_host(http_uri));
-    //cli = cli.with_directory(Box::new(directory));
+    let mut cli = GreeterClient::new(Connection::new());
     cli = cli.with_cluster(cluster_invoker);
-    // let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
     // using loop for loadbalance test
     for _ in 0..10 {
         println!("# unary call");

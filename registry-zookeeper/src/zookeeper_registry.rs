@@ -16,24 +16,28 @@
  */
 
 #![allow(unused_variables, dead_code, missing_docs)]
+
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::env;
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::time::Duration;
+
+use serde::{Deserialize, Serialize};
+use tracing::info;
+#[allow(unused_imports)]
+use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
+
 use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
 use dubbo::codegen::BoxRegistry;
 use dubbo::common::url::Url;
 use dubbo::registry::integration::ClusterRegistryIntegration;
-use dubbo::registry::memory_registry::MemoryNotifyListener;
+use dubbo::registry::memory_registry::{MemoryNotifyListener, MemoryRegistry};
 use dubbo::registry::NotifyListener;
 use dubbo::registry::Registry;
 use dubbo::registry::ServiceEvent;
 use dubbo::StdError;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::sync::Arc;
-use std::sync::RwLock;
-use std::time::Duration;
-use tracing::info;
-#[allow(unused_imports)]
-use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
 // 从url中获取服务注册的元数据
 // rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)
@@ -54,18 +58,7 @@ pub struct ZookeeperRegistry {
     zk_client: Arc<ZooKeeper>,
 
     listeners: RwLock<HashMap<String, Arc<<ZookeeperRegistry as Registry>::NotifyListener>>>,
-}
-
-pub struct MyNotifyListener {}
-
-impl NotifyListener for MyNotifyListener {
-    fn notify(&self, event: dubbo::registry::ServiceEvent) {
-        todo!()
-    }
-
-    fn notify_all(&self, event: dubbo::registry::ServiceEvent) {
-        todo!()
-    }
+    memory_registry: Arc<MemoryRegistry>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -97,8 +90,8 @@ impl ZookeeperRegistry {
         ZookeeperRegistry {
             root_path: "/services".to_string(),
             zk_client: Arc::new(zk_client),
-
             listeners: RwLock::new(HashMap::new()),
+            memory_registry: Arc::new(MemoryRegistry::new()),
         }
     }
 
@@ -110,13 +103,12 @@ impl ZookeeperRegistry {
     ) -> ServiceInstancesChangedListener {
         let mut service_names = HashSet::new();
         service_names.insert(service_name.clone());
-        return ServiceInstancesChangedListener {
+        ServiceInstancesChangedListener {
             zk_client: Arc::clone(&self.zk_client),
-            path: path,
-
+            path,
             service_name: service_name.clone(),
-            listener: listener,
-        };
+            listener,
+        }
     }
 
     fn get_app_name(&self, service_name: String) -> String {
@@ -130,6 +122,27 @@ impl ZookeeperRegistry {
             Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
         };
         s.to_string()
+    }
+}
+
+impl Default for ZookeeperRegistry {
+    fn default() -> ZookeeperRegistry {
+        let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {
+            Ok(val) => val,
+            Err(_) => {
+                let default_connect_string = "localhost:2181";
+                info!(
+                    "No ZOOKEEPER_SERVERS env value, using {} as default.",
+                    default_connect_string
+                );
+                default_connect_string.to_string()
+            }
+        };
+        info!(
+            "using external registry with it's connect string {}",
+            zk_connect_string.as_str()
+        );
+        ZookeeperRegistry::new(zk_connect_string.as_str())
     }
 }
 
@@ -205,7 +218,6 @@ impl Registry for ZookeeperRegistry {
 pub struct ServiceInstancesChangedListener {
     zk_client: Arc<ZooKeeper>,
     path: String,
-
     service_name: String,
     listener: Arc<MemoryNotifyListener>,
 }
@@ -244,13 +256,12 @@ impl Watcher for ServiceInstancesChangedListener {
                 ServiceInstancesChangedListener {
                     zk_client: Arc::clone(&self.zk_client),
                     path: path.clone(),
-
                     service_name: self.service_name.clone(),
                     listener: Arc::clone(&self.listener),
                 },
             );
 
-            info!("notifing {}->{:?}", self.service_name, result);
+            info!("notify {}->{:?}", self.service_name, result);
             self.listener.notify(ServiceEvent {
                 key: self.service_name.clone(),
                 action: String::from("ADD"),
@@ -262,11 +273,11 @@ impl Watcher for ServiceInstancesChangedListener {
 
 impl NotifyListener for ServiceInstancesChangedListener {
     fn notify(&self, event: ServiceEvent) {
-        todo!()
+        self.listener.notify(event);
     }
 
     fn notify_all(&self, event: ServiceEvent) {
-        todo!()
+        self.listener.notify(event);
     }
 }
 

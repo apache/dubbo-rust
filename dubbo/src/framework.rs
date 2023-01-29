@@ -15,16 +15,21 @@
  * limitations under the License.
  */
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use futures::future;
 use futures::Future;
+use tracing::info;
+
+use dubbo_config::{get_global_config, RootConfig};
 
 use crate::common::url::Url;
 use crate::protocol::{BoxExporter, Protocol};
 use crate::registry::protocol::RegistryProtocol;
-use dubbo_config::{get_global_config, RootConfig};
+use crate::registry::BoxRegistry;
 
 // Invoker是否可以基于hyper写一个通用的
 
@@ -34,6 +39,8 @@ pub struct Dubbo {
     registries: HashMap<String, Url>,
     service_registry: HashMap<String, Vec<Url>>, // registry: Urls
     config: Option<RootConfig>,
+    use_external_registry: bool,
+    external_registry: Option<Arc<RefCell<BoxRegistry>>>,
 }
 
 impl Dubbo {
@@ -44,11 +51,19 @@ impl Dubbo {
             registries: HashMap::new(),
             service_registry: HashMap::new(),
             config: None,
+            use_external_registry: false,
+            external_registry: None,
         }
     }
 
     pub fn with_config(mut self, c: RootConfig) -> Self {
         self.config = Some(c);
+        self
+    }
+
+    pub fn with_external_registry(mut self, registry: BoxRegistry) -> Self {
+        self.use_external_registry = true;
+        self.external_registry = Some(Arc::new(RefCell::new(registry)));
         self
     }
 
@@ -115,17 +130,24 @@ impl Dubbo {
 
     pub async fn start(&mut self) {
         self.init();
-
+        info!("starting...");
         // TODO: server registry
-
         let mem_reg =
             Box::new(RegistryProtocol::new().with_services(self.service_registry.clone()));
+        info!("{:?}", mem_reg);
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
         for (name, items) in self.protocols.iter() {
             for url in items.iter() {
-                tracing::info!("protocol: {:?}, service url: {:?}", name, url);
+                info!("protocol: {:?}, service url: {:?}", name, url);
                 let exporter = mem_reg.clone().export(url.to_owned());
-                async_vec.push(exporter)
+                async_vec.push(exporter);
+                if self.use_external_registry {
+                    let external_registry = self.external_registry.clone().unwrap();
+                    external_registry
+                        .borrow_mut()
+                        .register(url.clone())
+                        .expect("registry err.");
+                }
             }
         }
 

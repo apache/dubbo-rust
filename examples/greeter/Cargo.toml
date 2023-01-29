@@ -24,7 +24,6 @@ async-trait = "0.1.56"
 tokio-stream = "0.1"
 tracing = "0.1"
 tracing-subscriber = "0.2.0"
-
 dubbo = {path = "../../dubbo", version = "0.2.0"}
 dubbo-config = {path = "../../config", version = "0.2.0"}
 dubbo-registry-zookeeper = {path = "../../registry-zookeeper", version = "0.2.0"}

@@ -39,6 +39,7 @@ pub trait NotifyListener {
     fn notify_all(&self, event: ServiceEvent);
 }
 
+#[derive(Debug)]
 pub struct ServiceEvent {
     pub key: String,
     pub action: String,

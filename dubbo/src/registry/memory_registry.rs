@@ -20,6 +20,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
+use tracing::debug;
 
 use crate::common::url::Url;
 
@@ -109,6 +110,7 @@ pub struct MemoryNotifyListener {
 
 impl NotifyListener for MemoryNotifyListener {
     fn notify(&self, event: super::ServiceEvent) {
+        debug!("notify {:?}", event);
         let mut map = self.service_instances.write().expect("msg");
         match event.action.as_str() {
             "ADD" => map.insert(event.key, event.service),
