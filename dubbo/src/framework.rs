@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use futures::future;
 use futures::Future;
-use tracing::info;
+use tracing::{debug, info};
 
 use dubbo_config::{get_global_config, RootConfig};
 
@@ -35,12 +34,14 @@ use crate::registry::BoxRegistry;
 
 #[derive(Default)]
 pub struct Dubbo {
+    // cached protocols, key of map means protocol name eg. dubbo, triple, grpc
     protocols: HashMap<String, Vec<Url>>,
     #[deprecated]
     registries: HashMap<String, Url>,
     #[deprecated]
     service_registry: HashMap<String, Vec<Url>>, // registry: Urls
     config: Option<RootConfig>,
+    // use a external registry, eg. etcd, consul, zookeeper
     use_external_registry: bool,
     external_registry: Option<Arc<Mutex<BoxRegistry>>>,
 }
@@ -75,9 +76,10 @@ impl Dubbo {
         }
 
         let conf = self.config.as_ref().unwrap();
-        tracing::debug!("global conf: {:?}", conf);
+        debug!("global conf: {:?}", conf);
 
-        for (_, c) in conf.provider.services.iter() {
+        for (service_name, c) in conf.provider.services.iter() {
+            info!("init service name: {}", service_name);
             let u = if c.protocol_configs.is_empty() {
                 let protocol = match conf.protocols.get(&c.protocol) {
                     Some(v) => v.to_owned(),
@@ -86,7 +88,7 @@ impl Dubbo {
                         continue;
                     }
                 };
-                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
+                let protocol_url = format!("{}/{}", protocol.to_url(), service_name.clone(),);
                 Url::from_url(&protocol_url)
             } else {
                 let protocol = match c.protocol_configs.get(&c.protocol) {
@@ -96,7 +98,7 @@ impl Dubbo {
                         continue;
                     }
                 };
-                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
+                let protocol_url = format!("{}/{}", protocol.to_url(), service_name.clone(),);
                 Url::from_url(&protocol_url)
             };
             info!("url: {:?}", u);

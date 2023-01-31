@@ -24,6 +24,7 @@ pub struct Url {
     pub location: String,
     pub ip: String,
     pub port: String,
+    // serviceKey format in dubbo java '{group}/{interfaceName}:{version}'
     pub service_key: Vec<String>,
     pub params: HashMap<String, String>,
 }
