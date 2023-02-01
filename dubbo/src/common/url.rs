@@ -20,12 +20,13 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Url {
     pub uri: String,
-    pub protocol: String,
+    // value of scheme is different to protocol name, eg. triple -> tri://
+    pub scheme: String,
     pub location: String,
     pub ip: String,
     pub port: String,
     // serviceKey format in dubbo java '{group}/{interfaceName}:{version}'
-    pub service_key: Vec<String>,
+    pub service_key: String,
     pub params: HashMap<String, String>,
 }
 
@@ -35,7 +36,7 @@ impl Url {
     }
 
     pub fn from_url(url: &str) -> Option<Self> {
-        // url: triple://127.0.0.1:8888/helloworld.Greeter
+        // url: tri://127.0.0.1:8888/helloworld.Greeter
         let uri = url
             .parse::<http::Uri>()
             .map_err(|err| {
@@ -44,21 +45,16 @@ impl Url {
             .unwrap();
         Some(Self {
             uri: uri.to_string(),
-            protocol: uri.scheme_str()?.to_string(),
+            scheme: uri.scheme_str()?.to_string(),
             ip: uri.authority()?.host().to_string(),
             port: uri.authority()?.port()?.to_string(),
             location: uri.authority()?.to_string(),
-            service_key: uri
-                .path()
-                .trim_start_matches('/')
-                .split(',')
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>(),
+            service_key: uri.path().trim_start_matches('/').to_string(),
             params: HashMap::new(),
         })
     }
 
-    pub fn get_service_name(&self) -> Vec<String> {
+    pub fn get_service_name(&self) -> String {
         self.service_key.clone()
     }
 
@@ -87,7 +83,7 @@ impl Url {
     }
 
     pub fn to_url(&self) -> String {
-        format!("{}://{}:{}", self.protocol, self.ip, self.port)
+        format!("{}://{}:{}", self.scheme, self.ip, self.port)
     }
 }
 
@@ -97,7 +93,7 @@ mod tests {
 
     #[test]
     fn test_from_url() {
-        let u1 = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter");
+        let u1 = Url::from_url("tri://127.0.0.1:8888/helloworld.Greeter");
         println!("{:?}", u1.unwrap().get_service_name())
     }
 

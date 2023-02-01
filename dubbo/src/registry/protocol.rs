@@ -17,7 +17,7 @@
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use super::memory_registry::MemoryRegistry;
 use super::BoxRegistry;
@@ -28,11 +28,12 @@ use crate::protocol::triple::triple_protocol::TripleProtocol;
 use crate::protocol::BoxExporter;
 use crate::protocol::BoxInvoker;
 use crate::protocol::Protocol;
+use crate::registry::types::Registries;
 
 #[derive(Clone, Default)]
 pub struct RegistryProtocol {
     // registerAddr: Registry
-    registries: Arc<RwLock<HashMap<String, BoxRegistry>>>,
+    registries: Option<Registries>,
     // providerUrl: Exporter
     exporters: Arc<RwLock<HashMap<String, BoxExporter>>>,
     // serviceName: registryUrls
@@ -55,10 +56,15 @@ impl Debug for RegistryProtocol {
 impl RegistryProtocol {
     pub fn new() -> Self {
         RegistryProtocol {
-            registries: Arc::new(RwLock::new(HashMap::new())),
+            registries: None,
             exporters: Arc::new(RwLock::new(HashMap::new())),
             services: HashMap::new(),
         }
+    }
+
+    pub fn with_registries(mut self, registries: Registries) -> Self {
+        self.registries = Some(registries);
+        self
     }
 
     pub fn with_services(mut self, services: HashMap<String, Vec<Url>>) -> Self {
@@ -69,9 +75,11 @@ impl RegistryProtocol {
     pub fn get_registry(&mut self, url: Url) -> BoxRegistry {
         let mem = MemoryRegistry::default();
         self.registries
-            .write()
+            .as_ref()
             .unwrap()
-            .insert(url.location, Box::new(mem.clone()));
+            .lock()
+            .unwrap()
+            .insert(url.location, Arc::new(Mutex::new(Box::new(mem.clone()))));
 
         Box::new(mem)
     }
@@ -91,23 +99,23 @@ impl Protocol for RegistryProtocol {
         // init Exporter based on provider_url
         // server registry based on register_url
         // start server health check
-        let registry_url = self.services.get(url.get_service_name().join(",").as_str());
+        let registry_url = self.services.get(url.get_service_name().as_str());
         if let Some(urls) = registry_url {
             for url in urls.clone().iter() {
-                if !url.protocol.is_empty() {
+                if !url.service_key.is_empty() {
                     let mut reg = self.get_registry(url.clone());
                     reg.register(url.clone()).unwrap();
                 }
             }
         }
 
-        match url.clone().protocol.as_str() {
-            "triple" => {
+        match url.clone().scheme.as_str() {
+            "tri" => {
                 let pro = Box::new(TripleProtocol::new());
                 return pro.export(url).await;
             }
             _ => {
-                tracing::error!("protocol {:?} not implemented", url.protocol);
+                tracing::error!("protocol {:?} not implemented", url.scheme);
                 Box::new(TripleExporter::new())
             }
         }

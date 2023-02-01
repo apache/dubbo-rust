@@ -77,7 +77,7 @@ impl Directory for RegistryDirectory {
         let service_name = invocation.get_target_service_unique_name();
 
         let url = Url::from_url(&format!(
-            "triple://{}:{}/{}",
+            "tri://{}:{}/{}",
             "127.0.0.1", "8888", service_name
         ))
         .unwrap();

@@ -26,9 +26,9 @@ pub struct TripleServer {
 }
 
 impl TripleServer {
-    pub fn new(names: Vec<String>) -> TripleServer {
+    pub fn new(names: String) -> TripleServer {
         Self {
-            service_names: names,
+            service_names: vec![names],
             s: DubboServer::new(),
         }
     }

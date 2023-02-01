@@ -46,7 +46,7 @@ impl TripleProtocol {
 
     pub fn get_server(&self, url: Url) -> Option<TripleServer> {
         self.servers
-            .get(&url.service_key.join(","))
+            .get(&url.service_key)
             .map(|data| data.to_owned())
     }
 }
@@ -62,9 +62,8 @@ impl Protocol for TripleProtocol {
     async fn export(mut self, url: Url) -> BoxExporter {
         // service_key is same to key of TRIPLE_SERVICES
         let server = TripleServer::new(url.service_key.clone());
-        self.servers
-            .insert(url.service_key.join(","), server.clone());
-        server.serve(url.to_url()).await;
+        self.servers.insert(url.service_key.clone(), server.clone());
+        server.serve(url.to_url().clone()).await;
 
         Box::new(TripleExporter::new())
     }

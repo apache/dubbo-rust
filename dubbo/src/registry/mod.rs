@@ -19,6 +19,7 @@
 pub mod integration;
 pub mod memory_registry;
 pub mod protocol;
+pub mod types;
 
 use std::fmt::{Debug, Formatter};
 
@@ -51,7 +52,7 @@ pub type BoxRegistry = Box<dyn Registry<NotifyListener = MemoryNotifyListener> +
 
 impl Debug for BoxRegistry {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        f.write_str("BoxRegistry")
     }
 }
 

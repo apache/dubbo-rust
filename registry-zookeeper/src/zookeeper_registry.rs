@@ -157,11 +157,16 @@ impl Registry for ZookeeperRegistry {
     }
 
     fn subscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), StdError> {
-        let binding = url.get_service_name();
-        let service_name = binding.get(0).unwrap();
+        let service_name = url.get_service_name();
         let app_name = self.get_app_name(service_name.clone());
         let path = self.root_path.clone() + "/" + &app_name;
-        if self.listeners.read().unwrap().get(service_name).is_some() {
+        if self
+            .listeners
+            .read()
+            .unwrap()
+            .get(service_name.as_str())
+            .is_some()
+        {
             return Ok(());
         }
 

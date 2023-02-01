@@ -16,6 +16,7 @@
  */
 
 use std::collections::HashMap;
+use std::error::Error;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
@@ -28,7 +29,8 @@ use dubbo_config::{get_global_config, RootConfig};
 use crate::common::url::Url;
 use crate::protocol::{BoxExporter, Protocol};
 use crate::registry::protocol::RegistryProtocol;
-use crate::registry::BoxRegistry;
+use crate::registry::types::{Registries, RegistriesOperation};
+use crate::registry::{BoxRegistry, Registry};
 
 // Invoker是否可以基于hyper写一个通用的
 
@@ -36,14 +38,9 @@ use crate::registry::BoxRegistry;
 pub struct Dubbo {
     // cached protocols, key of map means protocol name eg. dubbo, triple, grpc
     protocols: HashMap<String, Vec<Url>>,
-    #[deprecated]
-    registries: HashMap<String, Url>,
-    #[deprecated]
+    registries: Option<Registries>,
     service_registry: HashMap<String, Vec<Url>>, // registry: Urls
     config: Option<RootConfig>,
-    // use a external registry, eg. etcd, consul, zookeeper
-    use_external_registry: bool,
-    external_registry: Option<Arc<Mutex<BoxRegistry>>>,
 }
 
 impl Dubbo {
@@ -51,11 +48,9 @@ impl Dubbo {
         tracing_subscriber::fmt::init();
         Self {
             protocols: HashMap::new(),
-            registries: HashMap::new(),
+            registries: None,
             service_registry: HashMap::new(),
             config: None,
-            use_external_registry: false,
-            external_registry: None,
         }
     }
 
@@ -65,12 +60,18 @@ impl Dubbo {
     }
 
     pub fn with_external_registry(mut self, registry: BoxRegistry) -> Self {
-        self.use_external_registry = true;
-        self.external_registry = Some(Arc::new(Mutex::new(registry)));
+        if self.registries.is_none() {
+            self.registries = Some(Arc::new(Mutex::new(HashMap::new())));
+        }
+        let registries_map = self.registries.as_mut().unwrap();
+        registries_map
+            .lock()
+            .unwrap()
+            .insert("default".to_string(), Arc::new(Mutex::new(registry)));
         self
     }
 
-    pub fn init(&mut self) {
+    pub fn init(&mut self) -> Result<(), Box<dyn Error>> {
         if self.config.is_none() {
             self.config = Some(get_global_config())
         }
@@ -78,28 +79,24 @@ impl Dubbo {
         let conf = self.config.as_ref().unwrap();
         debug!("global conf: {:?}", conf);
 
-        for (service_name, c) in conf.provider.services.iter() {
-            info!("init service name: {}", service_name);
-            let u = if c.protocol_configs.is_empty() {
-                let protocol = match conf.protocols.get(&c.protocol) {
+        for (_, service_config) in conf.provider.services.iter() {
+            info!("init service name: {}", service_config.interface);
+            let u = if conf
+                .protocols
+                .contains_key(service_config.protocol.as_str())
+            {
+                let protocol = match conf.protocols.get(&service_config.protocol) {
                     Some(v) => v.to_owned(),
                     None => {
-                        tracing::warn!("protocol {:?} not exists", c.protocol);
+                        tracing::warn!("protocol {:?} not exists", service_config.protocol);
                         continue;
                     }
                 };
-                let protocol_url = format!("{}/{}", protocol.to_url(), service_name.clone(),);
+                let protocol_url =
+                    format!("{}/{}", protocol.to_url(), service_config.interface.clone(),);
                 Url::from_url(&protocol_url)
             } else {
-                let protocol = match c.protocol_configs.get(&c.protocol) {
-                    Some(v) => v.to_owned(),
-                    None => {
-                        tracing::warn!("protocol {:?} not exists", c.protocol);
-                        continue;
-                    }
-                };
-                let protocol_url = format!("{}/{}", protocol.to_url(), service_name.clone(),);
-                Url::from_url(&protocol_url)
+                return Err(format!("protocol {:?} not exists", service_config.protocol).into());
             };
             info!("url: {:?}", u);
             if u.is_none() {
@@ -108,34 +105,37 @@ impl Dubbo {
 
             let u = u.unwrap();
 
-            if self.protocols.get(&c.protocol).is_some() {
-                self.protocols.get_mut(&c.protocol).unwrap().push(u);
+            if self.protocols.get(&service_config.protocol).is_some() {
+                self.protocols
+                    .get_mut(&service_config.protocol)
+                    .unwrap()
+                    .push(u);
             } else {
-                self.protocols.insert(c.protocol.clone(), vec![u]);
+                self.protocols
+                    .insert(service_config.protocol.clone(), vec![u]);
             }
         }
+        Ok(())
     }
 
     pub async fn start(&mut self) {
-        self.init();
+        self.init().unwrap();
         info!("starting...");
         // TODO: server registry
-        let mem_reg =
-            Box::new(RegistryProtocol::new().with_services(self.service_registry.clone()));
-        info!("{:?}", mem_reg);
+        let mem_reg = Box::new(
+            RegistryProtocol::new()
+                .with_registries(self.registries.as_ref().unwrap().clone())
+                .with_services(self.service_registry.clone()),
+        );
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
         for (name, items) in self.protocols.iter() {
             for url in items.iter() {
                 info!("protocol: {:?}, service url: {:?}", name, url);
                 let exporter = mem_reg.clone().export(url.to_owned());
                 async_vec.push(exporter);
-                if self.use_external_registry {
-                    let external_registry = self.external_registry.clone().unwrap();
-                    external_registry
-                        .lock()
-                        .unwrap()
-                        .register(url.clone())
-                        .expect("registry err.");
+                if self.registries.is_some() {
+                    let mut external_registry = self.registries.as_ref().unwrap().get("default");
+                    external_registry.register(url.clone()).unwrap();
                 }
             }
         }

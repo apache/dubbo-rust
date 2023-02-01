@@ -58,7 +58,7 @@ impl Registry for MemoryRegistry {
         let dubbo_path = format!(
             "/{}/{}/{}",
             registry_group,
-            url.get_service_name().join(","),
+            url.get_service_name(),
             "provider",
         );
 
@@ -79,7 +79,7 @@ impl Registry for MemoryRegistry {
         let dubbo_path = format!(
             "/{}/{}/{}",
             registry_group,
-            url.get_service_name().join(","),
+            url.get_service_name(),
             "provider",
         );
         self.registries.write().unwrap().remove(&dubbo_path);
