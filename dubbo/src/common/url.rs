@@ -16,6 +16,7 @@
  */
 
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Url {
@@ -84,6 +85,12 @@ impl Url {
 
     pub fn to_url(&self) -> String {
         format!("{}://{}:{}", self.scheme, self.ip, self.port)
+    }
+}
+
+impl Display for Url {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_url().as_str())
     }
 }
 

@@ -48,7 +48,7 @@ impl MemoryRegistry {
 impl Registry for MemoryRegistry {
     type NotifyListener = MemoryNotifyListener;
 
-    fn register(&mut self, mut url: crate::common::url::Url) -> Result<(), crate::StdError> {
+    fn register(&mut self, mut url: Url) -> Result<(), crate::StdError> {
         // define provider label: ${registry.group}/${service_name}/provider
         let registry_group = match url.get_param(REGISTRY_GROUP_KEY.to_string()) {
             Some(key) => key,

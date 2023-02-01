@@ -63,9 +63,8 @@ impl Dubbo {
         if self.registries.is_none() {
             self.registries = Some(Arc::new(Mutex::new(HashMap::new())));
         }
-        let registries_map = self.registries.as_mut().unwrap();
-        registries_map
-            .lock()
+        self.registries
+            .as_ref()
             .unwrap()
             .insert("default".to_string(), Arc::new(Mutex::new(registry)));
         self

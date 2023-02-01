@@ -15,18 +15,21 @@
  * limitations under the License.
  */
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use tracing::info;
+
 use crate::common::url::Url;
 use crate::registry::memory_registry::MemoryNotifyListener;
 use crate::registry::{BoxRegistry, Registry};
 use crate::StdError;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
 pub type SafeRegistry = Arc<Mutex<BoxRegistry>>;
 pub type Registries = Arc<Mutex<HashMap<String, SafeRegistry>>>;
 
 pub trait RegistriesOperation {
     fn get(&self, registry_key: &str) -> Arc<Mutex<BoxRegistry>>;
+    fn insert(&self, registry_key: String, registry: SafeRegistry);
 }
 
 impl RegistriesOperation for Registries {
@@ -38,12 +41,17 @@ impl RegistriesOperation for Registries {
             .unwrap()
             .clone()
     }
+
+    fn insert(&self, registry_key: String, registry: SafeRegistry) {
+        self.as_ref().lock().unwrap().insert(registry_key, registry);
+    }
 }
 
 impl Registry for SafeRegistry {
     type NotifyListener = MemoryNotifyListener;
 
     fn register(&mut self, url: Url) -> Result<(), StdError> {
+        info!("register {}.", url);
         self.lock().unwrap().register(url).expect("registry err.");
         Ok(())
     }
