@@ -59,14 +59,14 @@ impl Dubbo {
         self
     }
 
-    pub fn with_external_registry(mut self, registry: BoxRegistry) -> Self {
+    pub fn add_registry(mut self, registry_key: &str, registry: BoxRegistry) -> Self {
         if self.registries.is_none() {
             self.registries = Some(Arc::new(Mutex::new(HashMap::new())));
         }
         self.registries
             .as_ref()
             .unwrap()
-            .insert("default".to_string(), Arc::new(Mutex::new(registry)));
+            .insert(registry_key.to_string(), Arc::new(Mutex::new(registry)));
         self
     }
 
@@ -133,8 +133,12 @@ impl Dubbo {
                 let exporter = mem_reg.clone().export(url.to_owned());
                 async_vec.push(exporter);
                 if self.registries.is_some() {
-                    let mut external_registry = self.registries.as_ref().unwrap().get("default");
-                    external_registry.register(url.clone()).unwrap();
+                    self.registries
+                        .as_ref()
+                        .unwrap()
+                        .default()
+                        .register(url.clone())
+                        .unwrap();
                 }
             }
         }

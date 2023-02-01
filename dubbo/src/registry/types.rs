@@ -30,6 +30,7 @@ pub type Registries = Arc<Mutex<HashMap<String, SafeRegistry>>>;
 pub trait RegistriesOperation {
     fn get(&self, registry_key: &str) -> Arc<Mutex<BoxRegistry>>;
     fn insert(&self, registry_key: String, registry: SafeRegistry);
+    fn default(&self) -> SafeRegistry;
 }
 
 impl RegistriesOperation for Registries {
@@ -41,9 +42,12 @@ impl RegistriesOperation for Registries {
             .unwrap()
             .clone()
     }
-
     fn insert(&self, registry_key: String, registry: SafeRegistry) {
         self.as_ref().lock().unwrap().insert(registry_key, registry);
+    }
+
+    fn default(&self) -> SafeRegistry {
+        self.get("default")
     }
 }
 

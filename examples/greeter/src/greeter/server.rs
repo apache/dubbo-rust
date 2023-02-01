@@ -56,7 +56,7 @@ async fn main() {
     };
     let mut f = Dubbo::new()
         .with_config(r)
-        .with_external_registry(Box::new(zkr));
+        .add_registry("default", Box::new(zkr));
     f.start().await;
 }
 
