@@ -132,6 +132,7 @@ impl Dubbo {
                 info!("protocol: {:?}, service url: {:?}", name, url);
                 let exporter = mem_reg.clone().export(url.to_owned());
                 async_vec.push(exporter);
+                //TODO multiple registry
                 if self.registries.is_some() {
                     self.registries
                         .as_ref()
