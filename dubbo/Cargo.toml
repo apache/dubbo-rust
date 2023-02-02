@@ -33,5 +33,6 @@ tracing-subscriber = "0.3.15"
 axum = "0.5.9"
 async-stream = "0.3"
 flate2 = "1.0"
+itertools = "0.10.1"
 
 dubbo-config = {path = "../config", version = "0.2.0"}

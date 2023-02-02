@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-use http::Uri;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+
+use http::Uri;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Url {
@@ -27,7 +28,7 @@ pub struct Url {
     pub location: String,
     pub ip: String,
     pub port: String,
-    // serviceKey format in dubbo java '{group}/{interfaceName}:{version}'
+    // serviceKey format in dubbo java and go '{group}/{interfaceName}:{version}'
     pub service_key: String,
     pub params: HashMap<String, String>,
 }
@@ -38,10 +39,6 @@ impl Url {
     }
 
     pub fn from_url(url: &str) -> Option<Self> {
-        Url::from_string(url)
-    }
-
-    pub fn from_string(url: &str) -> Option<Self> {
         // url: tri://127.0.0.1:8888/helloworld.Greeter
         let uri = url
             .parse::<http::Uri>()
@@ -49,7 +46,7 @@ impl Url {
                 tracing::error!("fail to parse url({}), err: {:?}", url, err);
             })
             .unwrap();
-        let raw_query_string = uri.path_and_query().unwrap().query().unwrap();
+        let query = uri.path_and_query().unwrap().query();
         Some(Self {
             raw_url_string: url.to_string(),
             scheme: uri.scheme_str()?.to_string(),
@@ -57,7 +54,11 @@ impl Url {
             port: uri.authority()?.port()?.to_string(),
             location: uri.authority()?.to_string(),
             service_key: uri.path().trim_start_matches('/').to_string(),
-            params: Url::decode(raw_query_string),
+            params: if let Some(..) = query {
+                Url::decode(query.unwrap())
+            } else {
+                HashMap::new()
+            },
         })
     }
 
@@ -78,8 +79,7 @@ impl Url {
         params_vec.join("&")
     }
 
-    #[warn(dead_code)]
-    fn params_count(&self) -> usize {
+    pub fn params_count(&self) -> usize {
         self.params.len()
     }
 
@@ -133,6 +133,12 @@ impl Display for Url {
 impl Into<Uri> for Url {
     fn into(self) -> Uri {
         self.raw_url_string.parse::<Uri>().unwrap()
+    }
+}
+
+impl From<&str> for Url {
+    fn from(url: &str) -> Self {
+        Url::from_url(url).unwrap()
     }
 }
 

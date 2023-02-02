@@ -137,7 +137,7 @@ impl Dubbo {
                     self.registries
                         .as_ref()
                         .unwrap()
-                        .default()
+                        .default_registry()
                         .register(url.clone())
                         .unwrap();
                 }
