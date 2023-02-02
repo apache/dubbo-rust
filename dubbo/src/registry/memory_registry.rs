@@ -50,7 +50,7 @@ impl Registry for MemoryRegistry {
 
     fn register(&mut self, mut url: Url) -> Result<(), crate::StdError> {
         // define provider label: ${registry.group}/${service_name}/provider
-        let registry_group = match url.get_param(REGISTRY_GROUP_KEY.to_string()) {
+        let registry_group = match url.get_param(REGISTRY_GROUP_KEY) {
             Some(key) => key,
             None => "dubbo".to_string(),
         };
@@ -64,14 +64,14 @@ impl Registry for MemoryRegistry {
 
         url.params.insert("anyhost".to_string(), "true".to_string());
         // define triple url path
-        let raw_url = format!("{}?{}", url.to_url(), url.encode_param(),);
+        let raw_url = url.raw_url_string();
 
         self.registries.write().unwrap().insert(dubbo_path, raw_url);
         Ok(())
     }
 
     fn unregister(&mut self, url: crate::common::url::Url) -> Result<(), crate::StdError> {
-        let registry_group = match url.get_param(REGISTRY_GROUP_KEY.to_string()) {
+        let registry_group = match url.get_param(REGISTRY_GROUP_KEY) {
             Some(key) => key,
             None => "dubbo".to_string(),
         };

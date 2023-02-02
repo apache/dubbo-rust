@@ -63,7 +63,7 @@ impl Protocol for TripleProtocol {
         // service_key is same to key of TRIPLE_SERVICES
         let server = TripleServer::new(url.service_key.clone());
         self.servers.insert(url.service_key.clone(), server.clone());
-        server.serve(url.to_url().clone()).await;
+        server.serve(url.short_url().clone()).await;
 
         Box::new(TripleExporter::new())
     }

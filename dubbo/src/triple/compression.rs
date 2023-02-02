@@ -111,12 +111,12 @@ fn test_compress() {
     let len = src.len();
     src.reserve(len);
 
-    compress(CompressionEncoding::Gzip, &mut src, &mut dst, len);
+    compress(CompressionEncoding::Gzip, &mut src, &mut dst, len).unwrap();
     println!("src: {:?}, dst: {:?}", src, dst);
 
     let mut de_dst = BytesMut::with_capacity(super::consts::BUFFER_SIZE);
     let de_len = dst.len();
-    decompress(CompressionEncoding::Gzip, &mut dst, &mut de_dst, de_len);
+    decompress(CompressionEncoding::Gzip, &mut dst, &mut de_dst, de_len).unwrap();
 
     println!("src: {:?}, dst: {:?}", dst, de_dst);
 }
