@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
+use std::io;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use futures_core::Future;
 use http::{Request, Response};
@@ -23,8 +25,12 @@ use hyper::body::Body;
 use tokio::time::Duration;
 use tower_service::Service;
 
+use tokio_rustls::rustls::{Certificate, PrivateKey};
+use tokio_rustls::{rustls, TlsAcceptor};
+
 use super::listener::get_listener;
 use super::router::DubboRouter;
+use crate::triple::transport::io::BoxIO;
 use crate::BoxBody;
 
 #[derive(Default, Clone, Debug)]
@@ -38,6 +44,8 @@ pub struct DubboServer {
     http2_keepalive_timeout: Option<Duration>,
     router: DubboRouter,
     listener: Option<String>,
+    certs: Vec<Certificate>,
+    keys: Vec<PrivateKey>,
 }
 
 impl DubboServer {
@@ -93,6 +101,14 @@ impl DubboServer {
             ..self
         }
     }
+
+    pub fn with_tls(self, certs: Vec<Certificate>, keys: Vec<PrivateKey>) -> Self {
+        Self {
+            certs: certs,
+            keys: keys,
+            ..self
+        }
+    }
 }
 
 impl DubboServer {
@@ -107,6 +123,8 @@ impl DubboServer {
             max_frame_size: None,
             router: DubboRouter::new(),
             listener: None,
+            certs: Vec::new(),
+            keys: Vec::new(),
         }
     }
 }
@@ -147,9 +165,24 @@ impl DubboServer {
             None => {
                 return Err(Box::new(crate::status::DubboError::new(
                     "listener name is empty".to_string(),
-                )))
+                )));
             }
         };
+
+        let acceptor: Option<TlsAcceptor>;
+        if self.certs.len() != 0 && !self.keys.len() != 0 {
+            let mut keys = self.keys;
+
+            let config = rustls::ServerConfig::builder()
+                .with_safe_defaults()
+                .with_no_client_auth()
+                .with_single_cert(self.certs, keys.remove(0))
+                .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
+
+            acceptor = Some(TlsAcceptor::from(Arc::new(config)));
+        } else {
+            acceptor = None;
+        }
 
         let listener = match get_listener(name, addr).await {
             Ok(v) => v,
@@ -166,6 +199,14 @@ impl DubboServer {
                     match res {
                         Ok(conn) => {
                             let (io, local_addr) = conn;
+                            let b :BoxIO;
+
+                            if !acceptor.is_none() {
+                                b = BoxIO::new(acceptor.as_ref().unwrap().clone().accept(io).await?);
+                            } else {
+                                b = io;
+                            }
+
                             tracing::debug!("hyper serve, local address: {:?}", local_addr);
                             let c = hyper::server::conn::Http::new()
                                 .http2_only(self.accept_http2)
@@ -175,10 +216,9 @@ impl DubboServer {
                                 .http2_keep_alive_interval(self.http2_keepalive_interval)
                                 .http2_keep_alive_timeout(http2_keepalive_timeout)
                                 .http2_max_frame_size(self.max_frame_size)
-                                .serve_connection(io, svc.clone()).with_upgrades();
+                                .serve_connection(b,svc.clone()).with_upgrades();
 
                             tokio::spawn(c);
-
                         },
                         Err(err) => tracing::error!("hyper serve, err: {:?}", err),
                     }
