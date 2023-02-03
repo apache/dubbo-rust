@@ -147,7 +147,7 @@ where
         let invokers = self.directory.list(invocation.clone());
         let invoker_url = self
             .select(invocation, invokers, Arc::new(Vec::new()))
-            .unwrap();
+            .expect("no valid provider");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", invoker_url.ip, invoker_url.port))
                 .unwrap();

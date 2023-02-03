@@ -18,3 +18,15 @@
 pub const REGISTRY_PROTOCOL: &str = "registry_protocol";
 pub const PROTOCOL: &str = "protocol";
 pub const REGISTRY: &str = "registry";
+
+// URL key
+pub const DUBBO_KEY: &str = "dubbo";
+pub const PROVIDERS_KEY: &str = "providers";
+pub const LOCALHOST_IP: &str = "127.0.0.1";
+pub const METADATA_MAPPING_KEY: &str = "mapping";
+pub const VERSION_KEY: &str = "version";
+pub const GROUP_KEY: &str = "group";
+pub const INTERFACE_KEY: &str = "interface";
+pub const ANYHOST_KEY: &str = "anyhost";
+pub const SIDE_KEY: &str = "side";
+pub const TIMESTAMP_KEY: &str = "timestamp";

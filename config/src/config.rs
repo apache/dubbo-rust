@@ -17,6 +17,7 @@
 
 use std::{collections::HashMap, env, fs, sync::RwLock};
 
+use crate::protocol::Protocol;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +39,7 @@ lazy_static! {
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct RootConfig {
     #[serde(default)]
-    pub protocols: HashMap<String, ProtocolConfig>,
+    pub protocols: ProtocolConfig,
 
     #[serde(default)]
     pub provider: ProviderConfig,
@@ -119,7 +120,7 @@ impl RootConfig {
         );
         self.protocols.insert(
             "triple".to_string(),
-            ProtocolConfig::default()
+            Protocol::default()
                 .name("triple".to_string())
                 .ip("0.0.0.0".to_string())
                 .port("8889".to_string()),

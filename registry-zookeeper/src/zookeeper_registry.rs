@@ -25,12 +25,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{error, info};
 #[allow(unused_imports)]
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
 use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
 use dubbo::codegen::BoxRegistry;
+use dubbo::common::consts::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY};
 use dubbo::common::url::Url;
 use dubbo::registry::integration::ClusterRegistryIntegration;
 use dubbo::registry::memory_registry::{MemoryNotifyListener, MemoryRegistry};
@@ -110,6 +111,8 @@ impl ZookeeperRegistry {
         }
     }
 
+    // metadata /dubbo/mapping designed for application discovery; deprecated for currently using interface discovery
+    // #[deprecated]
     fn get_app_name(&self, service_name: String) -> String {
         let res = self
             .zk_client
@@ -121,6 +124,51 @@ impl ZookeeperRegistry {
             Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
         };
         s.to_string()
+    }
+
+    pub fn get_client(&self) -> Arc<ZooKeeper> {
+        self.zk_client.clone()
+    }
+
+    pub fn create_path(&self, path: &str, data: &str, create_mode: CreateMode) {
+        if self.exists_path(path) {
+            self.zk_client
+                .set_data(path, data.as_bytes().to_vec(), None)
+                .unwrap_or_else(|_| panic!("set data to {} failed.", path));
+            return;
+        }
+        let zk_result = self.zk_client.create(
+            path,
+            data.as_bytes().to_vec(),
+            Acl::open_unsafe().clone(),
+            create_mode,
+        );
+        if zk_result.is_err() {
+            error!("{}", zk_result.err().unwrap());
+        }
+    }
+
+    pub fn delete_path(&self, path: &str) {
+        if self.exists_path(path) {
+            self.get_client().delete(path, None).unwrap()
+        }
+    }
+
+    pub fn exists_path(&self, path: &str) -> bool {
+        self.zk_client.exists(path, false).unwrap().is_some()
+    }
+
+    pub fn read_data(&self, path: &str, watch: bool) -> Option<String> {
+        if self.exists_path(path) {
+            let zk_result = self.zk_client.get_data(path, watch);
+            if let Ok(..) = zk_result {
+                Some(String::from_utf8(zk_result.unwrap().0).unwrap())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -149,17 +197,33 @@ impl Registry for ZookeeperRegistry {
     type NotifyListener = MemoryNotifyListener;
 
     fn register(&mut self, url: Url) -> Result<(), StdError> {
-        self.memory_registry.lock().unwrap().register(url)
+        let zk_path = format!(
+            "/{}/{}/{}/{}",
+            DUBBO_KEY,
+            url.service_name,
+            PROVIDERS_KEY,
+            url.encoded_raw_url_string()
+        );
+        self.create_path(zk_path.as_str(), LOCALHOST_IP, CreateMode::Ephemeral);
+        Ok(())
     }
 
     fn unregister(&mut self, url: Url) -> Result<(), StdError> {
-        self.memory_registry.lock().unwrap().unregister(url)
+        let zk_path = format!(
+            "/{}/{}/{}/{}",
+            DUBBO_KEY,
+            url.service_name,
+            PROVIDERS_KEY,
+            url.encoded_raw_url_string()
+        );
+        self.delete_path(zk_path.as_str());
+        Ok(())
     }
 
+    // for consumer to find the changes of providers
     fn subscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), StdError> {
         let service_name = url.get_service_name();
-        let app_name = self.get_app_name(service_name.clone());
-        let path = self.root_path.clone() + "/" + &app_name;
+        let zk_path = format!("/{}/{}/{}", DUBBO_KEY, &service_name, PROVIDERS_KEY);
         if self
             .listeners
             .read()
@@ -177,37 +241,32 @@ impl Registry for ZookeeperRegistry {
             .insert(service_name.to_string(), Arc::clone(&arc_listener));
 
         let zk_listener = self.create_listener(
-            path.clone(),
+            zk_path.clone(),
             service_name.to_string(),
             Arc::clone(&arc_listener),
         );
 
-        let res = self.zk_client.get_children_w(&path, zk_listener);
-        let result: Vec<Url> = res
-            .unwrap()
-            .iter()
-            .map(|node_key| {
-                let zk_res = self.zk_client.get_data(
-                    &(self.root_path.clone() + "/" + &app_name + "/" + &node_key),
-                    false,
-                );
-                let vec_u8 = zk_res.unwrap().0;
-                let sstr = std::str::from_utf8(&vec_u8).unwrap();
-                let instance: ZkServiceInstance = serde_json::from_str(sstr).unwrap();
-                let url = Url::from_url(&format!(
-                    "triple://{}:{}/{}",
-                    instance.get_host(),
-                    instance.get_port(),
-                    service_name
-                ))
-                .unwrap();
-                url
-            })
-            .collect();
-
-        info!("notifing {}->{:?}", service_name, result);
+        let zk_changed_paths = self.zk_client.get_children_w(&zk_path, zk_listener);
+        let result = match zk_changed_paths {
+            Err(err) => {
+                error!("zk subscribe error: {}", err);
+                Vec::new()
+            }
+            Ok(urls) => urls
+                .iter()
+                .map(|node_key| {
+                    let provider_url: Url = urlencoding::decode(node_key)
+                        .unwrap()
+                        .to_string()
+                        .as_str()
+                        .into();
+                    provider_url
+                })
+                .collect(),
+        };
+        info!("notifying {}->{:?}", service_name, result);
         arc_listener.notify(ServiceEvent {
-            key: service_name.to_string(),
+            key: service_name,
             action: String::from("ADD"),
             service: result,
         });
@@ -233,28 +292,15 @@ impl Watcher for ServiceInstancesChangedListener {
             let event_path = path.clone();
             let dirs = self
                 .zk_client
-                .get_children(&event_path.clone(), false)
+                .get_children(&event_path, false)
                 .expect("msg");
             let result: Vec<Url> = dirs
                 .iter()
                 .map(|node_key| {
-                    let zk_res = self
-                        .zk_client
-                        .get_data(&(event_path.clone() + "/" + node_key), false);
-                    let vec_u8 = zk_res.unwrap().0;
-                    let sstr = std::str::from_utf8(&vec_u8).unwrap();
-                    let instance: ZkServiceInstance = serde_json::from_str(sstr).unwrap();
-                    let url = Url::from_url(&format!(
-                        "triple://{}:{}/{}",
-                        instance.get_host(),
-                        instance.get_port(),
-                        self.service_name
-                    ))
-                    .unwrap();
-                    url
+                    let provider_url: Url = node_key.as_str().into();
+                    provider_url
                 })
                 .collect();
-
             let res = self.zk_client.get_children_w(
                 &path,
                 ServiceInstancesChangedListener {
@@ -291,40 +337,74 @@ impl ClusterRegistryIntegration for ZookeeperRegistry {
     }
 }
 
-#[test]
-fn it_works() {
-    let connect_string = &"mse-21b397d4-p.zk.mse.aliyuncs.com:2181";
-    let zk_client =
-        ZooKeeper::connect(connect_string, Duration::from_secs(15), LoggingWatcher).unwrap();
-    let watcher = Arc::new(Some(TestZkWatcher {
-        watcher: Arc::new(None),
-    }));
-    watcher.as_ref().expect("").watcher = Arc::clone(&watcher);
-    let x = watcher.as_ref().expect("");
-    zk_client.get_children_w("/test", x);
-    zk_client.delete("/test/a", None);
-    zk_client.delete("/test/b", None);
-    let zk_res = zk_client.create(
-        "/test/a",
-        vec![1, 3],
-        Acl::open_unsafe().clone(),
-        CreateMode::Ephemeral,
-    );
-    let zk_res = zk_client.create(
-        "/test/b",
-        vec![1, 3],
-        Acl::open_unsafe().clone(),
-        CreateMode::Ephemeral,
-    );
-    zk_client.close();
-}
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
 
-struct TestZkWatcher {
-    pub watcher: Arc<Option<TestZkWatcher>>,
-}
+    use zookeeper::{Acl, CreateMode, WatchedEvent, Watcher};
 
-impl Watcher for TestZkWatcher {
-    fn handle(&self, event: WatchedEvent) {
-        println!("event: {:?}", event);
+    use crate::zookeeper_registry::ZookeeperRegistry;
+
+    struct TestZkWatcher {
+        pub watcher: Arc<Option<TestZkWatcher>>,
+    }
+
+    impl Watcher for TestZkWatcher {
+        fn handle(&self, event: WatchedEvent) {
+            println!("event: {:?}", event);
+        }
+    }
+
+    #[test]
+    fn zk_read_write_watcher() {
+        // https://github.com/bonifaido/rust-zookeeper/blob/master/examples/zookeeper_example.rs
+        // using ENV to set zookeeper server urls
+        let zkr = ZookeeperRegistry::default();
+        let zk_client = zkr.get_client();
+        let watcher = TestZkWatcher {
+            watcher: Arc::new(None),
+        };
+        if zk_client.exists("/test", true).is_err() {
+            zk_client
+                .create(
+                    "/test",
+                    vec![1, 3],
+                    Acl::open_unsafe().clone(),
+                    CreateMode::Ephemeral,
+                )
+                .unwrap();
+        }
+        let zk_res = zk_client.create(
+            "/test",
+            "hello".into(),
+            Acl::open_unsafe().clone(),
+            CreateMode::Ephemeral,
+        );
+        let result = zk_client.get_children_w("/test", watcher);
+        assert!(result.is_ok());
+        if zk_client.exists("/test/a", true).is_err() {
+            zk_client.delete("/test/a", None).unwrap();
+        }
+        if zk_client.exists("/test/a", true).is_err() {
+            zk_client.delete("/test/b", None).unwrap();
+        }
+        let zk_res = zk_client.create(
+            "/test/a",
+            "hello".into(),
+            Acl::open_unsafe().clone(),
+            CreateMode::Ephemeral,
+        );
+        let zk_res = zk_client.create(
+            "/test/b",
+            "world".into(),
+            Acl::open_unsafe().clone(),
+            CreateMode::Ephemeral,
+        );
+        let test_a_result = zk_client.get_data("/test", true);
+        assert!(test_a_result.is_ok());
+        let vec1 = test_a_result.unwrap().0;
+        // data in /test should equals to "hello"
+        assert_eq!(String::from_utf8(vec1).unwrap(), "hello");
+        zk_client.close().unwrap()
     }
 }

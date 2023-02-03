@@ -19,8 +19,10 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+pub const DEFAULT_PROTOCOL: &str = "triple";
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct ProtocolConfig {
+pub struct Protocol {
     pub ip: String,
     pub port: String,
     pub name: String,
@@ -29,7 +31,14 @@ pub struct ProtocolConfig {
     pub params: HashMap<String, String>,
 }
 
-impl ProtocolConfig {
+pub type ProtocolConfig = HashMap<String, Protocol>;
+
+pub trait ProtocolRetrieve {
+    fn get_protocol(&self, protocol_key: &str) -> Option<Protocol>;
+    fn get_protocol_or_default(&self, protocol_key: &str) -> Protocol;
+}
+
+impl Protocol {
     pub fn name(self, name: String) -> Self {
         Self { name, ..self }
     }
@@ -48,5 +57,30 @@ impl ProtocolConfig {
 
     pub fn to_url(self) -> String {
         format!("{}://{}:{}", self.name, self.ip, self.port)
+    }
+}
+
+impl ProtocolRetrieve for ProtocolConfig {
+    fn get_protocol(&self, protocol_key: &str) -> Option<Protocol> {
+        let result = self.get(protocol_key);
+        if let Some(..) = result {
+            Some(result.unwrap().clone())
+        } else {
+            None
+        }
+    }
+
+    fn get_protocol_or_default(&self, protocol_key: &str) -> Protocol {
+        let result = self.get_protocol(protocol_key);
+        if let Some(..) = result {
+            result.unwrap().clone()
+        } else {
+            let result = self.get_protocol(protocol_key);
+            if result.is_none() {
+                panic!("default triple protocol dose not defined.")
+            } else {
+                result.unwrap()
+            }
+        }
     }
 }

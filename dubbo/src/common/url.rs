@@ -18,6 +18,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
+use crate::common::consts::{GROUP_KEY, INTERFACE_KEY, VERSION_KEY};
 use http::Uri;
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -30,6 +31,8 @@ pub struct Url {
     pub port: String,
     // serviceKey format in dubbo java and go '{group}/{interfaceName}:{version}'
     pub service_key: String,
+    // same to interfaceName
+    pub service_name: String,
     pub params: HashMap<String, String>,
 }
 
@@ -47,23 +50,30 @@ impl Url {
             })
             .unwrap();
         let query = uri.path_and_query().unwrap().query();
-        Some(Self {
+        let mut url_inst = Self {
             raw_url_string: url.to_string(),
             scheme: uri.scheme_str()?.to_string(),
             ip: uri.authority()?.host().to_string(),
             port: uri.authority()?.port()?.to_string(),
             location: uri.authority()?.to_string(),
             service_key: uri.path().trim_start_matches('/').to_string(),
+            service_name: uri.path().trim_start_matches('/').to_string(),
             params: if let Some(..) = query {
                 Url::decode(query.unwrap())
             } else {
                 HashMap::new()
             },
-        })
+        };
+        url_inst.renew_raw_url_string();
+        Some(url_inst)
+    }
+
+    pub fn get_service_key(&self) -> String {
+        self.service_key.clone()
     }
 
     pub fn get_service_name(&self) -> String {
-        self.service_key.clone()
+        self.service_name.clone()
     }
 
     pub fn get_param(&self, key: &str) -> Option<String> {
@@ -76,7 +86,11 @@ impl Url {
             // let tmp = format!("{}={}", k, v);
             params_vec.push(format!("{}={}", k, v));
         }
-        params_vec.join("&")
+        if params_vec.is_empty() {
+            "".to_string()
+        } else {
+            format!("?{}", params_vec.join("&"))
+        }
     }
 
     pub fn params_count(&self) -> usize {
@@ -108,14 +122,29 @@ impl Url {
         self.raw_url_string.clone()
     }
 
+    pub fn encoded_raw_url_string(&self) -> String {
+        urlencoding::encode(self.raw_url_string.as_str()).to_string()
+    }
+
+    fn build_service_key(&self) -> String {
+        format!(
+            "{group}/{interfaceName}:{version}",
+            group = self.get_param(GROUP_KEY).unwrap_or("default".to_string()),
+            interfaceName = self.get_param(INTERFACE_KEY).unwrap_or("error".to_string()),
+            version = self.get_param(VERSION_KEY).unwrap_or("1.0.0".to_string())
+        )
+    }
+
     fn renew_raw_url_string(&mut self) {
         self.raw_url_string = format!(
-            "{}://{}:{}={}",
+            "{}://{}:{}/{}{}",
             self.scheme,
             self.ip,
             self.port,
+            self.service_name,
             self.encode_param()
-        )
+        );
+        self.service_key = self.build_service_key()
     }
 
     // short_url is used for tcp listening
@@ -145,6 +174,7 @@ impl From<&str> for Url {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::consts::{ANYHOST_KEY, VERSION_KEY};
 
     #[test]
     fn test_from_url() {
@@ -152,13 +182,17 @@ mod tests {
         application=BDTService&category=providers&default.timeout=10000&dubbo=dubbo-provider-golang-1.0.0&\
         environment=dev&interface=com.ikurento.user.UserProvider&ip=192.168.56.1&methods=GetUser%2C&\
         module=dubbogo+user-info+server&org=ikurento.com&owner=ZX&pid=1447&revision=0.0.1&\
-        side=provider&timeout=3000&timestamp=1556509797245");
+        side=provider&timeout=3000&timestamp=1556509797245&version=1.0.0&application=test");
         assert_eq!(
             u1.as_ref().unwrap().service_key,
-            "com.ikurento.user.UserProvider"
+            "default/com.ikurento.user.UserProvider:1.0.0"
         );
         assert_eq!(
-            u1.as_ref().unwrap().get_param("anyhost").unwrap().as_str(),
+            u1.as_ref()
+                .unwrap()
+                .get_param(ANYHOST_KEY)
+                .unwrap()
+                .as_str(),
             "true"
         );
         assert_eq!(
@@ -172,11 +206,28 @@ mod tests {
         assert_eq!(u1.as_ref().unwrap().scheme, "tri");
         assert_eq!(u1.as_ref().unwrap().ip, "127.0.0.1");
         assert_eq!(u1.as_ref().unwrap().port, "20000");
-        assert_eq!(u1.as_ref().unwrap().params_count(), 17);
+        assert_eq!(u1.as_ref().unwrap().params_count(), 18);
         u1.as_mut().unwrap().set_param("key1", "value1");
         assert_eq!(
             u1.as_ref().unwrap().get_param("key1").unwrap().as_str(),
             "value1"
         );
+        assert_eq!(
+            u1.as_ref()
+                .unwrap()
+                .get_param(VERSION_KEY)
+                .unwrap()
+                .as_str(),
+            "1.0.0"
+        );
+    }
+
+    #[test]
+    fn test2() {
+        let url: Url = "tri://0.0.0.0:8888/org.apache.dubbo.sample.tri.Greeter".into();
+        assert_eq!(
+            url.raw_url_string(),
+            "tri://0.0.0.0:8888/org.apache.dubbo.sample.tri.Greeter"
+        )
     }
 }

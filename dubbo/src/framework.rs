@@ -24,6 +24,7 @@ use futures::future;
 use futures::Future;
 use tracing::{debug, info};
 
+use dubbo_config::protocol::ProtocolRetrieve;
 use dubbo_config::{get_global_config, RootConfig};
 
 use crate::common::url::Url;
@@ -75,35 +76,30 @@ impl Dubbo {
             self.config = Some(get_global_config())
         }
 
-        let conf = self.config.as_ref().unwrap();
-        debug!("global conf: {:?}", conf);
-
-        for (_, service_config) in conf.provider.services.iter() {
+        let root_config = self.config.as_ref().unwrap();
+        debug!("global conf: {:?}", root_config);
+        // env::set_var("ZOOKEEPER_SERVERS",root_config);
+        for (_, service_config) in root_config.provider.services.iter() {
             info!("init service name: {}", service_config.interface);
-            let u = if conf
+            let url = if root_config
                 .protocols
                 .contains_key(service_config.protocol.as_str())
             {
-                let protocol = match conf.protocols.get(&service_config.protocol) {
-                    Some(v) => v.to_owned(),
-                    None => {
-                        tracing::warn!("protocol {:?} not exists", service_config.protocol);
-                        continue;
-                    }
-                };
+                let protocol = root_config
+                    .protocols
+                    .get_protocol_or_default(service_config.protocol.as_str());
                 let protocol_url =
                     format!("{}/{}", protocol.to_url(), service_config.interface.clone(),);
+                info!("protocol_url: {:?}", protocol_url);
                 Url::from_url(&protocol_url)
             } else {
                 return Err(format!("protocol {:?} not exists", service_config.protocol).into());
             };
-            info!("url: {:?}", u);
-            if u.is_none() {
+            info!("url: {:?}", url);
+            if url.is_none() {
                 continue;
             }
-
-            let u = u.unwrap();
-
+            let u = url.unwrap();
             if self.protocols.get(&service_config.protocol).is_some() {
                 self.protocols
                     .get_mut(&service_config.protocol)

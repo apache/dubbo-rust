@@ -76,11 +76,8 @@ impl Directory for RegistryDirectory {
     fn list(&self, invocation: Arc<RpcInvocation>) -> Arc<Vec<Url>> {
         let service_name = invocation.get_target_service_unique_name();
 
-        let url = Url::from_url(&format!(
-            "tri://{}:{}/{}",
-            "127.0.0.1", "8888", service_name
-        ))
-        .unwrap();
+        let url =
+            Url::from_url(&format!("tri://{}:{}/{}", "0.0.0.0", "8888", service_name)).unwrap();
 
         self.registry
             .registry
