@@ -49,20 +49,18 @@ async fn main() {
     let mut cli = GreeterClient::new(Connection::new());
     cli = cli.with_cluster(cluster_invoker);
     // using loop for loadbalance test
-    for _ in 0..10 {
-        println!("# unary call");
-        let resp = cli
-            .greet(Request::new(GreeterRequest {
-                name: "message from client".to_string(),
-            }))
-            .await;
-        let resp = match resp {
-            Ok(resp) => resp,
-            Err(err) => return println!("{:?}", err),
-        };
-        let (_parts, body) = resp.into_parts();
-        println!("Response: {:?}", body);
+    println!("# unary call");
+    let resp = cli
+        .greet(Request::new(GreeterRequest {
+            name: "message from client".to_string(),
+        }))
+        .await;
+    let resp = match resp {
+        Ok(resp) => resp,
+        Err(err) => return println!("{:?}", err),
+    };
+    let (_parts, body) = resp.into_parts();
+    println!("Response: {:?}", body);
 
-        tokio::time::sleep(Duration::from_millis(2000)).await;
-    }
+    tokio::time::sleep(Duration::from_millis(2000)).await;
 }
