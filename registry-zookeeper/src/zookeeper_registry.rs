@@ -130,12 +130,18 @@ impl ZookeeperRegistry {
         self.zk_client.clone()
     }
 
-    pub fn create_path(&self, path: &str, data: &str, create_mode: CreateMode) {
+    // If the parent node does not exist in the ZooKeeper, Err(ZkError::NoNode) will be returned.
+    pub fn create_path(
+        &self,
+        path: &str,
+        data: &str,
+        create_mode: CreateMode,
+    ) -> Result<(), StdError> {
         if self.exists_path(path) {
             self.zk_client
                 .set_data(path, data.as_bytes().to_vec(), None)
                 .unwrap_or_else(|_| panic!("set data to {} failed.", path));
-            return;
+            return Ok(());
         }
         let zk_result = self.zk_client.create(
             path,
@@ -143,9 +149,45 @@ impl ZookeeperRegistry {
             Acl::open_unsafe().clone(),
             create_mode,
         );
-        if zk_result.is_err() {
-            error!("{}", zk_result.err().unwrap());
+        match zk_result {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                error!("zk path {} parent not exists.", path);
+                Err(Box::try_from(err).unwrap())
+            }
         }
+    }
+
+    // For avoiding Err(ZkError::NoNode) when parent node is't exists
+    pub fn create_path_with_parent_check(
+        &self,
+        path: &str,
+        data: &str,
+        create_mode: CreateMode,
+    ) -> Result<(), StdError> {
+        let nodes: Vec<&str> = path.split('/').collect();
+        let mut current: String = String::new();
+        let children = *nodes.last().unwrap();
+        for node_key in nodes {
+            if node_key.is_empty() {
+                continue;
+            };
+            current.push('/');
+            current.push_str(node_key);
+            if !self.exists_path(current.as_str()) {
+                let new_create_mode = match children == node_key {
+                    true => create_mode,
+                    false => CreateMode::Persistent,
+                };
+                let new_data = match children == node_key {
+                    true => data,
+                    false => "",
+                };
+                self.create_path(current.as_str(), new_data, new_create_mode)
+                    .unwrap();
+            }
+        }
+        Ok(())
     }
 
     pub fn delete_path(&self, path: &str) {
@@ -158,7 +200,7 @@ impl ZookeeperRegistry {
         self.zk_client.exists(path, false).unwrap().is_some()
     }
 
-    pub fn read_data(&self, path: &str, watch: bool) -> Option<String> {
+    pub fn get_data(&self, path: &str, watch: bool) -> Option<String> {
         if self.exists_path(path) {
             let zk_result = self.zk_client.get_data(path, watch);
             if let Ok(..) = zk_result {
@@ -204,7 +246,7 @@ impl Registry for ZookeeperRegistry {
             PROVIDERS_KEY,
             url.encoded_raw_url_string()
         );
-        self.create_path(zk_path.as_str(), LOCALHOST_IP, CreateMode::Ephemeral);
+        self.create_path_with_parent_check(zk_path.as_str(), LOCALHOST_IP, CreateMode::Ephemeral)?;
         Ok(())
     }
 
@@ -406,5 +448,19 @@ mod tests {
         // data in /test should equals to "hello"
         assert_eq!(String::from_utf8(vec1).unwrap(), "hello");
         zk_client.close().unwrap()
+    }
+
+    #[test]
+    fn create_path_with_parent_check() {
+        let zkr = ZookeeperRegistry::default();
+        let path = "/du1bbo/test11111";
+        let data = "hello";
+        // creating a child on a not exists parent, throw a NoNode error.
+        // let result = zkr.create_path(path, data, CreateMode::Ephemeral);
+        // assert!(result.is_err());
+        let create_with_parent_check_result =
+            zkr.create_path_with_parent_check(path, data, CreateMode::Ephemeral);
+        assert!(create_with_parent_check_result.is_ok());
+        assert_eq!(data, zkr.get_data(path, false).unwrap());
     }
 }
