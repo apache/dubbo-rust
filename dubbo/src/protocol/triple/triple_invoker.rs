@@ -21,13 +21,11 @@ use tower_service::Service;
 
 use crate::common::url::Url;
 use crate::protocol::Invoker;
-use crate::triple::transport::connection::Connection;
+use crate::triple::client::builder::{ClientBoxService, ClientBuilder};
 
-#[allow(dead_code)]
-#[derive(Clone, Default)]
 pub struct TripleInvoker {
     url: Url,
-    conn: Connection,
+    conn: ClientBoxService,
 }
 
 impl TripleInvoker {
@@ -35,17 +33,12 @@ impl TripleInvoker {
         let uri = http::Uri::from_str(&url.to_url()).unwrap();
         Self {
             url,
-            conn: Connection::new().with_host(uri),
+            conn: ClientBuilder::from(uri).connect(),
         }
     }
 }
 
-impl<ReqBody> Invoker<http::Request<ReqBody>> for TripleInvoker
-where
-    ReqBody: http_body::Body + Unpin + Send + 'static,
-    ReqBody::Error: Into<crate::Error>,
-    ReqBody::Data: Send + Unpin,
-{
+impl Invoker<http::Request<hyper::Body>> for TripleInvoker {
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
@@ -56,7 +49,14 @@ where
         self.url.clone()
     }
 
-    fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
+    fn call(&mut self, req: http::Request<hyper::Body>) -> Self::Future {
         self.conn.call(req)
+    }
+
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.conn.poll_ready(cx)
     }
 }
