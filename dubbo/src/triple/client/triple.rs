@@ -24,89 +24,32 @@ use rand::prelude::SliceRandom;
 use tower_service::Service;
 
 use super::super::transport::connection::Connection;
-use super::builder::{ClientBoxService, ClientBuilder};
+use super::builder::ClientBuilder;
 use crate::codegen::{Directory, RpcInvocation};
-use crate::filter::service::FilterService;
-use crate::filter::Filter;
-use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
 
+use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
 use crate::triple::codec::Codec;
 use crate::triple::compression::CompressionEncoding;
 use crate::triple::decode::Decoding;
 use crate::triple::encode::encode;
 
 #[derive(Debug, Clone, Default)]
-pub struct TripleClient<T> {
-    builder: Option<ClientBuilder>,
-    inner: T,
-    send_compression_encoding: Option<CompressionEncoding>,
-    directory: Option<Box<dyn Directory>>,
+pub struct TripleClient {
+    pub(crate) send_compression_encoding: Option<CompressionEncoding>,
+    pub(crate) directory: Option<Box<dyn Directory>>,
 }
 
-impl TripleClient<ClientBoxService> {
+impl TripleClient {
     pub fn connect(host: String) -> Self {
-        let uri = match http::Uri::from_str(&host) {
-            Ok(v) => v,
-            Err(err) => {
-                tracing::error!("http uri parse error: {}, host: {}", err, host);
-                panic!("http uri parse error: {}, host: {}", err, host)
-            }
-        };
+        let builder = ClientBuilder::from_static(&host);
 
-        let builder = ClientBuilder::from(uri);
-
-        TripleClient {
-            builder: Some(builder.clone()),
-            inner: builder.connect(),
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-            directory: None,
-        }
+        builder.build()
     }
 
-    pub fn with_builder(builder: ClientBuilder) -> Self {
-        TripleClient {
-            builder: Some(builder.clone()),
-            inner: builder.connect(),
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-            directory: None,
-        }
-    }
-}
-
-impl<T> TripleClient<T> {
-    pub fn new(inner: T, builder: ClientBuilder) -> Self {
-        TripleClient {
-            builder: Some(builder),
-            inner,
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-            directory: None,
-        }
+    pub fn new(builder: ClientBuilder) -> Self {
+        builder.build()
     }
 
-    pub fn with_filter<F>(self, filter: F) -> TripleClient<FilterService<T, F>>
-    where
-        F: Filter,
-    {
-        TripleClient::new(
-            FilterService::new(self.inner, filter),
-            self.builder.unwrap(),
-        )
-    }
-
-    /// host: http://0.0.0.0:8888
-    pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
-        TripleClient {
-            directory: Some(directory),
-            ..self
-        }
-    }
-}
-
-impl<T> TripleClient<T>
-where
-    T: Service<http::Request<hyper::Body>, Response = http::Response<crate::BoxBody>>,
-    T::Error: Into<crate::Error>,
-{
     fn map_request(
         &self,
         uri: http::Uri,

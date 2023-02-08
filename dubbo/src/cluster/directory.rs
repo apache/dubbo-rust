@@ -67,6 +67,10 @@ impl StaticDirectory {
         };
         StaticDirectory { uri: uri }
     }
+
+    pub fn from_uri(uri: &http::Uri) -> StaticDirectory {
+        StaticDirectory { uri: uri.clone() }
+    }
 }
 
 impl Directory for StaticDirectory {

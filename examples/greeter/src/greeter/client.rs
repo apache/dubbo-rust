@@ -19,11 +19,9 @@ pub mod protos {
     #![allow(non_camel_case_types)]
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
 }
-use std::str::FromStr;
 
-use dubbo::{cluster::directory::StaticDirectory, codegen::*};
+use dubbo::codegen::*;
 use futures_util::StreamExt;
-use http;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -40,12 +38,7 @@ async fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let http_uri = http::Uri::from_str(&"http://1.1.1.1:8888").unwrap();
-
-    let mut cli = GreeterClient::new(Connection::new().with_host(http_uri), ClientBuilder::new());
-    let directory = StaticDirectory::new("http://127.0.0.1:8888");
-    cli = cli.with_directory(Box::new(directory));
-    //let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
+    let mut cli = GreeterClient::new(ClientBuilder::from_static(&"http://127.0.0.1:8888"));
 
     // Here is example for zk
     // let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {

@@ -61,56 +61,44 @@ pub fn generate<T: Service>(
                 // will trigger if compression is disabled
                 clippy::let_unit_value,
             )]
-            use dubbo::{codegen::*, cluster::directory::StaticDirectory};
+            use dubbo::codegen::*;
 
             #service_doc
             #(#struct_attributes)*
             #[derive(Debug, Clone, Default)]
-            pub struct #service_ident<T> {
-                inner: TripleClient<T>,
+            pub struct #service_ident {
+                inner: TripleClient,
             }
 
-            impl #service_ident<ClientBoxService> {
+            impl #service_ident {
                 pub fn connect(host: String) -> Self {
-                    let mut cli = TripleClient::connect(host.clone());
-                    cli = cli.with_directory(Box::new(StaticDirectory::new(&host)));
+                    let cli = TripleClient::connect(host);
                     #service_ident {
                         inner: cli,
                     }
                 }
 
-                pub fn build(builder: ClientBuilder) -> Self {
+                // pub fn build(builder: ClientBuilder) -> Self {
+                //     Self {
+                //         inner: TripleClient::new(builder),
+                //     }
+                // }
+
+                pub fn new(builder: ClientBuilder) -> Self {
                     Self {
-                        inner: TripleClient::with_builder(builder),
-                    }
-                }
-            }
-
-            impl<T> #service_ident<T>
-            where
-                T: Service<http::Request<hyperBody>, Response = http::Response<BoxBody>>,
-                T::Error: Into<StdError>,
-            {
-                pub fn new(inner: T, builder: ClientBuilder) -> Self {
-                    Self {
-                        inner: TripleClient::new(inner, builder),
+                        inner: TripleClient::new(builder),
                     }
                 }
 
-                pub fn with_filter<F>(self, filter: F) -> #service_ident<FilterService<T, F>>
-                where
-                    F: Filter,
-                {
-                    let inner = self.inner.with_filter(filter);
-                    #service_ident {
-                        inner,
-                    }
-                }
-
-                pub fn with_directory(mut self, directory: Box<dyn Directory>) -> Self {
-                    self.inner = self.inner.with_directory(directory);
-                    self
-                }
+                // pub fn with_filter<F>(self, filter: F) -> #service_ident<FilterService<T, F>>
+                // where
+                //     F: Filter,
+                // {
+                //     let inner = self.inner.with_filter(filter);
+                //     #service_ident {
+                //         inner,
+                //     }
+                // }
 
                 #methods
 

@@ -30,44 +30,21 @@ pub struct EchoResponse {
 /// Generated client implementations.
 pub mod echo_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use dubbo::{cluster::directory::StaticDirectory, codegen::*};
+    use dubbo::codegen::*;
     /// Echo is the echo service.
     #[derive(Debug, Clone, Default)]
-    pub struct EchoClient<T> {
-        inner: TripleClient<T>,
+    pub struct EchoClient {
+        inner: TripleClient,
     }
-    impl EchoClient<ClientBoxService> {
+    impl EchoClient {
         pub fn connect(host: String) -> Self {
-            let mut cli = TripleClient::connect(host.clone());
-            cli = cli.with_directory(Box::new(StaticDirectory::new(&host)));
+            let cli = TripleClient::connect(host);
             EchoClient { inner: cli }
         }
-        pub fn build(builder: ClientBuilder) -> Self {
+        pub fn new(builder: ClientBuilder) -> Self {
             Self {
-                inner: TripleClient::with_builder(builder),
+                inner: TripleClient::new(builder),
             }
-        }
-    }
-    impl<T> EchoClient<T>
-    where
-        T: Service<http::Request<hyperBody>, Response = http::Response<BoxBody>>,
-        T::Error: Into<StdError>,
-    {
-        pub fn new(inner: T, builder: ClientBuilder) -> Self {
-            Self {
-                inner: TripleClient::new(inner, builder),
-            }
-        }
-        pub fn with_filter<F>(self, filter: F) -> EchoClient<FilterService<T, F>>
-        where
-            F: Filter,
-        {
-            let inner = self.inner.with_filter(filter);
-            EchoClient { inner }
-        }
-        pub fn with_directory(mut self, directory: Box<dyn Directory>) -> Self {
-            self.inner = self.inner.with_directory(directory);
-            self
         }
         /// UnaryEcho is unary echo.
         pub async fn unary_echo(
