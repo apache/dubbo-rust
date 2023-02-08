@@ -15,9 +15,7 @@
  * limitations under the License.
  */
 
-pub mod server_desc;
-pub mod triple;
-
+use std::fmt::Debug;
 use std::future::Future;
 use std::task::{Context, Poll};
 
@@ -25,6 +23,9 @@ use async_trait::async_trait;
 use tower_service::Service;
 
 use crate::common::url::Url;
+
+pub mod server_desc;
+pub mod triple;
 
 #[async_trait]
 pub trait Protocol {
@@ -39,7 +40,7 @@ pub trait Exporter {
     fn unexport(&self);
 }
 
-pub trait Invoker<ReqBody> {
+pub trait Invoker<ReqBody>: Debug {
     type Response;
 
     type Error;

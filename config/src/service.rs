@@ -15,30 +15,19 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
-
-use super::protocol::ProtocolConfig;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ServiceConfig {
     pub version: String,
     pub group: String,
-
-    #[serde(skip_serializing, skip_deserializing)]
-    pub name: String,
     pub protocol: String,
-    pub registry: String,
-    pub serializer: String,
-
-    // #[serde(skip_serializing, skip_deserializing)]
-    pub protocol_configs: HashMap<String, ProtocolConfig>,
+    pub interface: String,
 }
 
 impl ServiceConfig {
-    pub fn name(self, name: String) -> Self {
-        Self { name, ..self }
+    pub fn interface(self, interface: String) -> Self {
+        Self { interface, ..self }
     }
 
     pub fn version(self, version: String) -> Self {
@@ -49,18 +38,8 @@ impl ServiceConfig {
         Self { group, ..self }
     }
 
-    pub fn protocol_names(self, protocol: String) -> Self {
+    pub fn protocol(self, protocol: String) -> Self {
         Self { protocol, ..self }
-    }
-
-    pub fn serializer(self, serializer: String) -> Self {
-        Self { serializer, ..self }
-    }
-
-    pub fn add_protocol_configs(mut self, protocol_config: ProtocolConfig) -> Self {
-        self.protocol_configs
-            .insert(protocol_config.name.clone(), protocol_config);
-        Self { ..self }
     }
 
     // pub fn get_url(&self) -> Vec<Url> {

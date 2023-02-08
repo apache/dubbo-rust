@@ -16,30 +16,30 @@
  */
 
 use std::str::FromStr;
+use std::sync::Arc;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
-
 use http::HeaderValue;
-use rand::prelude::SliceRandom;
 use tower_service::Service;
 
-use super::connection::Connection;
-use crate::codegen::{Directory, RpcInvocation};
+use crate::cluster::support::cluster_invoker::{ClusterInvoker, ClusterRequestBuilder};
+use crate::codegen::RpcInvocation;
 use crate::filter::service::FilterService;
 use crate::filter::Filter;
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
-
 use crate::triple::codec::Codec;
 use crate::triple::compression::CompressionEncoding;
 use crate::triple::decode::Decoding;
 use crate::triple::encode::encode;
+
+use super::connection::Connection;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient<T> {
     host: Option<http::Uri>,
     inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
-    directory: Option<Box<dyn Directory>>,
+    cluster_invoker: Option<ClusterInvoker>,
 }
 
 impl TripleClient<Connection> {
@@ -56,7 +56,7 @@ impl TripleClient<Connection> {
             host: uri.clone(),
             inner: Connection::new().with_host(uri.unwrap()),
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            directory: None,
+            cluster_invoker: None,
         }
     }
 }
@@ -67,7 +67,7 @@ impl<T> TripleClient<T> {
             host,
             inner,
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            directory: None,
+            cluster_invoker: None,
         }
     }
 
@@ -78,10 +78,9 @@ impl<T> TripleClient<T> {
         TripleClient::new(FilterService::new(self.inner, filter), self.host)
     }
 
-    /// host: http://0.0.0.0:8888
-    pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
+    pub fn with_cluster(self, invoker: ClusterInvoker) -> Self {
         TripleClient {
-            directory: Some(directory),
+            cluster_invoker: Some(invoker),
             ..self
         }
     }
@@ -92,7 +91,7 @@ where
     T: Service<http::Request<hyper::Body>, Response = http::Response<crate::BoxBody>>,
     T::Error: Into<crate::Error>,
 {
-    fn new_map_request(
+    pub fn new_map_request(
         &self,
         uri: http::Uri,
         path: http::uri::PathAndQuery,
@@ -242,11 +241,11 @@ where
     }
 
     pub async fn unary<C, M1, M2>(
-        &mut self,
+        &self,
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
-        invocation: RpcInvocation,
+        invocation: Arc<RpcInvocation>,
     ) -> Result<Response<M2>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
@@ -262,14 +261,19 @@ where
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
 
-        let url_list = self.directory.as_ref().expect("msg").list(invocation);
-        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
-        let http_uri =
-            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
-
-        let req = self.new_map_request(http_uri.clone(), path, body);
-
-        let mut conn = Connection::new().with_host(http_uri);
+        // let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        // let url_list = self.cluster_invoker.as_ref().unwrap().directory().list(invocation.clone());
+        // let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+        // let http_uri =
+        //     http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
+        //
+        // let req = self.new_map_request(http_uri.clone(), path, body);
+        let req =
+            self.cluster_invoker
+                .as_ref()
+                .unwrap()
+                .build_req(self, path, invocation.clone(), body);
+        let mut conn = Connection::new().with_host(req.uri().clone());
         let response = conn
             .call(req)
             .await

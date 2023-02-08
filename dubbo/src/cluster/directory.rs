@@ -24,8 +24,10 @@ use crate::invocation::{Invocation, RpcInvocation};
 use crate::registry::memory_registry::MemoryNotifyListener;
 use crate::registry::{BoxRegistry, RegistryWrapper};
 
+pub type BoxDirectory = Box<dyn Directory>;
+
 pub trait Directory: Debug + DirectoryClone {
-    fn list(&self, invocation: RpcInvocation) -> Vec<Url>;
+    fn list(&self, invocation: Arc<RpcInvocation>) -> Arc<Vec<Url>>;
 }
 
 pub trait DirectoryClone {
@@ -47,7 +49,7 @@ impl Clone for Box<dyn Directory> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RegistryDirectory {
     registry: RegistryWrapper,
     service_instances: Arc<RwLock<HashMap<String, Vec<Url>>>>,
@@ -64,32 +66,37 @@ impl RegistryDirectory {
     }
 }
 
-impl DirectoryClone for RegistryDirectory {
-    fn clone_box(&self) -> Box<dyn Directory> {
-        todo!()
-    }
-}
+// impl DirectoryClone for RegistryDirectory {
+//     fn clone_box(&self) -> Box<dyn Directory> {
+//         todo!()
+//     }
+// }
 
 impl Directory for RegistryDirectory {
-    fn list(&self, invocation: RpcInvocation) -> Vec<Url> {
+    fn list(&self, invocation: Arc<RpcInvocation>) -> Arc<Vec<Url>> {
         let service_name = invocation.get_target_service_unique_name();
 
-        let url = Url::from_url(&format!(
-            "triple://{}:{}/{}",
-            "127.0.0.1", "8888", service_name
-        ))
-        .unwrap();
+        let url =
+            Url::from_url(&format!("tri://{}:{}/{}", "0.0.0.0", "8888", service_name)).unwrap();
 
-        self.registry.registry.as_ref().expect("msg").subscribe(
-            url,
-            MemoryNotifyListener {
-                service_instances: Arc::clone(&self.service_instances),
-            },
-        ).expect("subscribe");
+        self.registry
+            .registry
+            .as_ref()
+            .expect("msg")
+            .subscribe(
+                url,
+                MemoryNotifyListener {
+                    service_instances: Arc::clone(&self.service_instances),
+                },
+            )
+            .expect("subscribe");
 
-        let map = self.service_instances.read().expect("service_instances.read");
+        let map = self
+            .service_instances
+            .read()
+            .expect("service_instances.read");
         let binding = Vec::new();
         let url_vec = map.get(&service_name).unwrap_or(&binding);
-        url_vec.to_vec()
+        Arc::new(url_vec.to_vec())
     }
 }

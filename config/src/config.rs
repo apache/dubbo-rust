@@ -17,6 +17,7 @@
 
 use std::{collections::HashMap, env, fs, sync::RwLock};
 
+use crate::protocol::Protocol;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +26,8 @@ use super::provider::ProviderConfig;
 use super::service::ServiceConfig;
 
 pub const DUBBO_CONFIG_PATH: &str = "./dubbo.yaml";
+
+pub const DUBBO_CONFIG_PREFIX: &str = "dubbo";
 
 lazy_static! {
     pub static ref GLOBAL_ROOT_CONFIG: RwLock<Option<RootConfig>> = RwLock::new(None);
@@ -35,16 +38,13 @@ lazy_static! {
 #[allow(dead_code)]
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct RootConfig {
-    pub name: String,
+    #[serde(default)]
+    pub protocols: ProtocolConfig,
 
-    #[serde(skip_serializing, skip_deserializing)]
-    pub service: HashMap<String, ServiceConfig>,
-    pub protocols: HashMap<String, ProtocolConfig>,
-    pub registries: HashMap<String, String>,
-
+    #[serde(default)]
     pub provider: ProviderConfig,
 
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(default)]
     pub data: HashMap<String, String>,
 }
 
@@ -66,10 +66,7 @@ pub fn get_global_config() -> RootConfig {
 impl RootConfig {
     pub fn new() -> Self {
         Self {
-            name: "dubbo".to_string(),
-            service: HashMap::new(),
             protocols: HashMap::new(),
-            registries: HashMap::new(),
             provider: ProviderConfig::new(),
             data: HashMap::new(),
         }
@@ -93,12 +90,10 @@ impl RootConfig {
 
         tracing::info!("current path: {:?}", env::current_dir());
         let data = fs::read(config_path)?;
-        let mut conf: RootConfig = serde_yaml::from_slice(&data).unwrap();
+        let conf: HashMap<String, RootConfig> = serde_yaml::from_slice(&data).unwrap();
+        let root_config: RootConfig = conf.get(DUBBO_CONFIG_PREFIX).unwrap().clone();
         tracing::debug!("origin config: {:?}", conf);
-        for (name, svc) in conf.service.iter_mut() {
-            svc.name = name.to_string();
-        }
-        Ok(conf)
+        Ok(root_config)
     }
 
     pub fn test_config(&mut self) {
@@ -108,37 +103,29 @@ impl RootConfig {
 
         let service_config = ServiceConfig::default()
             .group("test".to_string())
-            .serializer("json".to_string())
             .version("1.0.0".to_string())
-            .protocol_names("triple".to_string())
-            .name("grpc.examples.echo.Echo".to_string());
+            .protocol("triple".to_string())
+            .interface("grpc.examples.echo.Echo".to_string());
 
-        let triple_config = ProtocolConfig::default()
-            .name("triple".to_string())
-            .ip("0.0.0.0".to_string())
-            .port("8888".to_string());
-
-        let service_config = service_config.add_protocol_configs(triple_config);
-        self.service
+        self.provider
+            .services
             .insert("grpc.examples.echo.Echo".to_string(), service_config);
-        self.service.insert(
+        self.provider.services.insert(
             "helloworld.Greeter".to_string(),
             ServiceConfig::default()
                 .group("test".to_string())
-                .serializer("json".to_string())
                 .version("1.0.0".to_string())
-                .name("helloworld.Greeter".to_string())
-                .protocol_names("triple".to_string()),
+                .interface("helloworld.Greeter".to_string())
+                .protocol("triple".to_string()),
         );
         self.protocols.insert(
             "triple".to_string(),
-            ProtocolConfig::default()
+            Protocol::default()
                 .name("triple".to_string())
                 .ip("0.0.0.0".to_string())
                 .port("8889".to_string()),
         );
 
-        provider.services = self.service.clone();
         self.provider = provider.clone();
         println!("provider config: {:?}", provider);
         // 通过环境变量读取某个文件。加在到内存中

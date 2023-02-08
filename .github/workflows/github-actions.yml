@@ -45,10 +45,16 @@ jobs:
           toolchain: stable
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
-
   example-greeter:
     name: example/greeter
     runs-on: ubuntu-latest
+    services:
+      zoo1:
+        image: zookeeper:3.8
+        ports:
+          - 2181:2181
+        env:
+          ZOO_MY_ID: 1
     steps:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
@@ -80,6 +86,9 @@ jobs:
       - name: example greeter
         run: |
           ../../target/debug/greeter-server &
-          sleep 1s ;
+          sleep 3 
           ../../target/debug/greeter-client
+        env:
+          ZOOKEEPER_SERVERS: 127.0.0.1:2181
+          DUBBO_CONFIG_PATH: ./dubbo.yaml
         working-directory: examples/greeter

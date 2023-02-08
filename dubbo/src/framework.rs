@@ -16,22 +16,30 @@
  */
 
 use std::collections::HashMap;
+use std::error::Error;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 
 use futures::future;
 use futures::Future;
+use tracing::{debug, info};
+
+use dubbo_config::protocol::ProtocolRetrieve;
+use dubbo_config::{get_global_config, RootConfig};
 
 use crate::common::url::Url;
 use crate::protocol::{BoxExporter, Protocol};
 use crate::registry::protocol::RegistryProtocol;
-use dubbo_config::{get_global_config, RootConfig};
+use crate::registry::types::{Registries, RegistriesOperation};
+use crate::registry::{BoxRegistry, Registry};
 
 // Invoker是否可以基于hyper写一个通用的
 
 #[derive(Default)]
 pub struct Dubbo {
+    // cached protocols, key of map means protocol name eg. dubbo, triple, grpc
     protocols: HashMap<String, Vec<Url>>,
-    registries: HashMap<String, Url>,
+    registries: Option<Registries>,
     service_registry: HashMap<String, Vec<Url>>, // registry: Urls
     config: Option<RootConfig>,
 }
@@ -41,7 +49,7 @@ impl Dubbo {
         tracing_subscriber::fmt::init();
         Self {
             protocols: HashMap::new(),
-            registries: HashMap::new(),
+            registries: None,
             service_registry: HashMap::new(),
             config: None,
         }
@@ -52,80 +60,83 @@ impl Dubbo {
         self
     }
 
-    pub fn init(&mut self) {
+    pub fn add_registry(mut self, registry_key: &str, registry: BoxRegistry) -> Self {
+        if self.registries.is_none() {
+            self.registries = Some(Arc::new(Mutex::new(HashMap::new())));
+        }
+        self.registries
+            .as_ref()
+            .unwrap()
+            .insert(registry_key.to_string(), Arc::new(Mutex::new(registry)));
+        self
+    }
+
+    pub fn init(&mut self) -> Result<(), Box<dyn Error>> {
         if self.config.is_none() {
             self.config = Some(get_global_config())
         }
 
-        let conf = self.config.as_ref().unwrap();
-        tracing::debug!("global conf: {:?}", conf);
-
-        for (name, url) in conf.registries.iter() {
-            self.registries
-                .insert(name.to_string(), Url::from_url(url).unwrap());
-        }
-
-        for (_, c) in conf.provider.services.iter() {
-            let u = if c.protocol_configs.is_empty() {
-                let protocol = match conf.protocols.get(&c.protocol) {
-                    Some(v) => v.to_owned(),
-                    None => {
-                        tracing::warn!("protocol {:?} not exists", c.protocol);
-                        continue;
-                    }
-                };
-                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
+        let root_config = self.config.as_ref().unwrap();
+        debug!("global conf: {:?}", root_config);
+        // env::set_var("ZOOKEEPER_SERVERS",root_config);
+        for (_, service_config) in root_config.provider.services.iter() {
+            info!("init service name: {}", service_config.interface);
+            let url = if root_config
+                .protocols
+                .contains_key(service_config.protocol.as_str())
+            {
+                let protocol = root_config
+                    .protocols
+                    .get_protocol_or_default(service_config.protocol.as_str());
+                let protocol_url =
+                    format!("{}/{}", protocol.to_url(), service_config.interface.clone(),);
+                info!("protocol_url: {:?}", protocol_url);
                 Url::from_url(&protocol_url)
             } else {
-                let protocol = match c.protocol_configs.get(&c.protocol) {
-                    Some(v) => v.to_owned(),
-                    None => {
-                        tracing::warn!("protocol {:?} not exists", c.protocol);
-                        continue;
-                    }
-                };
-                let protocol_url = format!("{}/{}", protocol.to_url(), c.name.clone(),);
-                Url::from_url(&protocol_url)
+                return Err(format!("protocol {:?} not exists", service_config.protocol).into());
             };
-            tracing::info!("url: {:?}", u);
-            if u.is_none() {
+            info!("url: {:?}", url);
+            if url.is_none() {
                 continue;
             }
-
-            let u = u.unwrap();
-
-            let reg_url = self.registries.get(&c.registry).unwrap();
-            if self.service_registry.get(&c.name).is_some() {
-                self.service_registry
-                    .get_mut(&c.name)
+            let u = url.unwrap();
+            if self.protocols.get(&service_config.protocol).is_some() {
+                self.protocols
+                    .get_mut(&service_config.protocol)
                     .unwrap()
-                    .push(reg_url.clone());
+                    .push(u);
             } else {
-                self.service_registry
-                    .insert(c.name.clone(), vec![reg_url.clone()]);
-            }
-
-            if self.protocols.get(&c.protocol).is_some() {
-                self.protocols.get_mut(&c.protocol).unwrap().push(u);
-            } else {
-                self.protocols.insert(c.protocol.clone(), vec![u]);
+                self.protocols
+                    .insert(service_config.protocol.clone(), vec![u]);
             }
         }
+        Ok(())
     }
 
     pub async fn start(&mut self) {
-        self.init();
-
+        self.init().unwrap();
+        info!("starting...");
         // TODO: server registry
-
-        let mem_reg =
-            Box::new(RegistryProtocol::new().with_services(self.service_registry.clone()));
+        let mem_reg = Box::new(
+            RegistryProtocol::new()
+                .with_registries(self.registries.as_ref().unwrap().clone())
+                .with_services(self.service_registry.clone()),
+        );
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
         for (name, items) in self.protocols.iter() {
             for url in items.iter() {
-                tracing::info!("protocol: {:?}, service url: {:?}", name, url);
+                info!("protocol: {:?}, service url: {:?}", name, url);
                 let exporter = mem_reg.clone().export(url.to_owned());
-                async_vec.push(exporter)
+                async_vec.push(exporter);
+                //TODO multiple registry
+                if self.registries.is_some() {
+                    self.registries
+                        .as_ref()
+                        .unwrap()
+                        .default_registry()
+                        .register(url.clone())
+                        .unwrap();
+                }
             }
         }
 

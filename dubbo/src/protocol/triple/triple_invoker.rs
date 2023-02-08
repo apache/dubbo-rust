@@ -24,7 +24,7 @@ use crate::protocol::Invoker;
 use crate::triple::client::connection::Connection;
 
 #[allow(dead_code)]
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct TripleInvoker {
     url: Url,
     conn: Connection,
@@ -32,7 +32,7 @@ pub struct TripleInvoker {
 
 impl TripleInvoker {
     pub fn new(url: Url) -> TripleInvoker {
-        let uri = http::Uri::from_str(&url.to_url()).unwrap();
+        let uri = http::Uri::from_str(&url.short_url()).unwrap();
         Self {
             url,
             conn: Connection::new().with_host(uri),

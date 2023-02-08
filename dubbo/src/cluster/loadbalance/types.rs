@@ -15,18 +15,29 @@
  * limitations under the License.
  */
 
-pub const REGISTRY_PROTOCOL: &str = "registry_protocol";
-pub const PROTOCOL: &str = "protocol";
-pub const REGISTRY: &str = "registry";
+use std::fmt::Debug;
+use std::sync::Arc;
 
-// URL key
-pub const DUBBO_KEY: &str = "dubbo";
-pub const PROVIDERS_KEY: &str = "providers";
-pub const LOCALHOST_IP: &str = "127.0.0.1";
-pub const METADATA_MAPPING_KEY: &str = "mapping";
-pub const VERSION_KEY: &str = "version";
-pub const GROUP_KEY: &str = "group";
-pub const INTERFACE_KEY: &str = "interface";
-pub const ANYHOST_KEY: &str = "anyhost";
-pub const SIDE_KEY: &str = "side";
-pub const TIMESTAMP_KEY: &str = "timestamp";
+use crate::codegen::RpcInvocation;
+use crate::common::url::Url;
+
+pub type BoxLoadBalance = Box<dyn LoadBalance + Send + Sync>;
+
+pub trait LoadBalance: Debug {
+    fn select(
+        &self,
+        invokers: Arc<Vec<Url>>,
+        url: Option<Url>,
+        invocation: Arc<RpcInvocation>,
+    ) -> Option<Url>;
+}
+
+pub struct Metadata {
+    pub name: &'static str,
+}
+
+impl Metadata {
+    pub fn new(name: &'static str) -> Self {
+        Metadata { name }
+    }
+}

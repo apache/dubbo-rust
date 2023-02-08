@@ -100,8 +100,8 @@ pub fn generate<T: Service>(
                     }
                 }
 
-                pub fn with_directory(mut self, directory: Box<dyn Directory>) -> Self {
-                    self.inner = self.inner.with_directory(directory);
+                pub fn with_cluster(mut self, invoker: ClusterInvoker) -> Self {
+                    self.inner = self.inner.with_cluster(invoker);
                     self
                 }
 
@@ -122,7 +122,7 @@ fn generate_methods<T: Service>(
     let package = if emit_package { service.package() } else { "" };
 
     for method in service.methods() {
-        let service_unique_name= format!(
+        let service_unique_name = format!(
             "{}{}{}",
             package,
             if package.is_empty() { "" } else { "." },
@@ -139,7 +139,13 @@ fn generate_methods<T: Service>(
         stream.extend(generate_doc_comments(method.comment()));
 
         let method = match (method.client_streaming(), method.server_streaming()) {
-            (false, false) => generate_unary(service_unique_name, &method, proto_path, compile_well_known_types, path),
+            (false, false) => generate_unary(
+                service_unique_name,
+                &method,
+                proto_path,
+                compile_well_known_types,
+                path,
+            ),
             (false, true) => {
                 generate_server_streaming(&method, proto_path, compile_well_known_types, path)
             }
@@ -174,7 +180,7 @@ fn generate_unary<T: Method>(
         ) -> Result<Response<#response>, dubbo::status::Status> {
            let codec = #codec_name::<#request, #response>::default();
            let invocation = RpcInvocation::default()
-            .with_servie_unique_name(String::from(#service_unique_name))
+            .with_service_unique_name(String::from(#service_unique_name))
             .with_method_name(String::from(#method_name));
            let path = http::uri::PathAndQuery::from_static(#path);
            self.inner
@@ -182,7 +188,7 @@ fn generate_unary<T: Method>(
                 request,
                 codec,
                 path,
-                invocation,
+                Arc::new(invocation),
             )
             .await
         }

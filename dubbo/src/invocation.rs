@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-use futures_core::Stream;
+use std::fmt::Debug;
 use std::{collections::HashMap, str::FromStr};
+
+use futures_core::Stream;
 
 pub struct Request<T> {
     pub message: T,
@@ -82,6 +84,13 @@ pub struct Response<T> {
     message: T,
     metadata: Metadata,
 }
+
+pub trait RpcResult {}
+
+/// symbol for cluster invoke
+impl<T> RpcResult for Response<T> {}
+
+pub type BoxRpcResult = Box<dyn RpcResult>;
 
 impl<T> Response<T> {
     pub fn new(message: T) -> Response<T> {
@@ -195,14 +204,16 @@ pub trait Invocation {
     fn get_method_name(&self) -> String;
 }
 
-#[derive(Default)]
+pub type BoxInvocation = Box<dyn Invocation>;
+
+#[derive(Default, Debug)]
 pub struct RpcInvocation {
     target_service_unique_name: String,
     method_name: String,
 }
 
-impl RpcInvocation{
-    pub fn with_servie_unique_name(mut self, service_unique_name: String) -> Self {
+impl RpcInvocation {
+    pub fn with_service_unique_name(mut self, service_unique_name: String) -> Self {
         self.target_service_unique_name = service_unique_name;
         self
     }
@@ -210,8 +221,10 @@ impl RpcInvocation{
         self.method_name = method_name;
         self
     }
+    pub fn unique_fingerprint(&self) -> String {
+        format!("{}#{}", self.target_service_unique_name, self.method_name)
+    }
 }
-
 
 impl Invocation for RpcInvocation {
     fn get_target_service_unique_name(&self) -> String {

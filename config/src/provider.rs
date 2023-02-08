@@ -23,10 +23,11 @@ use super::service::ServiceConfig;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ProviderConfig {
+    #[serde(default)]
     pub registry_ids: Vec<String>,
-
+    #[serde(default)]
     pub protocol_ids: Vec<String>,
-
+    #[serde(default)]
     pub services: HashMap<String, ServiceConfig>,
 }
 

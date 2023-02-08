@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-pub mod codegen;
 pub mod cluster;
+pub mod codegen;
 pub mod common;
 pub mod filter;
 mod framework;

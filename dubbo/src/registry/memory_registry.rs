@@ -16,9 +16,11 @@
  */
 
 #![allow(unused_variables, dead_code, missing_docs)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
+use tracing::debug;
 
 use crate::common::url::Url;
 
@@ -46,9 +48,9 @@ impl MemoryRegistry {
 impl Registry for MemoryRegistry {
     type NotifyListener = MemoryNotifyListener;
 
-    fn register(&mut self, mut url: crate::common::url::Url) -> Result<(), crate::StdError> {
+    fn register(&mut self, mut url: Url) -> Result<(), crate::StdError> {
         // define provider label: ${registry.group}/${service_name}/provider
-        let registry_group = match url.get_param(REGISTRY_GROUP_KEY.to_string()) {
+        let registry_group = match url.get_param(REGISTRY_GROUP_KEY) {
             Some(key) => key,
             None => "dubbo".to_string(),
         };
@@ -56,20 +58,20 @@ impl Registry for MemoryRegistry {
         let dubbo_path = format!(
             "/{}/{}/{}",
             registry_group,
-            url.get_service_name().join(","),
+            url.get_service_name(),
             "provider",
         );
 
         url.params.insert("anyhost".to_string(), "true".to_string());
         // define triple url path
-        let raw_url = format!("{}?{}", url.to_url(), url.encode_param(),);
+        let raw_url = url.raw_url_string();
 
         self.registries.write().unwrap().insert(dubbo_path, raw_url);
         Ok(())
     }
 
     fn unregister(&mut self, url: crate::common::url::Url) -> Result<(), crate::StdError> {
-        let registry_group = match url.get_param(REGISTRY_GROUP_KEY.to_string()) {
+        let registry_group = match url.get_param(REGISTRY_GROUP_KEY) {
             Some(key) => key,
             None => "dubbo".to_string(),
         };
@@ -77,7 +79,7 @@ impl Registry for MemoryRegistry {
         let dubbo_path = format!(
             "/{}/{}/{}",
             registry_group,
-            url.get_service_name().join(","),
+            url.get_service_name(),
             "provider",
         );
         self.registries.write().unwrap().remove(&dubbo_path);
@@ -108,10 +110,11 @@ pub struct MemoryNotifyListener {
 
 impl NotifyListener for MemoryNotifyListener {
     fn notify(&self, event: super::ServiceEvent) {
-        let mut map=self.service_instances.write().expect("msg");
+        debug!("notify {:?}", event);
+        let mut map = self.service_instances.write().expect("msg");
         match event.action.as_str() {
-            "ADD"=> map.insert(event.key, event.service),
-            &_ => todo!()
+            "ADD" => map.insert(event.key, event.service),
+            &_ => todo!(),
         };
     }
 
