@@ -33,7 +33,7 @@ use tracing::info;
 
 use zookeeper::{WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
-// 从url中获取服务注册的元数据
+// extract service registry metadata from url
 /// rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)
 /// dubboPath = fmt.Sprintf("/%s/%s/%s", r.URL.GetParam(constant.RegistryGroupKey, "dubbo"), r.service(c), common.DubboNodes[common.PROVIDER])
 
