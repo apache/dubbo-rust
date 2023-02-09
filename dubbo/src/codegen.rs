@@ -24,9 +24,15 @@ pub use http_body::Body;
 pub use hyper::Body as hyperBody;
 pub use tower_service::Service;
 
+pub use super::cluster::directory::Directory;
+pub use super::cluster::directory::RegistryDirectory;
+pub use super::invocation::RpcInvocation;
 pub use super::invocation::{IntoStreamingRequest, Request, Response};
 pub use super::protocol::triple::triple_invoker::TripleInvoker;
 pub use super::protocol::Invoker;
+pub use super::registry::BoxRegistry;
+pub use super::registry::Registry;
+pub use super::registry::RegistryWrapper;
 pub use super::triple::client::TripleClient;
 pub use super::triple::codec::prost::ProstCodec;
 pub use super::triple::codec::Codec;

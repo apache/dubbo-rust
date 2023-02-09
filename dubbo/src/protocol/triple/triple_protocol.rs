@@ -68,8 +68,9 @@ impl Protocol for TripleProtocol {
         Box::new(TripleExporter::new())
     }
 
-    async fn refer(self, url: Url) -> Self::Invoker {
-        TripleInvoker::new(url)
+    async fn refer(self, _url: Url) -> Self::Invoker {
+        todo!()
+        // TripleInvoker::new(url)
         // Self::Invoker
     }
 }
