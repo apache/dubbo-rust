@@ -35,10 +35,10 @@ github:
   collaborators:  # Note: the number of collaborators is limited to 20
     - robberphex
   enabled_merge_buttons:
-    # enable squash button:
-    squash: true
     # enable merge button:
-    merge: false
+    merge: true
+    # enable squash button:
+    squash: false
     # disable rebase button:
     rebase: false
   protected_branches:
