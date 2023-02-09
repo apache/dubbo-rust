@@ -544,7 +544,7 @@ pub mod tests {
     use super::*;
 
     #[test]
-    // #[ignore]
+    #[ignore]
     pub fn test_register_to_nacos() {
         tracing_subscriber::fmt()
             .with_thread_names(true)
