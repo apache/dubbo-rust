@@ -29,7 +29,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use dubbo::codegen::*;
 // use dubbo::Dubbo;
 // use dubbo_config::RootConfig;
-use example_echo::protos::hello_echo::{
+use example_echo::generated::generated::{
     echo_server::{register_server, Echo, EchoServer},
     EchoRequest, EchoResponse,
 };

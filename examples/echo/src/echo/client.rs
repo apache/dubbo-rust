@@ -16,8 +16,8 @@
  */
 
 use dubbo::codegen::*;
-use example_echo::protos::hello_echo::echo_client::EchoClient;
-use example_echo::protos::hello_echo::EchoRequest;
+use example_echo::generated::generated::echo_client::EchoClient;
+use example_echo::generated::generated::EchoRequest;
 use futures_util::StreamExt;
 
 pub struct FakeFilter {}
