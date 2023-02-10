@@ -1,0 +1,13 @@
+[package]
+name = "dubbo-core"
+version = "0.2.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Provide abstractions of dubbo and core low-level OS access packaging."
+documentation = "https://github.com/apache/dubbo-rust"
+repository = "https://github.com/apache/dubbo-rust.git"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[dependencies]
