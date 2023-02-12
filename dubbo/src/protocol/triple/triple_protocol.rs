@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-use std::boxed::Box;
-use std::collections::HashMap;
+use std::{boxed::Box, collections::HashMap};
 
 use async_trait::async_trait;
 
-use super::triple_exporter::TripleExporter;
-use super::triple_invoker::TripleInvoker;
-use super::triple_server::TripleServer;
-use crate::common::url::Url;
-use crate::protocol::{BoxExporter, Protocol};
+use super::{
+    triple_exporter::TripleExporter, triple_invoker::TripleInvoker, triple_server::TripleServer,
+};
+use crate::{
+    common::url::Url,
+    protocol::{BoxExporter, Protocol},
+};
 
 #[derive(Clone)]
 pub struct TripleProtocol {

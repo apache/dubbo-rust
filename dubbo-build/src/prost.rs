@@ -20,9 +20,7 @@ use prost_build::{Config, Method, ServiceGenerator};
 use quote::ToTokens;
 use std::path::{Path, PathBuf};
 
-use crate::client;
-use crate::server;
-use crate::Attributes;
+use crate::{client, server, Attributes};
 
 /// Simple `.proto` compiling. Use [`configure`] instead if you need more options.
 ///

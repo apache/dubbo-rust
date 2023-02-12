@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-use crate::cluster::directory::StaticDirectory;
-use crate::codegen::Directory;
-use crate::triple::compression::CompressionEncoding;
-use crate::utils::boxed::BoxService;
+use crate::{
+    cluster::directory::StaticDirectory, codegen::Directory,
+    triple::compression::CompressionEncoding, utils::boxed::BoxService,
+};
 
 use super::TripleClient;
 

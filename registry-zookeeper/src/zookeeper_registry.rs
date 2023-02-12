@@ -17,18 +17,17 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 
-use dubbo::common::url::Url;
-use dubbo::registry::memory_registry::MemoryNotifyListener;
-use dubbo::registry::NotifyListener;
-use dubbo::registry::Registry;
-use dubbo::registry::ServiceEvent;
-use dubbo::StdError;
+use dubbo::{
+    common::url::Url,
+    registry::{memory_registry::MemoryNotifyListener, NotifyListener, Registry, ServiceEvent},
+    StdError,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::sync::Arc;
-use std::sync::RwLock;
-use std::time::Duration;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 use tracing::info;
 
 use zookeeper::{WatchedEvent, WatchedEventType, Watcher, ZooKeeper};

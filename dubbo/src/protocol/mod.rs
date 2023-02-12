@@ -18,8 +18,10 @@
 pub mod server_desc;
 pub mod triple;
 
-use std::future::Future;
-use std::task::{Context, Poll};
+use std::{
+    future::Future,
+    task::{Context, Poll},
+};
 
 use async_trait::async_trait;
 use tower_service::Service;

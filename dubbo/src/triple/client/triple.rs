@@ -23,15 +23,13 @@ use http::HeaderValue;
 use rand::prelude::SliceRandom;
 use tower_service::Service;
 
-use super::super::transport::connection::Connection;
-use super::builder::ClientBuilder;
+use super::{super::transport::connection::Connection, builder::ClientBuilder};
 use crate::codegen::{Directory, RpcInvocation};
 
-use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
-use crate::triple::codec::Codec;
-use crate::triple::compression::CompressionEncoding;
-use crate::triple::decode::Decoding;
-use crate::triple::encode::encode;
+use crate::{
+    invocation::{IntoStreamingRequest, Metadata, Request, Response},
+    triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
