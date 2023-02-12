@@ -16,8 +16,10 @@
  */
 
 pub mod http_connector;
+#[cfg(any(target_os = "macos", target_os = "unix"))]
+pub mod unix_connector;
 
-use hyper::{client::connect::Connection, Uri};
+use hyper::Uri;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tower::make::MakeConnection;
 use tower_service::Service;
@@ -35,7 +37,7 @@ impl<C> Connector<C> {
     where
         C: Service<Uri>,
         C::Error: Into<crate::Error>,
-        C::Response: AsyncRead + AsyncWrite + Connection + Send + 'static,
+        C::Response: AsyncRead + AsyncWrite + Send + 'static,
     {
         Self { inner }
     }
@@ -71,10 +73,15 @@ where
     }
 }
 
-pub fn get_connector(connector: String) -> BoxCloneService<Uri, BoxIO, crate::Error> {
-    match connector.as_str() {
+pub fn get_connector(connector: &'static str) -> BoxCloneService<Uri, BoxIO, crate::Error> {
+    match connector {
         "http" => {
             let c = http_connector::HttpConnector::new();
+            BoxCloneService::new(Connector::new(c))
+        }
+        #[cfg(any(target_os = "macos", target_os = "unix"))]
+        "unix" => {
+            let c = unix_connector::UnixConnector::new();
             BoxCloneService::new(Connector::new(c))
         }
         _ => {

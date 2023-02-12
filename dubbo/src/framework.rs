@@ -41,7 +41,7 @@ pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
     registries: Option<Registries>,
     service_registry: HashMap<String, Vec<Url>>, // registry: Urls
-    config: Option<RootConfig>,
+    config: Option<&'static RootConfig>,
 }
 
 impl Dubbo {
@@ -55,8 +55,8 @@ impl Dubbo {
         }
     }
 
-    pub fn with_config(mut self, c: RootConfig) -> Self {
-        self.config = Some(c);
+    pub fn with_config(mut self, config: RootConfig) -> Self {
+        self.config = Some(config.leak());
         self
     }
 
@@ -141,5 +141,15 @@ impl Dubbo {
         }
 
         let _res = future::join_all(async_vec).await;
+    }
+}
+
+impl Drop for Dubbo {
+    fn drop(&mut self) {
+        unsafe {
+            if let Some(config) = self.config.take() {
+                let _ = Box::from_raw(config as *const RootConfig as *mut RootConfig);
+            }
+        }
     }
 }

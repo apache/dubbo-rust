@@ -42,7 +42,7 @@ impl Url {
     }
 
     pub fn from_url(url: &str) -> Option<Self> {
-        // url: tri://127.0.0.1:8888/helloworld.Greeter
+        // url: triple://127.0.0.1:8888/helloworld.Greeter
         let uri = url
             .parse::<http::Uri>()
             .map_err(|err| {

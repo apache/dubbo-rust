@@ -19,14 +19,16 @@ use std::io::ErrorKind;
 use std::pin::Pin;
 
 use async_trait::async_trait;
+use dubbo::filter::context::ContextFilter;
+use dubbo::filter::timeout::TimeoutFilter;
 use futures_util::Stream;
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use dubbo::codegen::*;
-use dubbo::Dubbo;
-use dubbo_config::RootConfig;
+// use dubbo::Dubbo;
+// use dubbo_config::RootConfig;
 use example_echo::protos::hello_echo::{
     echo_server::{register_server, Echo, EchoServer},
     EchoRequest, EchoResponse,
@@ -52,23 +54,36 @@ async fn main() {
     });
     let server = EchoServerImpl::default();
     let s = EchoServer::<EchoServerImpl>::with_filter(server, FakeFilter {});
+    let timeout_filter = FilterService::new(s, TimeoutFilter {});
+    let context_filter = FilterService::new(timeout_filter, ContextFilter {});
+
     dubbo::protocol::triple::TRIPLE_SERVICES
         .write()
         .unwrap()
         .insert(
             "grpc.examples.echo.Echo".to_string(),
-            dubbo::utils::boxed_clone::BoxCloneService::new(s),
+            dubbo::utils::boxed_clone::BoxCloneService::new(context_filter),
         );
 
+    // 1. 通过读取配置文件来初始化
     // Dubbo::new().start().await;
-    Dubbo::new()
-        .with_config({
-            let mut r = RootConfig::new();
-            r.test_config();
-            r
-        })
-        .start()
-        .await;
+
+    // 2. 通过自定义配置来初始化
+    // Dubbo::new()
+    //     .with_config({
+    //         let mut r = RootConfig::new();
+    //         r.test_config();
+    //         r
+    //     })
+    //     .start()
+    //     .await;
+
+    // 3. 通过serverbuilder来初始化Server
+    let builder = ServerBuilder::new()
+        .with_listener("unix".to_string())
+        .with_service_names(vec!["grpc.examples.echo.Echo".to_string()])
+        .with_addr("127.0.0.1:8888");
+    builder.build().serve().await.unwrap();
 }
 
 #[allow(dead_code)]

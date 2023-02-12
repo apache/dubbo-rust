@@ -49,6 +49,8 @@ pub trait Invoker<ReqBody>: Debug {
 
     fn get_url(&self) -> Url;
 
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>>;
+
     fn call(&mut self, req: ReqBody) -> Self::Future;
 }
 

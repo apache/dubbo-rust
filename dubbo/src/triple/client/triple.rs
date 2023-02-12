@@ -16,12 +16,12 @@
  */
 
 use std::str::FromStr;
-use std::sync::Arc;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 use tower_service::Service;
 
+use super::builder::{ClientBoxService, ClientBuilder};
 use crate::cluster::support::cluster_invoker::{ClusterInvoker, ClusterRequestBuilder};
 use crate::codegen::RpcInvocation;
 use crate::filter::service::FilterService;
@@ -36,16 +36,16 @@ use super::connection::Connection;
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient<T> {
-    host: Option<http::Uri>,
+    builder: Option<ClientBuilder>,
     inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
     cluster_invoker: Option<ClusterInvoker>,
 }
 
-impl TripleClient<Connection> {
+impl TripleClient<ClientBoxService> {
     pub fn connect(host: String) -> Self {
         let uri = match http::Uri::from_str(&host) {
-            Ok(v) => Some(v),
+            Ok(v) => v,
             Err(err) => {
                 tracing::error!("http uri parse error: {}, host: {}", err, host);
                 panic!("http uri parse error: {}, host: {}", err, host)
@@ -62,12 +62,11 @@ impl TripleClient<Connection> {
 }
 
 impl<T> TripleClient<T> {
-    pub fn new(inner: T, host: Option<http::Uri>) -> Self {
+    pub fn new(inner: T, builder: ClientBuilder) -> Self {
         TripleClient {
-            host,
+            builder: Some(builder),
             inner,
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            cluster_invoker: None,
         }
     }
 
@@ -75,7 +74,10 @@ impl<T> TripleClient<T> {
     where
         F: Filter,
     {
-        TripleClient::new(FilterService::new(self.inner, filter), self.host)
+        TripleClient::new(
+            FilterService::new(self.inner, filter),
+            self.builder.unwrap(),
+        )
     }
 
     pub fn with_cluster(self, invoker: ClusterInvoker) -> Self {
@@ -168,8 +170,8 @@ where
         path: http::uri::PathAndQuery,
         body: hyper::Body,
     ) -> http::Request<hyper::Body> {
-        let mut parts = match self.host.as_ref() {
-            Some(v) => v.to_owned().into_parts(),
+        let mut parts = match self.builder.as_ref() {
+            Some(v) => v.to_owned().uri.into_parts(),
             None => {
                 tracing::error!("client host is empty");
                 return http::Request::new(hyper::Body::empty());
@@ -200,7 +202,7 @@ where
         );
         req.headers_mut().insert(
             "content-type",
-            HeaderValue::from_static("application/grpc+proto"),
+            HeaderValue::from_static("application/grpc+json"),
         );
         req.headers_mut()
             .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
@@ -241,11 +243,10 @@ where
     }
 
     pub async fn unary<C, M1, M2>(
-        &self,
+        &mut self,
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
-        invocation: Arc<RpcInvocation>,
     ) -> Result<Response<M2>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,

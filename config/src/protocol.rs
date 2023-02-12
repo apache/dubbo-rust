@@ -26,6 +26,7 @@ pub struct Protocol {
     pub ip: String,
     pub port: String,
     pub name: String,
+    pub listener: String,
 
     #[serde(skip_serializing, skip_deserializing)]
     pub params: HashMap<String, String>,
@@ -51,12 +52,31 @@ impl Protocol {
         Self { port, ..self }
     }
 
+    pub fn listener(self, listener: String) -> Self {
+        Self { listener, ..self }
+    }
+
     pub fn params(self, params: HashMap<String, String>) -> Self {
         Self { params, ..self }
     }
 
-    pub fn to_url(self) -> String {
-        format!("{}://{}:{}", self.name, self.ip, self.port)
+    pub fn add_param(mut self, key: String, value: String) -> Self {
+        self.params.insert(key, value);
+        self
+    }
+
+    pub fn to_url(&self) -> String {
+        let mut params_vec: Vec<String> = Vec::new();
+        for (k, v) in self.params.iter() {
+            // let tmp = format!("{}={}", k, v);
+            params_vec.push(format!("{}={}", k, v));
+        }
+        let param = params_vec.join("&");
+
+        format!(
+            "{}://{}:{}?listener={}&{}",
+            self.name, self.ip, self.port, self.listener, param
+        )
     }
 }
 

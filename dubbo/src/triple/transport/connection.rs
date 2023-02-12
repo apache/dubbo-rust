@@ -28,7 +28,7 @@ use crate::triple::transport::connector::get_connector;
 #[derive(Debug, Clone)]
 pub struct Connection {
     host: hyper::Uri,
-    connector: String,
+    connector: &'static str,
     builder: Builder,
 }
 
@@ -42,12 +42,12 @@ impl Connection {
     pub fn new() -> Self {
         Connection {
             host: hyper::Uri::default(),
-            connector: "http".to_string(),
+            connector: "http",
             builder: Builder::new(),
         }
     }
 
-    pub fn with_connector<C>(mut self, connector: String) -> Self {
+    pub fn with_connector(mut self, connector: &'static str) -> Self {
         self.connector = connector;
         self
     }
@@ -84,11 +84,12 @@ where
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
         let builder = self.builder.clone().http2_only(true).to_owned();
-        let mut connector = Connect::new(get_connector(self.connector.clone()), builder);
+        let mut connector = Connect::new(get_connector(self.connector), builder);
         let uri = self.host.clone();
         let fut = async move {
             debug!("send rpc call to {}", uri);
             let mut con = connector.call(uri).await.unwrap();
+
             con.call(req)
                 .await
                 .map_err(|err| err.into())

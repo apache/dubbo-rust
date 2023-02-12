@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+pub mod connection;
 pub mod connector;
 mod io;
 pub mod listener;

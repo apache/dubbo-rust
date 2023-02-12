@@ -17,7 +17,7 @@ Dubbo-rust 目前还在开发阶段. 截至目前, 已经实现了基于HTTP2的
 
 - [`Prost`](https://github.com/tokio-rs/prost/)  [Protocol Buffers](https://developers.google.com/protocol-buffers/) Rust实现。
 
-- [`Hyper`](https://github.com/hyperium/hyperhttps://github.com/hyperium/hyper) 构建HTTP协议的Rust库。
+- [`Hyper`](https://github.com/hyperium/hyper) 构建HTTP协议的Rust库。
 
 - [`Serde`](https://github.com/serde-rs/serde) 序列化/反序列化Rust库
 
@@ -32,7 +32,7 @@ Dubbo-rust 目前还在开发阶段. 截至目前, 已经实现了基于HTTP2的
 ## 开始使用
 
 - Dubbo-rust 快速开始:  [中文](https://dubbo.apache.org/zh/docs3-v2/rust-sdk/quick-start/), English
-- Dubbo-rust 教程:  [Examples](https://github.com/apache/dubbo-rust/tree/main/examples)
+- Dubbo-rust 教程:  [Examples](examples/READMED.md)
 
 ## 项目结构
 
@@ -64,7 +64,10 @@ more ...
 
 ## 联系方式
 
-- [钉钉](https://www.dingtalk.com/zh-cn):  44694199
+- 订阅官方微信公众号
+![officialAccount](https://user-images.githubusercontent.com/18097545/201456442-68a7bf1e-3c84-4f32-bd45-0fedb4d1012d.png)
+
+- 搜索并加入钉钉群组: 44694199
 
 ## 贡献
 

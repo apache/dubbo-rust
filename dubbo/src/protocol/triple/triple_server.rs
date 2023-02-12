@@ -15,65 +15,22 @@
  * limitations under the License.
  */
 
-use std::{net::ToSocketAddrs, str::FromStr};
-
-use crate::triple::transport::DubboServer;
+use crate::{common::url::Url, triple::server::builder::ServerBuilder};
 
 #[derive(Default, Clone)]
 pub struct TripleServer {
-    s: DubboServer,
-    service_names: Vec<String>,
+    builder: ServerBuilder,
 }
 
 impl TripleServer {
-    pub fn new(names: String) -> TripleServer {
+    pub fn new(names: Vec<String>) -> TripleServer {
         Self {
-            service_names: vec![names],
-            s: DubboServer::new(),
+            builder: ServerBuilder::new(),
         }
     }
 
-    pub async fn serve(mut self, url: String) {
-        {
-            let lock = super::TRIPLE_SERVICES.read().unwrap();
-            for name in self.service_names.iter() {
-                if lock.get(name).is_none() {
-                    tracing::warn!("service ({}) not register", name);
-                    continue;
-                }
-                let svc = lock.get(name).unwrap();
-
-                self.s = self.s.add_service(name.clone(), svc.clone());
-            }
-        }
-
-        let uri = match http::Uri::from_str(&url) {
-            Ok(v) => v,
-            Err(err) => {
-                tracing::error!("http uri parse error: {}, url: {:?}", err, &url);
-                return;
-            }
-        };
-
-        let authority = match uri.authority() {
-            Some(v) => v.to_owned(),
-            None => {
-                tracing::error!("http authority is none");
-                return;
-            }
-        };
-
-        self.s
-            .with_listener("tcp".to_string())
-            .serve(
-                authority
-                    .to_string()
-                    .to_socket_addrs()
-                    .unwrap()
-                    .next()
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+    pub async fn serve(mut self, url: Url) {
+        self.builder = ServerBuilder::from(url);
+        self.builder.build().serve().await.unwrap()
     }
 }

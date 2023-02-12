@@ -14,7 +14,7 @@ hyper = { version = "0.14.19", features = ["full"]}
 http = "0.2"
 tower-service = "0.3.1"
 http-body = "0.4.4"
-tower = "0.4.12"
+tower = { version = "0.4.12", features = ["timeout"]}
 futures-util = "0.3.23"
 futures-core ="0.3.23"
 tokio = { version = "1.0", features = [ "rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
@@ -37,3 +37,6 @@ itertools = "0.10.1"
 urlencoding = "2.1.2"
 
 dubbo-config = {path = "../config", version = "0.2.0"}
+
+#对象存储
+state = { version = "0.5", features = ["tls"] }

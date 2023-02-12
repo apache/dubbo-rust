@@ -19,7 +19,7 @@ The following libraries are mainly dependent on:
 
 - [`Prost`](https://github.com/tokio-rs/prost/) is a [Protocol Buffers](https://developers.google.com/protocol-buffers/) implementation for Rust.
 
-- [`Hyper`](https://github.com/hyperium/hyperhttps://github.com/hyperium/hyper) is a fast and correct HTTP implementation for Rust.
+- [`Hyper`](https://github.com/hyperium/hyper) is a fast and correct HTTP implementation for Rust.
 
 - [`Serde`](https://github.com/serde-rs/serde) is a framework for *ser*ializing and *de*serializing Rust data structures efficiently and generically.
 
@@ -64,9 +64,12 @@ The following libraries are mainly dependent on:
 more ...
 ```
 
-## Contact
+## Contact Us
 
-- [DingTalk Group](https://www.dingtalk.com/en):  44694199
+- Subscribe to the official Wechat Account
+![officialAccount](https://user-images.githubusercontent.com/18097545/201456442-68a7bf1e-3c84-4f32-bd45-0fedb4d1012d.png)
+
+- Search and join the DingTalk group: 44694199
 
 ## Contribute
 

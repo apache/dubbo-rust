@@ -36,10 +36,15 @@ pub mod echo_client {
     pub struct EchoClient<T> {
         inner: TripleClient<T>,
     }
-    impl EchoClient<Connection> {
+    impl EchoClient<ClientBoxService> {
         pub fn connect(host: String) -> Self {
             let cli = TripleClient::connect(host);
             EchoClient { inner: cli }
+        }
+        pub fn build(builder: ClientBuilder) -> Self {
+            Self {
+                inner: TripleClient::with_builder(builder),
+            }
         }
     }
     impl<T> EchoClient<T>
@@ -47,9 +52,9 @@ pub mod echo_client {
         T: Service<http::Request<hyperBody>, Response = http::Response<BoxBody>>,
         T::Error: Into<StdError>,
     {
-        pub fn new(inner: T) -> Self {
+        pub fn new(inner: T, builder: ClientBuilder) -> Self {
             Self {
-                inner: TripleClient::new(inner, None),
+                inner: TripleClient::new(inner, builder),
             }
         }
         pub fn with_filter<F>(self, filter: F) -> EchoClient<FilterService<T, F>>
@@ -67,9 +72,7 @@ pub mod echo_client {
             let codec =
                 dubbo::codegen::ProstCodec::<super::EchoRequest, super::EchoResponse>::default();
             let path = http::uri::PathAndQuery::from_static("/grpc.examples.echo.Echo/UnaryEcho");
-            self.inner
-                .unary(request, codec, path, Arc::new(RpcInvocation::default()))
-                .await
+            self.inner.unary(request, codec, path).await
         }
         /// ServerStreamingEcho is server side streaming.
         pub async fn server_streaming_echo(
