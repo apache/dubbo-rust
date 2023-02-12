@@ -22,8 +22,6 @@ use http::HeaderValue;
 use tower_service::Service;
 
 use super::builder::{ClientBoxService, ClientBuilder};
-use crate::cluster::support::cluster_invoker::{ClusterInvoker, ClusterRequestBuilder};
-use crate::codegen::RpcInvocation;
 use crate::filter::service::FilterService;
 use crate::filter::Filter;
 use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
@@ -32,14 +30,11 @@ use crate::triple::compression::CompressionEncoding;
 use crate::triple::decode::Decoding;
 use crate::triple::encode::encode;
 
-use super::connection::Connection;
-
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient<T> {
     builder: Option<ClientBuilder>,
     inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
-    cluster_invoker: Option<ClusterInvoker>,
 }
 
 impl TripleClient<ClientBoxService> {
@@ -52,11 +47,20 @@ impl TripleClient<ClientBoxService> {
             }
         };
 
+        let builder = ClientBuilder::from(uri);
+
         TripleClient {
-            host: uri.clone(),
-            inner: Connection::new().with_host(uri.unwrap()),
+            builder: Some(builder.clone()),
+            inner: builder.connect(),
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            cluster_invoker: None,
+        }
+    }
+
+    pub fn with_builder(builder: ClientBuilder) -> Self {
+        TripleClient {
+            builder: Some(builder.clone()),
+            inner: builder.connect(),
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
     }
 }
@@ -78,13 +82,6 @@ impl<T> TripleClient<T> {
             FilterService::new(self.inner, filter),
             self.builder.unwrap(),
         )
-    }
-
-    pub fn with_cluster(self, invoker: ClusterInvoker) -> Self {
-        TripleClient {
-            cluster_invoker: Some(invoker),
-            ..self
-        }
     }
 }
 
@@ -262,20 +259,10 @@ where
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
 
-        // let url_list = self.directory.as_ref().expect("msg").list(invocation);
-        // let url_list = self.cluster_invoker.as_ref().unwrap().directory().list(invocation.clone());
-        // let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
-        // let http_uri =
-        //     http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
-        //
-        // let req = self.new_map_request(http_uri.clone(), path, body);
-        let req =
-            self.cluster_invoker
-                .as_ref()
-                .unwrap()
-                .build_req(self, path, invocation.clone(), body);
-        let mut conn = Connection::new().with_host(req.uri().clone());
-        let response = conn
+        let req = self.map_request(path, body);
+
+        let response = self
+            .inner
             .call(req)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));

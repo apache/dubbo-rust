@@ -92,14 +92,14 @@ impl ServerBuilder {
     }
 
     pub async fn serve(self) -> Result<(), crate::Error> {
-        tracing::info!("server starting. addr: {:?}", self.addr);
+        tracing::info!("server starting. addr: {:?}", self.addr.unwrap());
         self.server.serve(self.addr.unwrap()).await
     }
 }
 
 impl From<Url> for ServerBuilder {
     fn from(u: Url) -> Self {
-        let uri = match http::Uri::from_str(&u.to_url()) {
+        let uri = match http::Uri::from_str(&u.raw_url_string()) {
             Ok(v) => v,
             Err(err) => {
                 tracing::error!("http uri parse error: {}, url: {:?}", err, &u);
@@ -110,9 +110,9 @@ impl From<Url> for ServerBuilder {
         let authority = uri.authority().unwrap();
 
         Self {
-            listener: u.get_param("listener".to_string()).unwrap(),
+            listener: u.get_param("listener").unwrap(),
             addr: authority.to_string().to_socket_addrs().unwrap().next(),
-            service_names: u.service_key,
+            service_names: vec![u.service_name],
             server: DubboServer::default(),
         }
     }

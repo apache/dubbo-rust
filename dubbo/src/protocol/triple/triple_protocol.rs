@@ -61,9 +61,9 @@ impl Protocol for TripleProtocol {
 
     async fn export(mut self, url: Url) -> BoxExporter {
         // service_key is same to key of TRIPLE_SERVICES
-        let server = TripleServer::new(url.service_name.clone());
+        let server = TripleServer::new();
         self.servers.insert(url.service_key.clone(), server.clone());
-        server.serve(url.short_url().clone()).await;
+        server.serve(url.short_url().as_str().into()).await;
 
         Box::new(TripleExporter::new())
     }

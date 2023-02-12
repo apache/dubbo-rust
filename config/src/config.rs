@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use std::{collections::HashMap, env, fs, sync::RwLock};
+use std::{collections::HashMap, env, fs};
 
 use crate::protocol::Protocol;
 use once_cell::sync::OnceCell;
@@ -129,6 +129,11 @@ impl RootConfig {
             "dubbo://127.0.0.1:8888/?serviceName=hellworld".to_string(),
         );
         // self.data.insert("dubbo.consume.", v)
+    }
+
+    #[inline]
+    pub fn leak(self) -> &'static Self {
+        Box::leak(Box::new(self))
     }
 }
 

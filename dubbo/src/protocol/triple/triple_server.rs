@@ -23,7 +23,7 @@ pub struct TripleServer {
 }
 
 impl TripleServer {
-    pub fn new(names: Vec<String>) -> TripleServer {
+    pub fn new() -> TripleServer {
         Self {
             builder: ServerBuilder::new(),
         }

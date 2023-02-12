@@ -15,16 +15,15 @@
  * limitations under the License.
  */
 
+use std::fmt::{Debug, Formatter};
 use std::str::FromStr;
 
+use crate::codegen::{ClientBoxService, ClientBuilder};
 use tower_service::Service;
 
 use crate::common::url::Url;
 use crate::protocol::Invoker;
-use crate::triple::client::connection::Connection;
 
-#[allow(dead_code)]
-#[derive(Clone, Default)]
 pub struct TripleInvoker {
     url: Url,
     conn: ClientBoxService,
@@ -40,6 +39,14 @@ impl TripleInvoker {
     }
 }
 
+impl Debug for TripleInvoker {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TripleInvoker")
+            .field("url", &self.url)
+            .finish()
+    }
+}
+
 impl Invoker<http::Request<hyper::Body>> for TripleInvoker {
     type Response = http::Response<crate::BoxBody>;
 
@@ -51,14 +58,14 @@ impl Invoker<http::Request<hyper::Body>> for TripleInvoker {
         self.url.clone()
     }
 
-    fn call(&mut self, req: http::Request<hyper::Body>) -> Self::Future {
-        self.conn.call(req)
-    }
-
     fn poll_ready(
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
         self.conn.poll_ready(cx)
+    }
+
+    fn call(&mut self, req: http::Request<hyper::Body>) -> Self::Future {
+        self.conn.call(req)
     }
 }
