@@ -17,6 +17,7 @@
 
 use std::str::FromStr;
 
+use crate::codegen::ClusterInvoker;
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 use tower_service::Service;
@@ -35,6 +36,7 @@ pub struct TripleClient<T> {
     builder: Option<ClientBuilder>,
     inner: T,
     send_compression_encoding: Option<CompressionEncoding>,
+    // cluster_invoker: Option<ClusterInvoker>,
 }
 
 impl TripleClient<ClientBoxService> {
@@ -53,6 +55,7 @@ impl TripleClient<ClientBoxService> {
             builder: Some(builder.clone()),
             inner: builder.connect(),
             send_compression_encoding: Some(CompressionEncoding::Gzip),
+            // cluster_invoker: None,
         }
     }
 
@@ -61,6 +64,7 @@ impl TripleClient<ClientBoxService> {
             builder: Some(builder.clone()),
             inner: builder.connect(),
             send_compression_encoding: Some(CompressionEncoding::Gzip),
+            // cluster_invoker: None,
         }
     }
 }
@@ -71,6 +75,7 @@ impl<T> TripleClient<T> {
             builder: Some(builder),
             inner,
             send_compression_encoding: Some(CompressionEncoding::Gzip),
+            // cluster_invoker: None,
         }
     }
 
@@ -82,6 +87,13 @@ impl<T> TripleClient<T> {
             FilterService::new(self.inner, filter),
             self.builder.unwrap(),
         )
+    }
+
+    pub fn with_cluster(self, _invoker: ClusterInvoker) -> Self {
+        TripleClient {
+            // cluster_invoker: Some(invoker),
+            ..self
+        }
     }
 }
 

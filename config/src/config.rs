@@ -15,11 +15,14 @@
  * limitations under the License.
  */
 
+use std::str::from_utf8;
 use std::{collections::HashMap, env, fs};
 
 use crate::protocol::Protocol;
+use crate::registry::RegistryConfig;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, trace};
 
 use super::protocol::ProtocolConfig;
 use super::provider::ProviderConfig;
@@ -42,7 +45,7 @@ pub struct RootConfig {
     pub provider: ProviderConfig,
 
     #[serde(default)]
-    pub registries: HashMap<String, String>,
+    pub registries: HashMap<String, RegistryConfig>,
 
     #[serde(default)]
     pub data: HashMap<String, String>,
@@ -85,6 +88,7 @@ impl RootConfig {
 
         tracing::info!("current path: {:?}", env::current_dir());
         let data = fs::read(config_path)?;
+        trace!("config data: {:?}", String::from_utf8(data.clone()));
         let conf: HashMap<String, RootConfig> = serde_yaml::from_slice(&data).unwrap();
         let root_config: RootConfig = conf.get(DUBBO_CONFIG_PREFIX).unwrap().clone();
         tracing::debug!("origin config: {:?}", conf);

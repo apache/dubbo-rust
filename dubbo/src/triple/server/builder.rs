@@ -110,7 +110,7 @@ impl From<Url> for ServerBuilder {
         let authority = uri.authority().unwrap();
 
         Self {
-            listener: u.get_param("listener").unwrap(),
+            listener: u.get_param("listener").unwrap_or("tcp".to_string()),
             addr: authority.to_string().to_socket_addrs().unwrap().next(),
             service_names: vec![u.service_name],
             server: DubboServer::default(),

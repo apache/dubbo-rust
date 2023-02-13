@@ -26,6 +26,7 @@ pub struct Protocol {
     pub ip: String,
     pub port: String,
     pub name: String,
+    #[serde(default)]
     pub listener: String,
 
     #[serde(skip_serializing, skip_deserializing)]
