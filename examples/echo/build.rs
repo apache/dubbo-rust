@@ -18,7 +18,7 @@
 use std::path::PathBuf;
 
 fn main() {
-    let path = PathBuf::from("./src/echo");
+    let path = PathBuf::from("./src/generated");
     println!("path: {:?}", path);
     dubbo_build::prost::configure()
         .output_dir(path)
