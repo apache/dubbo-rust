@@ -18,8 +18,7 @@
 use tower_service::Service;
 
 use super::Filter;
-use crate::invocation::Metadata;
-use crate::invocation::Request;
+use crate::invocation::{Metadata, Request};
 
 #[derive(Clone)]
 pub struct FilterService<S, F> {

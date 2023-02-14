@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
-use std::pin::Pin;
+use std::{collections::HashMap, pin::Pin};
 
-use futures::future;
-use futures::Future;
+use futures::{future, Future};
 
-use crate::common::url::Url;
-use crate::protocol::{BoxExporter, Protocol};
-use crate::registry::protocol::RegistryProtocol;
+use crate::{
+    common::url::Url,
+    protocol::{BoxExporter, Protocol},
+    registry::protocol::RegistryProtocol,
+};
 use dubbo_config::{get_global_config, RootConfig};
 
 // Invoker是否可以基于hyper写一个通用的

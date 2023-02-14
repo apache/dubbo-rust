@@ -15,17 +15,19 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
-use super::memory_registry::MemoryRegistry;
-use super::BoxRegistry;
-use crate::common::url::Url;
-use crate::protocol::triple::triple_exporter::TripleExporter;
-use crate::protocol::triple::triple_protocol::TripleProtocol;
-use crate::protocol::BoxExporter;
-use crate::protocol::BoxInvoker;
-use crate::protocol::Protocol;
+use super::{memory_registry::MemoryRegistry, BoxRegistry};
+use crate::{
+    common::url::Url,
+    protocol::{
+        triple::{triple_exporter::TripleExporter, triple_protocol::TripleProtocol},
+        BoxExporter, BoxInvoker, Protocol,
+    },
+};
 
 #[derive(Clone, Default)]
 pub struct RegistryProtocol {

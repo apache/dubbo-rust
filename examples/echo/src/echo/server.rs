@@ -15,14 +15,11 @@
  * limitations under the License.
  */
 
-use std::io::ErrorKind;
-use std::pin::Pin;
+use std::{io::ErrorKind, pin::Pin};
 
 use async_trait::async_trait;
-use dubbo::filter::context::ContextFilter;
-use dubbo::filter::timeout::TimeoutFilter;
-use futures_util::Stream;
-use futures_util::StreamExt;
+use dubbo::filter::{context::ContextFilter, timeout::TimeoutFilter};
+use futures_util::{Stream, StreamExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 

@@ -20,9 +20,7 @@ use std::{collections::HashMap, env, fs};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 
-use super::protocol::ProtocolConfig;
-use super::provider::ProviderConfig;
-use super::service::ServiceConfig;
+use super::{protocol::ProtocolConfig, provider::ProviderConfig, service::ServiceConfig};
 
 pub const DUBBO_CONFIG_PATH: &str = "./dubbo.yaml";
 

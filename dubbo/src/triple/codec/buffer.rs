@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use bytes::buf::UninitSlice;
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{buf::UninitSlice, Buf, BufMut, BytesMut};
 
 /// A specialized buffer to decode gRPC messages from.
 #[derive(Debug)]

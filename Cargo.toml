@@ -9,5 +9,5 @@ members = [
   "dubbo",
   "examples/echo",
   "examples/greeter",
-  "dubbo-build"
+  "dubbo-build",
 ]
