@@ -29,3 +29,34 @@ The title format of the pull request `MUST` follow the following rules:
 ### 3.1 log
 
 > 1 when logging the function's input parameter, you should add '@' before input parameter name.
+
+## 4. Dev
+
+### 4.1 Formating
+
+Currently, dubbo-rust recommand using rustfmt nightly version for formating:
+1. `rustup toolchain install nightly --component rustfmt`
+2. configure `settings.json`:
+```json
+{
+  "rust-analyzer.rustfmt.overrideCommand": ["cargo", "+nightly", "fmt"]
+}
+```
+
+### 4.2 Debugging
+
+Example launch configuration:
+```json
+{
+  "type": "lldb",
+  "request": "launch",
+  "name": "greeter-server",
+  "program": "${workspaceFolder}/target/debug/greeter-server",
+  "args": [],
+  "cwd": "${workspaceFolder}/examples/greeter/",
+  "terminal": "console",
+  "env": {
+    "ZOOKEEPER_SERVERS": "mse-21b397d4-p.zk.mse.aliyuncs.com:2181",
+  }
+}
+```

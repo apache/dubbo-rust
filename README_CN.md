@@ -5,7 +5,8 @@
 
 Apache Dubbo-rust, Dubbo RPC框架的Rust实现。请访问 [Dubbo官网](https://dubbo.apache.org/) 查看更多信息.
 
-[![Build Status](https://travis-ci.org/apache/dubbo-rust.svg?branch=main)](https://travis-ci.org/apache/dubbo-rust) ![License](https://img.shields.io/github/license/alibaba/dubbo.svg)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/apache/dubbo-rust/.github/workflows/github-actions.yml?branch=main&style=flat-square)](https://github.com/apache/dubbo-rust/actions/workflows/github-actions.yml?query=branch%3Amain)
+![License](https://img.shields.io/github/license/apache/dubbo-rust?style=flat-square)
 
 ## 概述
 
@@ -32,7 +33,7 @@ Dubbo-rust 目前还在开发阶段. 截至目前, 已经实现了基于HTTP2的
 ## 开始使用
 
 - Dubbo-rust 快速开始:  [中文](https://dubbo.apache.org/zh/docs3-v2/rust-sdk/quick-start/), English
-- Dubbo-rust 教程:  [Examples](examples/READMED.md)
+- Dubbo-rust 教程:  [Examples](examples/README.md)
 
 ## 项目结构
 
@@ -71,7 +72,7 @@ more ...
 
 ## 贡献
 
-欢迎更多的开发者加入我们。关于更多的信息可以查看 [[CONTRIBUTING](https://github.com/apache/dubbo-rust/blob/main/contributing.md)]。
+欢迎更多的开发者加入我们。关于更多的信息可以查看 [[CONTRIBUTING](https://github.com/apache/dubbo-rust/blob/main/CONTRIBUTING.md)]。
 
 ## 许可证
 
