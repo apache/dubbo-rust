@@ -19,6 +19,7 @@ use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
+use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
 use rand::prelude::SliceRandom;
 use tower_service::Service;
@@ -140,16 +141,19 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
+        let bytes = hyper::body::to_bytes(body).await.unwrap();
+        let sdk_body = SdkBody::from(bytes);
 
         let url_list = self.directory.as_ref().expect("msg").list(invocation);
         let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
 
-        let req = self.map_request(http_uri.clone(), path, body);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
-        let mut conn = Connection::new().with_host(http_uri);
-        let response = conn
+        // let mut conn = Connection::new().with_host(http_uri);
+        let mut cluster = FailoverCluster::new(Box::new(MockDirectory {}));
+        let response = cluster
             .call(req)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
@@ -202,13 +206,14 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
+        let sdk_body = SdkBody::from(body);
 
         let url_list = self.directory.as_ref().expect("msg").list(invocation);
         let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
 
-        let req = self.map_request(http_uri.clone(), path, body);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         let mut conn = Connection::new().with_host(http_uri);
         let response = conn
@@ -248,13 +253,14 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
+        let sdk_body = SdkBody::from(body);
 
         let url_list = self.directory.as_ref().expect("msg").list(invocation);
         let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
 
-        let req = self.map_request(http_uri.clone(), path, body);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         let mut conn = Connection::new().with_host(http_uri);
         let response = conn
@@ -310,13 +316,14 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
+        let sdk_body = SdkBody::from(body);
 
         let url_list = self.directory.as_ref().expect("msg").list(invocation);
         let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
 
-        let req = self.map_request(http_uri.clone(), path, body);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         let mut conn = Connection::new().with_host(http_uri);
         let response = conn
