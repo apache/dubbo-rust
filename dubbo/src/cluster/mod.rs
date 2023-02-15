@@ -20,9 +20,11 @@ use std::{sync::Arc, task::Poll};
 use aws_smithy_http::body::SdkBody;
 use tower_service::Service;
 
-use crate::common::url::Url;
-use crate::protocol::triple::triple_invoker::TripleInvoker;
-use crate::{empty_body, protocol::BoxInvoker};
+use crate::{
+    common::url::Url,
+    empty_body,
+    protocol::{triple::triple_invoker::TripleInvoker, BoxInvoker},
+};
 
 pub mod directory;
 

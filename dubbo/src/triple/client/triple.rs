@@ -25,8 +25,10 @@ use rand::prelude::SliceRandom;
 use tower_service::Service;
 
 use super::{super::transport::connection::Connection, builder::ClientBuilder};
-use crate::cluster::{FailoverCluster, MockDirectory};
-use crate::codegen::{Directory, RpcInvocation};
+use crate::{
+    cluster::{FailoverCluster, MockDirectory},
+    codegen::{Directory, RpcInvocation},
+};
 
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},

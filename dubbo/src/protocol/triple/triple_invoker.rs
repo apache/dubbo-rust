@@ -20,9 +20,12 @@ use std::str::FromStr;
 use aws_smithy_http::body::SdkBody;
 use tower_service::Service;
 
-use crate::triple::transport::connection::Connection;
-use crate::utils::boxed::BoxService;
-use crate::{common::url::Url, protocol::Invoker, triple::client::builder::ClientBoxService};
+use crate::{
+    common::url::Url,
+    protocol::Invoker,
+    triple::{client::builder::ClientBoxService, transport::connection::Connection},
+    utils::boxed::BoxService,
+};
 
 pub struct TripleInvoker {
     url: Url,
