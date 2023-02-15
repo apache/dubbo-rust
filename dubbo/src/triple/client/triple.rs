@@ -25,6 +25,7 @@ use rand::prelude::SliceRandom;
 use tower_service::Service;
 
 use super::{super::transport::connection::Connection, builder::ClientBuilder};
+use crate::cluster::{FailoverCluster, MockDirectory};
 use crate::codegen::{Directory, RpcInvocation};
 
 use crate::{
@@ -53,8 +54,8 @@ impl TripleClient {
         &self,
         uri: http::Uri,
         path: http::uri::PathAndQuery,
-        body: hyper::Body,
-    ) -> http::Request<hyper::Body> {
+        body: SdkBody,
+    ) -> http::Request<SdkBody> {
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(path);
 
