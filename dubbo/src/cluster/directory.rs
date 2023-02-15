@@ -15,15 +15,18 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::str::FromStr;
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    str::FromStr,
+    sync::{Arc, RwLock},
+};
 
-use crate::common::url::Url;
-use crate::invocation::{Invocation, RpcInvocation};
-use crate::registry::memory_registry::MemoryNotifyListener;
-use crate::registry::{BoxRegistry, RegistryWrapper};
+use crate::{
+    common::url::Url,
+    invocation::{Invocation, RpcInvocation},
+    registry::{memory_registry::MemoryNotifyListener, BoxRegistry, RegistryWrapper},
+};
 
 /// Directory.
 ///

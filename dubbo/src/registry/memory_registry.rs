@@ -16,9 +16,10 @@
  */
 
 #![allow(unused_variables, dead_code, missing_docs)]
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 use crate::common::url::Url;
 

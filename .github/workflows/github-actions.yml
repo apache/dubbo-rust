@@ -22,7 +22,8 @@ jobs:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
+          default: true
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false

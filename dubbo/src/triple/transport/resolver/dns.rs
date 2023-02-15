@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 
-use std::future::Future;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
-use std::pin::Pin;
-use std::task::Poll;
-use std::vec;
+use std::{
+    future::Future,
+    net::{SocketAddr, ToSocketAddrs},
+    pin::Pin,
+    task::Poll,
+    vec,
+};
 
 use tokio::task::JoinHandle;
 use tower_service::Service;

@@ -17,9 +17,7 @@
 
 use tower_service::Service;
 
-use crate::common::url::Url;
-use crate::protocol::Invoker;
-use crate::triple::client::builder::ClientBoxService;
+use crate::{common::url::Url, protocol::Invoker, triple::client::builder::ClientBoxService};
 
 pub struct TripleInvoker {
     url: Url,

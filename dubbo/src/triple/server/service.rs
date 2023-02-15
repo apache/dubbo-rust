@@ -18,8 +18,10 @@
 use futures_util::{Future, Stream};
 use tower_service::Service;
 
-use crate::invocation::{Request, Response};
-use crate::triple::decode::Decoding;
+use crate::{
+    invocation::{Request, Response},
+    triple::decode::Decoding,
+};
 
 pub trait StreamingSvc<R> {
     type Response;
