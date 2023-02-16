@@ -18,8 +18,10 @@
 use std::collections::HashMap;
 
 use bytes::{Buf, BufMut, BytesMut};
-use flate2::read::{GzDecoder, GzEncoder};
-use flate2::Compression;
+use flate2::{
+    read::{GzDecoder, GzEncoder},
+    Compression,
+};
 use lazy_static::lazy_static;
 
 pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";

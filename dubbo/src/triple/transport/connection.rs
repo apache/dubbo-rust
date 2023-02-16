@@ -17,13 +17,11 @@
 
 use std::task::Poll;
 
-use hyper::client::conn::Builder;
-use hyper::client::service::Connect;
+use hyper::client::{conn::Builder, service::Connect};
 use tower_service::Service;
 use tracing::debug;
 
-use crate::boxed;
-use crate::triple::transport::connector::get_connector;
+use crate::{boxed, triple::transport::connector::get_connector};
 
 #[derive(Debug, Clone)]
 pub struct Connection {

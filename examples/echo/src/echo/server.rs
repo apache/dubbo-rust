@@ -15,21 +15,18 @@
  * limitations under the License.
  */
 
-use std::io::ErrorKind;
-use std::pin::Pin;
+use std::{io::ErrorKind, pin::Pin};
 
 use async_trait::async_trait;
-use dubbo::filter::context::ContextFilter;
-use dubbo::filter::timeout::TimeoutFilter;
-use futures_util::Stream;
-use futures_util::StreamExt;
+use dubbo::filter::{context::ContextFilter, timeout::TimeoutFilter};
+use futures_util::{Stream, StreamExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use dubbo::codegen::*;
 // use dubbo::Dubbo;
 // use dubbo_config::RootConfig;
-use example_echo::protos::hello_echo::{
+use example_echo::generated::generated::{
     echo_server::{register_server, Echo, EchoServer},
     EchoRequest, EchoResponse,
 };

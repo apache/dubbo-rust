@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use std::error::Error;
-use std::fmt;
+use std::{error::Error, fmt};
 
 use http::HeaderValue;
 

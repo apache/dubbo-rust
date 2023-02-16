@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-pub use std::sync::Arc;
-pub use std::task::{Context, Poll};
+pub use std::{
+    sync::Arc,
+    task::{Context, Poll},
+};
 
 pub use async_trait::async_trait;
 pub use bytes::Bytes;
@@ -24,27 +26,28 @@ pub use http_body::Body;
 pub use hyper::Body as hyperBody;
 pub use tower_service::Service;
 
-pub use super::cluster::directory::Directory;
-pub use super::cluster::directory::RegistryDirectory;
-pub use super::cluster::support::cluster_invoker::ClusterInvoker;
-pub use super::invocation::RpcInvocation;
-pub use super::invocation::{IntoStreamingRequest, Request, Response};
-pub use super::protocol::triple::triple_invoker::TripleInvoker;
-pub use super::protocol::Invoker;
-pub use super::registry::BoxRegistry;
-pub use super::registry::Registry;
-pub use super::registry::RegistryWrapper;
-pub use super::triple::client::TripleClient;
-pub use super::triple::codec::prost::ProstCodec;
-pub use super::triple::codec::Codec;
-pub use super::triple::decode::Decoding;
-pub use super::triple::server::service::{
-    ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc,
+pub use super::{
+    cluster::directory::{Directory, RegistryDirectory},
+    empty_body,
+    invocation::{IntoStreamingRequest, Request, Response, RpcInvocation},
+    protocol::{triple::triple_invoker::TripleInvoker, Invoker},
+    registry::{BoxRegistry, Registry, RegistryWrapper},
+    triple::{
+        client::TripleClient,
+        codec::{prost::ProstCodec, Codec},
+        decode::Decoding,
+        server::{
+            service::{ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc},
+            TripleServer,
+        },
+    },
+    BoxBody, BoxFuture, StdError,
 };
-pub use super::triple::server::TripleServer;
-pub use super::{empty_body, BoxBody, BoxFuture, StdError};
-pub use crate::filter::service::FilterService;
-pub use crate::filter::Filter;
-pub use crate::triple::client::builder::{ClientBoxService, ClientBuilder};
-pub use crate::triple::server::builder::ServerBuilder;
-pub use crate::triple::transport::connection::Connection;
+pub use crate::{
+    filter::{service::FilterService, Filter},
+    triple::{
+        client::builder::{ClientBoxService, ClientBuilder},
+        server::builder::ServerBuilder,
+        transport::connection::Connection,
+    },
+};

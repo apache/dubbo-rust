@@ -97,6 +97,10 @@ impl Directory for RegistryDirectory {
             .expect("service_instances.read");
         let binding = Vec::new();
         let url_vec = map.get(&service_name).unwrap_or(&binding);
+<<<<<<< HEAD
         Arc::new(url_vec.to_vec())
+=======
+        url_vec.to_vec()
+>>>>>>> main
     }
 }

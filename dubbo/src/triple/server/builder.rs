@@ -20,13 +20,11 @@ use std::{
     str::FromStr,
 };
 
-use http::Uri;
-use http::{Request, Response};
+use http::{Request, Response, Uri};
 use hyper::body::Body;
 use tower_service::Service;
 
-use crate::BoxBody;
-use crate::{common::url::Url, triple::transport::DubboServer};
+use crate::{common::url::Url, triple::transport::DubboServer, BoxBody};
 
 #[derive(Clone, Default, Debug)]
 pub struct ServerBuilder {

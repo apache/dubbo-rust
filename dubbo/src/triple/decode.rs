@@ -18,13 +18,14 @@
 use std::{pin::Pin, task::Poll};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use futures_util::Stream;
-use futures_util::{future, ready};
+use futures_util::{future, ready, Stream};
 use http_body::Body;
 
 use super::compression::{decompress, CompressionEncoding};
-use crate::invocation::Metadata;
-use crate::triple::codec::{DecodeBuf, Decoder};
+use crate::{
+    invocation::Metadata,
+    triple::codec::{DecodeBuf, Decoder},
+};
 
 type BoxBody = http_body::combinators::UnsyncBoxBody<Bytes, crate::status::Status>;
 
