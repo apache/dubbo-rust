@@ -85,13 +85,6 @@ pub struct Response<T> {
     metadata: Metadata,
 }
 
-pub trait RpcResult {}
-
-/// symbol for cluster invoke
-impl<T> RpcResult for Response<T> {}
-
-pub type BoxRpcResult = Box<dyn RpcResult>;
-
 impl<T> Response<T> {
     pub fn new(message: T) -> Response<T> {
         Self {
@@ -204,9 +197,7 @@ pub trait Invocation {
     fn get_method_name(&self) -> String;
 }
 
-pub type BoxInvocation = Box<dyn Invocation>;
-
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct RpcInvocation {
     target_service_unique_name: String,
     method_name: String,

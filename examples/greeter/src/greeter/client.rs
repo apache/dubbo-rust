@@ -20,7 +20,9 @@ pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
 }
 
+use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
 use dubbo::codegen::*;
+use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
 use tracing::Level;
@@ -38,7 +40,7 @@ async fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let mut cli = GreeterClient::new(ClientBuilder::from_static(&"http://127.0.0.1:8888"));
+    // let mut cli = GreeterClient::new(ClientBuilder::from_static(&"http://127.0.0.1:8888"));
 
     // Here is example for zk
     // let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {

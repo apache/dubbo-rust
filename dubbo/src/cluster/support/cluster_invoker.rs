@@ -29,7 +29,6 @@ use crate::cluster::support::DEFAULT_LOADBALANCE;
 use crate::codegen::{Directory, RegistryDirectory, TripleClient};
 use crate::common::url::Url;
 use crate::invocation::RpcInvocation;
-use crate::triple;
 
 #[derive(Debug, Clone)]
 pub struct ClusterInvoker {
@@ -61,7 +60,7 @@ where
 {
     fn build_req(
         &self,
-        triple_client: &TripleClient<T>,
+        triple_client: TripleClient,
         path: http::uri::PathAndQuery,
         invocation: Arc<RpcInvocation>,
         body: hyper::Body,
@@ -139,18 +138,18 @@ where
 {
     fn build_req(
         &self,
-        triple_client: &triple::client::triple::TripleClient<T>,
+        triple_client: TripleClient,
         path: PathAndQuery,
         invocation: Arc<RpcInvocation>,
         body: Body,
     ) -> Request<Body> {
         let invokers = self.directory.list(invocation.clone());
         let invoker_url = self
-            .select(invocation, invokers, Arc::new(Vec::new()))
+            .select(invocation, Arc::new(invokers), Arc::new(Vec::new()))
             .expect("no valid provider");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", invoker_url.ip, invoker_url.port))
                 .unwrap();
-        TripleClient::new_map_request(triple_client, http_uri, path, body)
+        triple_client.map_request(http_uri, path, body)
     }
 }

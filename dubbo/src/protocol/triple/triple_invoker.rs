@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+use std::fmt::{Debug, Formatter};
 use tower_service::Service;
 
 use crate::{common::url::Url, protocol::Invoker, triple::client::builder::ClientBoxService};
@@ -32,6 +33,12 @@ impl TripleInvoker {
     //         conn: ClientBuilder::from_uri(&uri).build()connect(),
     //     }
     // }
+}
+
+impl Debug for TripleInvoker {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(format!("{:?}", self.url).as_str())
+    }
 }
 
 impl Invoker<http::Request<hyper::Body>> for TripleInvoker {

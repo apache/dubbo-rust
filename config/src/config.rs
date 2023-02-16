@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-use std::str::from_utf8;
 use std::{collections::HashMap, env, fs};
 
 use crate::protocol::Protocol;
 use crate::registry::RegistryConfig;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, trace};
+use tracing::trace;
 
 use super::{protocol::ProtocolConfig, provider::ProviderConfig, service::ServiceConfig};
 

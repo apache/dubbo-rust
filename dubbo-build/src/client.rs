@@ -66,11 +66,11 @@ pub fn generate<T: Service>(
             #service_doc
             #(#struct_attributes)*
             #[derive(Debug, Clone, Default)]
-            pub struct #service_ident<T> {
-                inner: TripleClient<T>,
+            pub struct #service_ident {
+                inner: TripleClient,
             }
 
-            impl #service_ident<ClientBoxService> {
+            impl #service_ident {
                 pub fn connect(host: String) -> Self {
                     let cli = TripleClient::connect(host);
                     #service_ident {
@@ -78,31 +78,15 @@ pub fn generate<T: Service>(
                     }
                 }
 
-                pub fn build(builder: ClientBuilder) -> Self {
-                    Self {
-                        inner: TripleClient::with_builder(builder),
-                    }
-                }
-            }
+                // pub fn build(builder: ClientBuilder) -> Self {
+                //     Self {
+                //         inner: TripleClient::new(builder),
+                //     }
+                // }
 
-            impl<T> #service_ident<T>
-            where
-                T: Service<http::Request<hyperBody>, Response = http::Response<BoxBody>>,
-                T::Error: Into<StdError>,
-            {
-                pub fn new(inner: T, builder: ClientBuilder) -> Self {
+                pub fn new(builder: ClientBuilder) -> Self {
                     Self {
-                        inner: TripleClient::new(inner, builder),
-                    }
-                }
-
-                pub fn with_filter<F>(self, filter: F) -> #service_ident<FilterService<T, F>>
-                where
-                    F: Filter,
-                {
-                    let inner = self.inner.with_filter(filter);
-                    #service_ident {
-                        inner,
+                        inner: TripleClient::new(builder),
                     }
                 }
 
@@ -200,7 +184,7 @@ fn generate_unary<T: Method>(
         ) -> Result<Response<#response>, dubbo::status::Status> {
            let codec = #codec_name::<#request, #response>::default();
            let invocation = RpcInvocation::default()
-            .with_servie_unique_name(String::from(#service_unique_name))
+            .with_service_unique_name(String::from(#service_unique_name))
             .with_method_name(String::from(#method_name));
            let path = http::uri::PathAndQuery::from_static(#path);
            self.inner.unary(
@@ -234,7 +218,7 @@ fn generate_server_streaming<T: Method>(
 
             let codec = #codec_name::<#request, #response>::default();
             let invocation = RpcInvocation::default()
-             .with_servie_unique_name(String::from(#service_unique_name))
+             .with_service_unique_name(String::from(#service_unique_name))
              .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.server_streaming(
@@ -267,7 +251,7 @@ fn generate_client_streaming<T: Method>(
         ) -> Result<Response<#response>, dubbo::status::Status> {
             let codec = #codec_name::<#request, #response>::default();
             let invocation = RpcInvocation::default()
-             .with_servie_unique_name(String::from(#service_unique_name))
+             .with_service_unique_name(String::from(#service_unique_name))
              .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.client_streaming(
@@ -300,7 +284,7 @@ fn generate_streaming<T: Method>(
         ) -> Result<Response<Decoding<#response>>, dubbo::status::Status> {
             let codec = #codec_name::<#request, #response>::default();
             let invocation = RpcInvocation::default()
-             .with_servie_unique_name(String::from(#service_unique_name))
+             .with_service_unique_name(String::from(#service_unique_name))
              .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.bidi_streaming(

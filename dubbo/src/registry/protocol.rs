@@ -21,7 +21,6 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use super::memory_registry::MemoryRegistry;
 use super::BoxRegistry;
-use crate::codegen::TripleInvoker;
 use crate::common::url::Url;
 use crate::protocol::triple::triple_exporter::TripleExporter;
 use crate::protocol::triple::triple_protocol::TripleProtocol;
@@ -126,6 +125,7 @@ impl Protocol for RegistryProtocol {
         // get Registry from registry_url
         // init directory based on registry_url and Registry
         // init Cluster based on Directory generates Invoker
-        Box::new(TripleInvoker::new(url))
+        todo!()
+        //Box::new(TripleInvoker::new(url))
     }
 }

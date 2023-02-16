@@ -16,6 +16,7 @@
  */
 
 use std::str::FromStr;
+use std::sync::Arc;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
@@ -48,7 +49,7 @@ impl TripleClient {
         builder.build()
     }
 
-    fn map_request(
+    pub fn map_request(
         &self,
         uri: http::Uri,
         path: http::uri::PathAndQuery,
@@ -141,7 +142,11 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
 
-        let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        let url_list = self
+            .directory
+            .as_ref()
+            .expect("msg")
+            .list(Arc::new(invocation));
         let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
@@ -203,7 +208,11 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
-        let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        let url_list = self
+            .directory
+            .as_ref()
+            .expect("msg")
+            .list(Arc::new(invocation));
         let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
@@ -249,7 +258,11 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
-        let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        let url_list = self
+            .directory
+            .as_ref()
+            .expect("msg")
+            .list(Arc::new(invocation));
         let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
@@ -311,7 +324,11 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
-        let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        let url_list = self
+            .directory
+            .as_ref()
+            .expect("msg")
+            .list(Arc::new(invocation));
         let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
         let http_uri =
             http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
