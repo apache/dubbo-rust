@@ -15,9 +15,11 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    thread,
+};
 
 use serde_json::Value;
 use state::Container;

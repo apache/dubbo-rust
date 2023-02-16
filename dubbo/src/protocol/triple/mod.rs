@@ -21,11 +21,9 @@ pub mod triple_protocol;
 pub mod triple_server;
 
 use lazy_static::lazy_static;
-use std::collections::HashMap;
-use std::sync::RwLock;
+use std::{collections::HashMap, sync::RwLock};
 
-use crate::utils::boxed_clone::BoxCloneService;
-use crate::BoxBody;
+use crate::{utils::boxed_clone::BoxCloneService, BoxBody};
 
 pub type GrpcBoxCloneService =
     BoxCloneService<http::Request<hyper::Body>, http::Response<BoxBody>, std::convert::Infallible>;

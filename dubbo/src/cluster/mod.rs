@@ -15,13 +15,4 @@
  * limitations under the License.
  */
 
-use std::path::PathBuf;
-
-fn main() {
-    let path = PathBuf::from("./src/generated");
-    println!("path: {:?}", path);
-    dubbo_build::prost::configure()
-        .output_dir(path)
-        .compile(&["proto/echo/echo.proto"], &["proto/"])
-        .unwrap();
-}
+pub mod directory;

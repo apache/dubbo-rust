@@ -15,13 +15,9 @@
  * limitations under the License.
  */
 
-use std::str::FromStr;
-
 use tower_service::Service;
 
-use crate::common::url::Url;
-use crate::protocol::Invoker;
-use crate::triple::client::builder::{ClientBoxService, ClientBuilder};
+use crate::{common::url::Url, protocol::Invoker, triple::client::builder::ClientBoxService};
 
 pub struct TripleInvoker {
     url: Url,
@@ -29,13 +25,13 @@ pub struct TripleInvoker {
 }
 
 impl TripleInvoker {
-    pub fn new(url: Url) -> TripleInvoker {
-        let uri = http::Uri::from_str(&url.to_url()).unwrap();
-        Self {
-            url,
-            conn: ClientBuilder::from(uri).connect(),
-        }
-    }
+    // pub fn new(url: Url) -> TripleInvoker {
+    //     let uri = http::Uri::from_str(&url.to_url()).unwrap();
+    //     Self {
+    //         url,
+    //         conn: ClientBuilder::from_uri(&uri).build()connect(),
+    //     }
+    // }
 }
 
 impl Invoker<http::Request<hyper::Body>> for TripleInvoker {

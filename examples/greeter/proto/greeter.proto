@@ -29,7 +29,7 @@ message GreeterReply {
   string message = 1;
 }
 
-service Greeter{
+service Greeter {
 
   // unary
   rpc greet(GreeterRequest) returns (GreeterReply);

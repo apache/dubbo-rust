@@ -66,11 +66,11 @@ pub fn generate<T: Service>(
             #service_doc
             #(#struct_attributes)*
             #[derive(Debug, Clone, Default)]
-            pub struct #service_ident<T> {
-                inner: TripleClient<T>,
+            pub struct #service_ident {
+                inner: TripleClient,
             }
 
-            impl #service_ident<ClientBoxService> {
+            impl #service_ident {
                 pub fn connect(host: String) -> Self {
                     let cli = TripleClient::connect(host);
                     #service_ident {
@@ -78,33 +78,27 @@ pub fn generate<T: Service>(
                     }
                 }
 
-                pub fn build(builder: ClientBuilder) -> Self {
-                    Self {
-                        inner: TripleClient::with_builder(builder),
-                    }
-                }
-            }
+                // pub fn build(builder: ClientBuilder) -> Self {
+                //     Self {
+                //         inner: TripleClient::new(builder),
+                //     }
+                // }
 
-            impl<T> #service_ident<T>
-            where
-                T: Service<http::Request<hyperBody>, Response = http::Response<BoxBody>>,
-                T::Error: Into<StdError>,
-            {
-                pub fn new(inner: T, builder: ClientBuilder) -> Self {
+                pub fn new(builder: ClientBuilder) -> Self {
                     Self {
-                        inner: TripleClient::new(inner, builder),
+                        inner: TripleClient::new(builder),
                     }
                 }
 
-                pub fn with_filter<F>(self, filter: F) -> #service_ident<FilterService<T, F>>
-                where
-                    F: Filter,
-                {
-                    let inner = self.inner.with_filter(filter);
-                    #service_ident {
-                        inner,
-                    }
-                }
+                // pub fn with_filter<F>(self, filter: F) -> #service_ident<FilterService<T, F>>
+                // where
+                //     F: Filter,
+                // {
+                //     let inner = self.inner.with_filter(filter);
+                //     #service_ident {
+                //         inner,
+                //     }
+                // }
 
                 #methods
 
@@ -123,6 +117,12 @@ fn generate_methods<T: Service>(
     let package = if emit_package { service.package() } else { "" };
 
     for method in service.methods() {
+        let service_unique_name = format!(
+            "{}{}{}",
+            package,
+            if package.is_empty() { "" } else { "." },
+            service.identifier()
+        );
         let path = format!(
             "/{}{}{}/{}",
             package,
@@ -134,14 +134,34 @@ fn generate_methods<T: Service>(
         stream.extend(generate_doc_comments(method.comment()));
 
         let method = match (method.client_streaming(), method.server_streaming()) {
-            (false, false) => generate_unary(&method, proto_path, compile_well_known_types, path),
-            (false, true) => {
-                generate_server_streaming(&method, proto_path, compile_well_known_types, path)
-            }
-            (true, false) => {
-                generate_client_streaming(&method, proto_path, compile_well_known_types, path)
-            }
-            (true, true) => generate_streaming(&method, proto_path, compile_well_known_types, path),
+            (false, false) => generate_unary(
+                service_unique_name,
+                &method,
+                proto_path,
+                compile_well_known_types,
+                path,
+            ),
+            (false, true) => generate_server_streaming(
+                service_unique_name,
+                &method,
+                proto_path,
+                compile_well_known_types,
+                path,
+            ),
+            (true, false) => generate_client_streaming(
+                service_unique_name,
+                &method,
+                proto_path,
+                compile_well_known_types,
+                path,
+            ),
+            (true, true) => generate_streaming(
+                service_unique_name,
+                &method,
+                proto_path,
+                compile_well_known_types,
+                path,
+            ),
         };
 
         stream.extend(method);
@@ -151,6 +171,7 @@ fn generate_methods<T: Service>(
 }
 
 fn generate_unary<T: Method>(
+    service_unique_name: String,
     method: &T,
     proto_path: &str,
     compile_well_known_types: bool,
@@ -159,6 +180,7 @@ fn generate_unary<T: Method>(
     let codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
     let ident = format_ident!("{}", method.name());
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
+    let method_name = method.identifier();
 
     quote! {
         pub async fn #ident(
@@ -166,19 +188,22 @@ fn generate_unary<T: Method>(
             request: Request<#request>,
         ) -> Result<Response<#response>, dubbo::status::Status> {
            let codec = #codec_name::<#request, #response>::default();
+           let invocation = RpcInvocation::default()
+            .with_servie_unique_name(String::from(#service_unique_name))
+            .with_method_name(String::from(#method_name));
            let path = http::uri::PathAndQuery::from_static(#path);
-           self.inner
-            .unary(
+           self.inner.unary(
                 request,
                 codec,
                 path,
-            )
-            .await
+                invocation,
+            ).await
         }
     }
 }
 
 fn generate_server_streaming<T: Method>(
+    service_unique_name: String,
     method: &T,
     proto_path: &str,
     compile_well_known_types: bool,
@@ -188,6 +213,7 @@ fn generate_server_streaming<T: Method>(
     let ident = format_ident!("{}", method.name());
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
+    let method_name = method.identifier();
 
     quote! {
         pub async fn #ident(
@@ -196,13 +222,22 @@ fn generate_server_streaming<T: Method>(
         ) -> Result<Response<Decoding<#response>>, dubbo::status::Status> {
 
             let codec = #codec_name::<#request, #response>::default();
+            let invocation = RpcInvocation::default()
+             .with_servie_unique_name(String::from(#service_unique_name))
+             .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
-            self.inner.server_streaming(request, codec, path).await
+            self.inner.server_streaming(
+                request,
+                codec,
+                path,
+                invocation,
+            ).await
         }
     }
 }
 
 fn generate_client_streaming<T: Method>(
+    service_unique_name: String,
     method: &T,
     proto_path: &str,
     compile_well_known_types: bool,
@@ -212,6 +247,7 @@ fn generate_client_streaming<T: Method>(
     let ident = format_ident!("{}", method.name());
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
+    let method_name = method.identifier();
 
     quote! {
         pub async fn #ident(
@@ -219,13 +255,22 @@ fn generate_client_streaming<T: Method>(
             request: impl IntoStreamingRequest<Message = #request>
         ) -> Result<Response<#response>, dubbo::status::Status> {
             let codec = #codec_name::<#request, #response>::default();
+            let invocation = RpcInvocation::default()
+             .with_servie_unique_name(String::from(#service_unique_name))
+             .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
-            self.inner.client_streaming(request, codec, path).await
+            self.inner.client_streaming(
+                request,
+                codec,
+                path,
+                invocation,
+            ).await
         }
     }
 }
 
 fn generate_streaming<T: Method>(
+    service_unique_name: String,
     method: &T,
     proto_path: &str,
     compile_well_known_types: bool,
@@ -235,6 +280,7 @@ fn generate_streaming<T: Method>(
     let ident = format_ident!("{}", method.name());
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
+    let method_name = method.identifier();
 
     quote! {
         pub async fn #ident(
@@ -242,8 +288,16 @@ fn generate_streaming<T: Method>(
             request: impl IntoStreamingRequest<Message = #request>
         ) -> Result<Response<Decoding<#response>>, dubbo::status::Status> {
             let codec = #codec_name::<#request, #response>::default();
+            let invocation = RpcInvocation::default()
+             .with_servie_unique_name(String::from(#service_unique_name))
+             .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
-            self.inner.bidi_streaming(request, codec, path).await
+            self.inner.bidi_streaming(
+                request,
+                codec,
+                path,
+                invocation,
+            ).await
         }
     }
 }

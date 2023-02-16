@@ -5,7 +5,8 @@
 
 Apache Dubbo-rust, an RPC framework that implements Dubbo written in Rust.Please visit the [official website](https://dubbo.apache.org/) for more information.
 
-[![Build Status](https://travis-ci.org/apache/dubbo-rust.svg?branch=main)](https://travis-ci.org/apache/dubbo-rust) ![License](https://img.shields.io/github/license/alibaba/dubbo.svg)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/apache/dubbo-rust/.github/workflows/github-actions.yml?branch=main&style=flat-square)](https://github.com/apache/dubbo-rust/actions/workflows/github-actions.yml?query=branch%3Amain)
+![License](https://img.shields.io/github/license/apache/dubbo-rust?style=flat-square)
 
 [ [中文](./README_CN.md) ]
 
@@ -73,7 +74,7 @@ more ...
 
 ## Contribute
 
-Welcome more developers to join us. About more details please check "[How to contribute](https://github.com/apache/dubbo-rust/blob/main/contributing.md)".
+Welcome more developers to join us. About more details please check "[How to contribute](https://github.com/apache/dubbo-rust/blob/main/CONTRIBUTING.md)".
 
 ## License
 

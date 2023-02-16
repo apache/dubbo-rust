@@ -19,8 +19,8 @@ use tower::ServiceExt;
 use tower_layer::{layer_fn, LayerFn};
 use tower_service::Service;
 
-use std::fmt;
 use std::{
+    fmt,
     future::Future,
     pin::Pin,
     task::{Context, Poll},

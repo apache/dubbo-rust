@@ -15,4 +15,5 @@
  * limitations under the License.
  */
 
-pub mod hello_echo;
+#[path = "grpc.examples.echo.rs"]
+pub mod generated;

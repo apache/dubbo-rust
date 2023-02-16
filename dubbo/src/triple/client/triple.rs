@@ -18,90 +18,43 @@
 use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
+
 use http::HeaderValue;
+use rand::prelude::SliceRandom;
 use tower_service::Service;
 
-use super::builder::{ClientBoxService, ClientBuilder};
-use crate::filter::service::FilterService;
-use crate::filter::Filter;
-use crate::invocation::{IntoStreamingRequest, Metadata, Request, Response};
-use crate::triple::codec::Codec;
-use crate::triple::compression::CompressionEncoding;
-use crate::triple::decode::Decoding;
-use crate::triple::encode::encode;
+use super::{super::transport::connection::Connection, builder::ClientBuilder};
+use crate::codegen::{Directory, RpcInvocation};
+
+use crate::{
+    invocation::{IntoStreamingRequest, Metadata, Request, Response},
+    triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
+};
 
 #[derive(Debug, Clone, Default)]
-pub struct TripleClient<T> {
-    builder: Option<ClientBuilder>,
-    inner: T,
-    send_compression_encoding: Option<CompressionEncoding>,
+pub struct TripleClient {
+    pub(crate) send_compression_encoding: Option<CompressionEncoding>,
+    pub(crate) directory: Option<Box<dyn Directory>>,
 }
 
-impl TripleClient<ClientBoxService> {
+impl TripleClient {
     pub fn connect(host: String) -> Self {
-        let uri = match http::Uri::from_str(&host) {
-            Ok(v) => v,
-            Err(err) => {
-                tracing::error!("http uri parse error: {}, host: {}", err, host);
-                panic!("http uri parse error: {}, host: {}", err, host)
-            }
-        };
+        let builder = ClientBuilder::from_static(&host);
 
-        let builder = ClientBuilder::from(uri);
-
-        TripleClient {
-            builder: Some(builder.clone()),
-            inner: builder.connect(),
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-        }
+        builder.build()
     }
 
-    pub fn with_builder(builder: ClientBuilder) -> Self {
-        TripleClient {
-            builder: Some(builder.clone()),
-            inner: builder.connect(),
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-        }
-    }
-}
-
-impl<T> TripleClient<T> {
-    pub fn new(inner: T, builder: ClientBuilder) -> Self {
-        TripleClient {
-            builder: Some(builder),
-            inner,
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-        }
+    pub fn new(builder: ClientBuilder) -> Self {
+        builder.build()
     }
 
-    pub fn with_filter<F>(self, filter: F) -> TripleClient<FilterService<T, F>>
-    where
-        F: Filter,
-    {
-        TripleClient::new(
-            FilterService::new(self.inner, filter),
-            self.builder.unwrap(),
-        )
-    }
-}
-
-impl<T> TripleClient<T>
-where
-    T: Service<http::Request<hyper::Body>, Response = http::Response<crate::BoxBody>>,
-    T::Error: Into<crate::Error>,
-{
     fn map_request(
         &self,
+        uri: http::Uri,
         path: http::uri::PathAndQuery,
         body: hyper::Body,
     ) -> http::Request<hyper::Body> {
-        let mut parts = match self.builder.as_ref() {
-            Some(v) => v.to_owned().uri.into_parts(),
-            None => {
-                tracing::error!("client host is empty");
-                return http::Request::new(hyper::Body::empty());
-            }
-        };
+        let mut parts = uri.into_parts();
         parts.path_and_query = Some(path);
 
         let uri = http::Uri::from_parts(parts).unwrap();
@@ -127,7 +80,7 @@ where
         );
         req.headers_mut().insert(
             "content-type",
-            HeaderValue::from_static("application/grpc+json"),
+            HeaderValue::from_static("application/grpc+proto"),
         );
         req.headers_mut()
             .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
@@ -172,6 +125,7 @@ where
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
+        invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
@@ -187,10 +141,15 @@ where
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
 
-        let req = self.map_request(path, body);
+        let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+        let http_uri =
+            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
 
-        let response = self
-            .inner
+        let req = self.map_request(http_uri.clone(), path, body);
+
+        let mut conn = Connection::new().with_host(http_uri);
+        let response = conn
             .call(req)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
@@ -228,6 +187,7 @@ where
         req: impl IntoStreamingRequest<Message = M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
+        invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
@@ -243,10 +203,15 @@ where
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
-        let req = self.map_request(path, body);
+        let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+        let http_uri =
+            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
 
-        let response = self
-            .inner
+        let req = self.map_request(http_uri.clone(), path, body);
+
+        let mut conn = Connection::new().with_host(http_uri);
+        let response = conn
             .call(req)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
@@ -268,6 +233,7 @@ where
         req: impl IntoStreamingRequest<Message = M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
+        invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
@@ -283,10 +249,15 @@ where
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
-        let req = self.map_request(path, body);
+        let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+        let http_uri =
+            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
 
-        let response = self
-            .inner
+        let req = self.map_request(http_uri.clone(), path, body);
+
+        let mut conn = Connection::new().with_host(http_uri);
+        let response = conn
             .call(req)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
@@ -324,6 +295,7 @@ where
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
+        invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
@@ -339,10 +311,15 @@ where
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
-        let req = self.map_request(path, body);
+        let url_list = self.directory.as_ref().expect("msg").list(invocation);
+        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+        let http_uri =
+            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
 
-        let response = self
-            .inner
+        let req = self.map_request(http_uri.clone(), path, body);
+
+        let mut conn = Connection::new().with_host(http_uri);
+        let response = conn
             .call(req)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));

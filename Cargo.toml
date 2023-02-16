@@ -2,11 +2,13 @@
 members = [
   "xds",
   "registry",
+  "registry-zookeeper",
+  "registry-nacos",
   "metadata",
   "common",
   "config",
   "dubbo",
   "examples/echo",
   "examples/greeter",
-  "dubbo-build"
+  "dubbo-build",
 ]
