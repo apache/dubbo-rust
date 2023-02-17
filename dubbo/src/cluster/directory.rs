@@ -79,7 +79,7 @@ impl StaticDirectory {
 impl Directory for StaticDirectory {
     fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<Url> {
         let url = Url::from_url(&format!(
-            "triple://{}:{}/{}",
+            "tri://{}:{}/{}",
             self.uri.host().unwrap(),
             self.uri.port().unwrap(),
             invocation.get_target_service_unique_name(),

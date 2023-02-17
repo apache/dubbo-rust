@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+use crate::codegen::ClusterInvoker;
 use crate::{
     cluster::directory::StaticDirectory, codegen::Directory,
     triple::compression::CompressionEncoding, utils::boxed::BoxService,
@@ -30,6 +31,7 @@ pub struct ClientBuilder {
     pub timeout: Option<u64>,
     pub connector: &'static str,
     directory: Option<Box<dyn Directory>>,
+    cluster_invoker: Option<ClusterInvoker>,
 }
 
 impl ClientBuilder {
@@ -38,6 +40,7 @@ impl ClientBuilder {
             timeout: None,
             connector: "",
             directory: None,
+            cluster_invoker: None,
         }
     }
 
@@ -46,6 +49,7 @@ impl ClientBuilder {
             timeout: None,
             connector: "",
             directory: Some(Box::new(StaticDirectory::new(&host))),
+            cluster_invoker: None,
         }
     }
 
@@ -54,6 +58,7 @@ impl ClientBuilder {
             timeout: None,
             connector: "",
             directory: Some(Box::new(StaticDirectory::from_uri(&uri))),
+            cluster_invoker: None,
         }
     }
 
@@ -68,6 +73,7 @@ impl ClientBuilder {
     pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
         Self {
             directory: Some(directory),
+            cluster_invoker: Some(ClusterInvoker::with_directory(directory)),
             ..self
         }
     }
@@ -90,6 +96,7 @@ impl ClientBuilder {
         TripleClient {
             send_compression_encoding: Some(CompressionEncoding::Gzip),
             directory: self.directory,
+            cluster_invoker: self.cluster_invoker,
         }
     }
 }

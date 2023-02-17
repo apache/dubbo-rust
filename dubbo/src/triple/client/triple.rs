@@ -25,7 +25,7 @@ use rand::prelude::SliceRandom;
 use tower_service::Service;
 
 use super::{super::transport::connection::Connection, builder::ClientBuilder};
-use crate::codegen::{Directory, RpcInvocation};
+use crate::codegen::{ClusterInvoker, Directory, RpcInvocation};
 
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
@@ -36,6 +36,7 @@ use crate::{
 pub struct TripleClient {
     pub(crate) send_compression_encoding: Option<CompressionEncoding>,
     pub(crate) directory: Option<Box<dyn Directory>>,
+    pub(crate) cluster_invoker: Option<ClusterInvoker>,
 }
 
 impl TripleClient {
@@ -47,6 +48,13 @@ impl TripleClient {
 
     pub fn new(builder: ClientBuilder) -> Self {
         builder.build()
+    }
+
+    pub fn with_cluster(self, invoker: ClusterInvoker) -> Self {
+        TripleClient {
+            cluster_invoker: Some(invoker),
+            ..self
+        }
     }
 
     pub fn map_request(
