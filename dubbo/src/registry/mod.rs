@@ -23,8 +23,7 @@ pub mod types;
 
 use std::fmt::{Debug, Formatter};
 
-use crate::common::url::Url;
-use crate::registry::memory_registry::MemoryNotifyListener;
+use crate::{common::url::Url, registry::memory_registry::MemoryNotifyListener};
 
 pub trait Registry {
     type NotifyListener;

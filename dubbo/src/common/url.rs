@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter},
+};
 
 use crate::common::consts::{GROUP_KEY, INTERFACE_KEY, VERSION_KEY};
 use http::Uri;

@@ -1,5 +1,4 @@
-use crate::cluster::support::cluster_invoker::ClusterInvoker;
-use crate::registry::BoxRegistry;
+use crate::{cluster::support::cluster_invoker::ClusterInvoker, registry::BoxRegistry};
 use std::sync::Arc;
 
 pub trait ClusterRegistryIntegration {

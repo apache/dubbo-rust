@@ -18,9 +18,10 @@ use std::collections::HashMap;
 
 use lazy_static::lazy_static;
 
-use crate::cluster::loadbalance::impls::random::RandomLoadBalance;
-use crate::cluster::loadbalance::impls::roundrobin::RoundRobinLoadBalance;
-use crate::cluster::loadbalance::types::BoxLoadBalance;
+use crate::cluster::loadbalance::{
+    impls::{random::RandomLoadBalance, roundrobin::RoundRobinLoadBalance},
+    types::BoxLoadBalance,
+};
 
 pub mod impls;
 pub mod types;

@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-use std::fmt::Debug;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
-use crate::codegen::RpcInvocation;
-use crate::common::url::Url;
+use crate::{codegen::RpcInvocation, common::url::Url};
 
 pub type BoxLoadBalance = Box<dyn LoadBalance + Send + Sync>;
 

@@ -17,28 +17,32 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::env;
-use std::sync::RwLock;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    sync::{Arc, Mutex, RwLock},
+    time::Duration,
+};
 
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 #[allow(unused_imports)]
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
-use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
-use dubbo::codegen::BoxRegistry;
-use dubbo::common::consts::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY};
-use dubbo::common::url::Url;
-use dubbo::registry::integration::ClusterRegistryIntegration;
-use dubbo::registry::memory_registry::{MemoryNotifyListener, MemoryRegistry};
-use dubbo::registry::NotifyListener;
-use dubbo::registry::Registry;
-use dubbo::registry::ServiceEvent;
-use dubbo::StdError;
+use dubbo::{
+    cluster::support::cluster_invoker::ClusterInvoker,
+    codegen::BoxRegistry,
+    common::{
+        consts::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY},
+        url::Url,
+    },
+    registry::{
+        integration::ClusterRegistryIntegration,
+        memory_registry::{MemoryNotifyListener, MemoryRegistry},
+        NotifyListener, Registry, ServiceEvent,
+    },
+    StdError,
+};
 
 // 从url中获取服务注册的元数据
 // rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)

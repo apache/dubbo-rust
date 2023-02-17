@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use std::fmt::Debug;
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, fmt::Debug, str::FromStr};
 
 use futures_core::Stream;
 

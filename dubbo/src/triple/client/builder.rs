@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
-use crate::codegen::{ClusterInvoker, RegistryDirectory};
 use crate::{
-    cluster::directory::StaticDirectory, codegen::Directory,
-    triple::compression::CompressionEncoding, utils::boxed::BoxService,
+    cluster::directory::StaticDirectory,
+    codegen::{ClusterInvoker, Directory, RegistryDirectory},
+    triple::compression::CompressionEncoding,
+    utils::boxed::BoxService,
 };
 
 use super::TripleClient;

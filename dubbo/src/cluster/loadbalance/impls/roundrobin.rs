@@ -1,11 +1,17 @@
-use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, RwLock,
+    },
+};
 
-use crate::cluster::loadbalance::types::{LoadBalance, Metadata};
-use crate::codegen::RpcInvocation;
-use crate::common::url::Url;
+use crate::{
+    cluster::loadbalance::types::{LoadBalance, Metadata},
+    codegen::RpcInvocation,
+    common::url::Url,
+};
 
 pub struct RoundRobinLoadBalance {
     pub metadata: Metadata,

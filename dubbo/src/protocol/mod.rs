@@ -15,9 +15,11 @@
  * limitations under the License.
  */
 
-use std::fmt::Debug;
-use std::future::Future;
-use std::task::{Context, Poll};
+use std::{
+    fmt::Debug,
+    future::Future,
+    task::{Context, Poll},
+};
 
 use async_trait::async_trait;
 use tower_service::Service;

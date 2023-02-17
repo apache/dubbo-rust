@@ -17,8 +17,7 @@
 
 use std::{collections::HashMap, env, fs};
 
-use crate::protocol::Protocol;
-use crate::registry::RegistryConfig;
+use crate::{protocol::Protocol, registry::RegistryConfig};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use tracing::trace;

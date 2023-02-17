@@ -15,16 +15,19 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use itertools::Itertools;
 use tracing::info;
 
-use crate::common::url::Url;
-use crate::registry::memory_registry::MemoryNotifyListener;
-use crate::registry::{BoxRegistry, Registry};
-use crate::StdError;
+use crate::{
+    common::url::Url,
+    registry::{memory_registry::MemoryNotifyListener, BoxRegistry, Registry},
+    StdError,
+};
 
 pub type SafeRegistry = Arc<Mutex<BoxRegistry>>;
 pub type Registries = Arc<Mutex<HashMap<String, SafeRegistry>>>;

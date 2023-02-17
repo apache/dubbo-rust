@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
@@ -27,8 +26,8 @@ use tower_service::Service;
 use super::{super::transport::connection::Connection, builder::ClientBuilder};
 use crate::codegen::{ClusterInvoker, Directory, RpcInvocation};
 
-use crate::cluster::support::cluster_invoker::ClusterRequestBuilder;
 use crate::{
+    cluster::support::cluster_invoker::ClusterRequestBuilder,
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
     triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
 };

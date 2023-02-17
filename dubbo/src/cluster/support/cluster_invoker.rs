@@ -15,19 +15,20 @@
  * limitations under the License.
  */
 
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
-use http::uri::PathAndQuery;
-use http::Request;
+use http::{uri::PathAndQuery, Request};
 use hyper::Body;
 
-use crate::cluster::loadbalance::types::BoxLoadBalance;
-use crate::cluster::loadbalance::LOAD_BALANCE_EXTENSIONS;
-use crate::cluster::support::DEFAULT_LOADBALANCE;
-use crate::codegen::{Directory, RegistryDirectory, TripleClient};
-use crate::common::url::Url;
-use crate::invocation::RpcInvocation;
+use crate::{
+    cluster::{
+        loadbalance::{types::BoxLoadBalance, LOAD_BALANCE_EXTENSIONS},
+        support::DEFAULT_LOADBALANCE,
+    },
+    codegen::{Directory, RegistryDirectory, TripleClient},
+    common::url::Url,
+    invocation::RpcInvocation,
+};
 
 #[derive(Debug, Clone)]
 pub struct ClusterInvoker {

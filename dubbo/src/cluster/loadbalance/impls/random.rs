@@ -1,9 +1,13 @@
-use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
 
-use crate::cluster::loadbalance::types::{LoadBalance, Metadata};
-use crate::codegen::RpcInvocation;
-use crate::common::url::Url;
+use crate::{
+    cluster::loadbalance::types::{LoadBalance, Metadata},
+    codegen::RpcInvocation,
+    common::url::Url,
+};
 
 pub struct RandomLoadBalance {
     pub metadata: Metadata,
