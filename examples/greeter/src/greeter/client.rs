@@ -20,7 +20,6 @@ pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
 }
 
-use dubbo::cluster::support::cluster_invoker::ClusterInvoker;
 use dubbo::codegen::*;
 use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
 use futures_util::StreamExt;
@@ -53,10 +52,7 @@ async fn main() {
 
     let zkr = ZookeeperRegistry::default();
     let directory = RegistryDirectory::new(Box::new(zkr));
-    let cluster_invoker = ClusterInvoker::with_directory(directory);
-
-    let mut cli = GreeterClient::new(Connection::new());
-    cli = cli.with_cluster(cluster_invoker);
+    let mut cli = GreeterClient::new(ClientBuilder::new().with_registry_directory(directory));
     // using loop for loadbalance test
     println!("# unary call");
     let resp = cli

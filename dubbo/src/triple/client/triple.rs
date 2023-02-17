@@ -27,6 +27,7 @@ use tower_service::Service;
 use super::{super::transport::connection::Connection, builder::ClientBuilder};
 use crate::codegen::{ClusterInvoker, Directory, RpcInvocation};
 
+use crate::cluster::support::cluster_invoker::ClusterRequestBuilder;
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
     triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
@@ -149,18 +150,10 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
-
-        let url_list = self
-            .directory
-            .as_ref()
-            .expect("msg")
-            .list(Arc::new(invocation));
-        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
-        let http_uri =
-            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
-
-        let req = self.map_request(http_uri.clone(), path, body);
-
+        let arc_invocation = Arc::new(invocation);
+        let cluster_invoker = self.cluster_invoker.as_ref().unwrap().clone();
+        let req = cluster_invoker.build_req(self, path, arc_invocation.clone(), body);
+        let http_uri = req.uri().clone();
         let mut conn = Connection::new().with_host(http_uri);
         let response = conn
             .call(req)

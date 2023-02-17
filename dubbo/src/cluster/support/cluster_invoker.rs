@@ -21,7 +21,6 @@ use std::sync::Arc;
 use http::uri::PathAndQuery;
 use http::Request;
 use hyper::Body;
-use tower_service::Service;
 
 use crate::cluster::loadbalance::types::BoxLoadBalance;
 use crate::cluster::loadbalance::LOAD_BALANCE_EXTENSIONS;
@@ -53,14 +52,10 @@ pub trait ClusterInvokerSelector {
     ) -> Option<Url>;
 }
 
-pub trait ClusterRequestBuilder<T>
-where
-    T: Service<http::Request<hyper::Body>, Response = http::Response<crate::BoxBody>>,
-    T::Error: Into<crate::Error>,
-{
+pub trait ClusterRequestBuilder {
     fn build_req(
         &self,
-        triple_client: TripleClient,
+        triple_client: &mut TripleClient,
         path: http::uri::PathAndQuery,
         invocation: Arc<RpcInvocation>,
         body: hyper::Body,
@@ -131,14 +126,10 @@ impl ClusterInvokerSelector for ClusterInvoker {
     }
 }
 
-impl<T> ClusterRequestBuilder<T> for ClusterInvoker
-where
-    T: Service<http::Request<hyper::Body>, Response = http::Response<crate::BoxBody>>,
-    T::Error: Into<crate::Error>,
-{
+impl ClusterRequestBuilder for ClusterInvoker {
     fn build_req(
         &self,
-        triple_client: TripleClient,
+        triple_client: &mut TripleClient,
         path: PathAndQuery,
         invocation: Arc<RpcInvocation>,
         body: Body,

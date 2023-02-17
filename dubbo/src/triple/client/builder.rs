@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use crate::codegen::ClusterInvoker;
+use crate::codegen::{ClusterInvoker, RegistryDirectory};
 use crate::{
     cluster::directory::StaticDirectory, codegen::Directory,
     triple::compression::CompressionEncoding, utils::boxed::BoxService,
@@ -73,7 +73,15 @@ impl ClientBuilder {
     pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
         Self {
             directory: Some(directory),
-            cluster_invoker: Some(ClusterInvoker::with_directory(directory)),
+            cluster_invoker: None,
+            ..self
+        }
+    }
+
+    pub fn with_registry_directory(self, registry: RegistryDirectory) -> Self {
+        Self {
+            directory: None,
+            cluster_invoker: Some(ClusterInvoker::with_directory(registry)),
             ..self
         }
     }
@@ -88,6 +96,7 @@ impl ClientBuilder {
     pub fn with_connector(self, connector: &'static str) -> Self {
         Self {
             connector: connector,
+            cluster_invoker: None,
             ..self
         }
     }
