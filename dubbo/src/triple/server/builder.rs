@@ -24,7 +24,6 @@ use http::{Request, Response, Uri};
 use hyper::body::Body;
 use tower_service::Service;
 
-use crate::codegen::{ClusterInvoker, RegistryDirectory};
 use crate::{common::url::Url, triple::transport::DubboServer, BoxBody};
 
 #[derive(Clone, Default, Debug)]
