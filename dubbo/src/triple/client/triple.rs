@@ -151,9 +151,24 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
         let arc_invocation = Arc::new(invocation);
-        let cluster_invoker = self.cluster_invoker.as_ref().unwrap().clone();
-        let req = cluster_invoker.build_req(self, path, arc_invocation.clone(), body);
-        let http_uri = req.uri().clone();
+        let mut req;
+        let mut http_uri;
+        if self.cluster_invoker.is_some() {
+            let cluster_invoker = self.cluster_invoker.as_ref().unwrap().clone();
+            req = cluster_invoker.build_req(self, path, arc_invocation.clone(), body);
+            http_uri = req.uri().clone();
+        } else {
+            let url_list = self
+                .directory
+                .as_ref()
+                .expect("msg")
+                .list(arc_invocation.clone());
+            let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+            http_uri =
+                http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
+            req = self.map_request(http_uri.clone(), path, body);
+        }
+
         let mut conn = Connection::new().with_host(http_uri);
         let response = conn
             .call(req)
