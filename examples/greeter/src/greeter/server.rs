@@ -49,15 +49,12 @@ async fn main() {
         name: "greeter".to_string(),
     });
     let zkr = ZookeeperRegistry::default();
-    let r = RootConfig::new();
-    let r = match r.load() {
-        Ok(config) => config,
-        Err(_err) => panic!("err: {:?}", _err), // response was droped
-    };
-    let mut f = Dubbo::new()
-        .with_config(r)
-        .add_registry("zookeeper", Box::new(zkr));
-    f.start().await;
+    let directory = RegistryDirectory::new(Box::new(zkr));
+    let builder = ServerBuilder::new()
+        .with_listener("unix".to_string())
+        .with_service_names(vec!["org.apache.dubbo.sample.tri.Greeter".to_string()])
+        .with_registry_directory(directory);
+    builder.build().serve().await.unwrap();
 }
 
 #[allow(dead_code)]
