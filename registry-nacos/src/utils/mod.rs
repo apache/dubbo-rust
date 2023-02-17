@@ -40,7 +40,7 @@ pub(crate) fn build_nacos_client_props(url: &Url) -> (nacos_sdk::api::props::Cli
     let host = &url.ip;
     let port = &url.port;
     let backup = url
-        .get_param(BACKUP_KEY.to_owned())
+        .get_param(BACKUP_KEY)
         .map(|mut data| {
             data.insert(0, ',');
             data
@@ -49,13 +49,13 @@ pub(crate) fn build_nacos_client_props(url: &Url) -> (nacos_sdk::api::props::Cli
     let server_addr = format!("{}:{}{}", host, port, backup);
 
     let namespace = url
-        .get_param(NAMESPACE_KEY.to_owned())
-        .unwrap_or_else(|| DEFAULT_NAMESPACE.to_owned());
+        .get_param(NAMESPACE_KEY)
+        .unwrap_or_else(|| DEFAULT_NAMESPACE.to_string());
     let app_name = url
-        .get_param(APP_NAME_KEY.to_owned())
-        .unwrap_or_else(|| UNKNOWN_APP.to_owned());
-    let username = url.get_param(USERNAME_KEY.to_owned()).unwrap_or_default();
-    let password = url.get_param(PASSWORD_KEY.to_owned()).unwrap_or_default();
+        .get_param(APP_NAME_KEY)
+        .unwrap_or_else(|| UNKNOWN_APP.to_string());
+    let username = url.get_param(USERNAME_KEY).unwrap_or_default();
+    let password = url.get_param(PASSWORD_KEY).unwrap_or_default();
 
     let enable_auth = !password.is_empty() && !username.is_empty();
 

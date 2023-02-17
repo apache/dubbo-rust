@@ -137,6 +137,10 @@ impl Url {
         )
     }
 
+    pub fn to_url(&self) -> String {
+        self.raw_url_string()
+    }
+
     fn renew_raw_url_string(&mut self) {
         self.raw_url_string = format!(
             "{}://{}:{}/{}{}",

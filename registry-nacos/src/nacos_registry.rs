@@ -142,9 +142,9 @@ impl Registry for NacosRegistry {
     type NotifyListener = Arc<dyn NotifyListener + Sync + Send + 'static>;
 
     fn register(&mut self, url: Url) -> Result<(), dubbo::StdError> {
-        let side = url.get_param(SIDE_KEY.to_owned()).unwrap_or_default();
+        let side = url.get_param(SIDE_KEY).unwrap_or_default();
         let register_consumer = url
-            .get_param(REGISTER_CONSUMER_URL_KEY.to_owned())
+            .get_param(REGISTER_CONSUMER_URL_KEY)
             .unwrap_or_else(|| false.to_string())
             .parse::<bool>()
             .unwrap_or(false);
@@ -313,21 +313,17 @@ struct NacosServiceName {
 
 impl NacosServiceName {
     fn new(url: &Url) -> NacosServiceName {
-        let service_interface = url
-            .get_service_name()
-            .into_iter()
-            .next()
-            .unwrap_or_default();
+        let service_interface = url.get_service_name();
 
-        let category = url.get_param(CATEGORY_KEY.to_owned()).unwrap_or_default();
+        let category = url.get_param(CATEGORY_KEY).unwrap_or_default();
 
-        let version = url.get_param(VERSION_KEY.to_owned()).unwrap_or_default();
+        let version = url.get_param(VERSION_KEY).unwrap_or_default();
 
-        let group = url.get_param(GROUP_KEY.to_owned()).unwrap_or_default();
+        let group = url.get_param(GROUP_KEY).unwrap_or_default();
 
         Self {
             category,
-            service_interface,
+            service_interface: service_interface.clone(),
             version,
             group,
         }
