@@ -227,7 +227,7 @@ impl Default for ZookeeperRegistry {
                 default_connect_string.to_string()
             }
         };
-        info!(
+        println!(
             "using external registry with it's connect string {}",
             zk_connect_string.as_str()
         );
@@ -239,6 +239,7 @@ impl Registry for ZookeeperRegistry {
     type NotifyListener = MemoryNotifyListener;
 
     fn register(&mut self, url: Url) -> Result<(), StdError> {
+        println!("register url: {}", url);
         let zk_path = format!(
             "/{}/{}/{}/{}",
             DUBBO_KEY,
