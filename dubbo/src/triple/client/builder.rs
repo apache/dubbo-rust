@@ -15,35 +15,48 @@
  * limitations under the License.
  */
 
-use http::Uri;
-use hyper::client::conn::Builder;
-use tokio::time::Duration;
-use tower::ServiceBuilder;
+use crate::{
+    cluster::directory::StaticDirectory, codegen::Directory,
+    triple::compression::CompressionEncoding, utils::boxed::BoxService,
+};
 
-use crate::triple::transport::connection::Connection;
-use crate::utils::boxed::BoxService;
+use aws_smithy_http::body::SdkBody;
+
+use super::TripleClient;
 
 pub type ClientBoxService =
-    BoxService<http::Request<hyper::Body>, http::Response<crate::BoxBody>, crate::Error>;
+    BoxService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
 
 #[derive(Clone, Debug, Default)]
 pub struct ClientBuilder {
-    pub uri: Uri,
     pub timeout: Option<u64>,
     pub connector: &'static str,
+    directory: Option<Box<dyn Directory>>,
 }
 
 impl ClientBuilder {
     pub fn new() -> ClientBuilder {
         ClientBuilder {
-            uri: Uri::builder().build().unwrap(),
             timeout: None,
             connector: "",
+            directory: None,
         }
     }
 
-    pub fn from_static(s: &'static str) -> ClientBuilder {
-        Self::from(Uri::from_static(s))
+    pub fn from_static(host: &str) -> ClientBuilder {
+        Self {
+            timeout: None,
+            connector: "",
+            directory: Some(Box::new(StaticDirectory::new(&host))),
+        }
+    }
+
+    pub fn from_uri(uri: &http::Uri) -> ClientBuilder {
+        Self {
+            timeout: None,
+            connector: "",
+            directory: Some(Box::new(StaticDirectory::from_uri(&uri))),
+        }
     }
 
     pub fn with_timeout(self, timeout: u64) -> Self {
@@ -53,9 +66,17 @@ impl ClientBuilder {
         }
     }
 
+    /// host: http://0.0.0.0:8888
+    pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
+        Self {
+            directory: Some(directory),
+            ..self
+        }
+    }
+
     pub fn with_host(self, host: &'static str) -> Self {
         Self {
-            uri: Uri::from_static(host),
+            directory: Some(Box::new(StaticDirectory::new(&host))),
             ..self
         }
     }
@@ -67,28 +88,10 @@ impl ClientBuilder {
         }
     }
 
-    pub fn connect(self) -> ClientBoxService {
-        let builder = ServiceBuilder::new();
-        let timeout = self.timeout.unwrap_or(5);
-        let builder = builder.timeout(Duration::from_secs(timeout));
-
-        let mut b = Builder::new();
-        let hyper_builder = b.http2_only(true);
-        let conn = Connection::new()
-            .with_host(self.uri.clone())
-            .with_connector(self.connector)
-            .with_builder(hyper_builder.to_owned());
-
-        BoxService::new(builder.service(conn))
-    }
-}
-
-impl From<Uri> for ClientBuilder {
-    fn from(u: Uri) -> Self {
-        Self {
-            uri: u,
-            timeout: None,
-            connector: "tcp",
+    pub fn build(self) -> TripleClient {
+        TripleClient {
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
+            directory: self.directory,
         }
     }
 }

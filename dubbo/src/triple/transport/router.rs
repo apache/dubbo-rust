@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
-use std::fmt;
-use std::pin::Pin;
-use std::task::Context;
-use std::task::Poll;
+use std::{
+    fmt,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use axum::Router;
 use futures_core::Future;

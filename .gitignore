@@ -3,5 +3,5 @@ Cargo.lock
 **/*.rs.bk
 .vscode/
 .idea/
-.DS_Store
 helloworld
+.DS_Store

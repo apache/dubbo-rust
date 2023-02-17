@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use std::net::SocketAddr;
-use std::task;
+use std::{net::SocketAddr, task};
 
 use super::Listener;
 use async_trait::async_trait;

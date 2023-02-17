@@ -24,7 +24,6 @@ use http::{Request, Response};
 use hyper::body::Body;
 use tokio::time::Duration;
 use tower_service::Service;
-
 use tokio_rustls::rustls::{Certificate, PrivateKey};
 use tokio_rustls::{rustls, TlsAcceptor};
 

@@ -16,9 +16,12 @@
  */
 
 #![allow(unused_variables, dead_code, missing_docs)]
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
+
+use crate::common::url::Url;
 
 use super::{NotifyListener, Registry};
 
@@ -100,11 +103,17 @@ impl Registry for MemoryRegistry {
     }
 }
 
-pub struct MemoryNotifyListener {}
+pub struct MemoryNotifyListener {
+    pub service_instances: Arc<RwLock<HashMap<String, Vec<Url>>>>,
+}
 
 impl NotifyListener for MemoryNotifyListener {
     fn notify(&self, event: super::ServiceEvent) {
-        todo!()
+        let mut map = self.service_instances.write().expect("msg");
+        match event.action.as_str() {
+            "ADD" => map.insert(event.key, event.service),
+            &_ => todo!(),
+        };
     }
 
     fn notify_all(&self, event: super::ServiceEvent) {

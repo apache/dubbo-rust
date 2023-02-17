@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::str::FromStr;
+use std::{
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    str::FromStr,
+};
 
 use http::Uri;
 use hyper::client::connect::dns::Name;
 use tokio::net::TcpStream;
 use tower_service::Service;
 
-use crate::triple::transport::resolver::dns::DnsResolver;
-use crate::triple::transport::resolver::Resolve;
+use crate::triple::transport::resolver::{dns::DnsResolver, Resolve};
 
 #[derive(Clone, Default)]
 pub struct HttpConnector<R = DnsResolver> {

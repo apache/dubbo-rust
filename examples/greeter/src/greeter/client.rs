@@ -23,10 +23,31 @@ pub mod protos {
 use dubbo::codegen::*;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() {
-    let mut cli = GreeterClient::connect("http://127.0.0.1:8888".to_string());
+    // a builder for `FmtSubscriber`.
+    let subscriber = FmtSubscriber::builder()
+        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+        // will be written to stdout.
+        .with_max_level(Level::INFO)
+        // completes the builder.
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
+    let mut cli = GreeterClient::new(ClientBuilder::from_static(&"http://127.0.0.1:8888"));
+
+    // Here is example for zk
+    // let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {
+    //     Ok(val) => val,
+    //     Err(_) => "localhost:2181".to_string(),
+    // };
+    // let zkr = ZookeeperRegistry::new(&zk_connect_string);
+    // let directory = RegistryDirectory::new(Box::new(zkr));
+    // cli = cli.with_directory(Box::new(directory));
 
     println!("# unary call");
     let resp = cli

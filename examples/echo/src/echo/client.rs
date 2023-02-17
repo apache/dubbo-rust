@@ -16,8 +16,7 @@
  */
 
 use dubbo::codegen::*;
-use example_echo::protos::hello_echo::echo_client::EchoClient;
-use example_echo::protos::hello_echo::EchoRequest;
+use example_echo::generated::generated::{echo_client::EchoClient, EchoRequest};
 use futures_util::StreamExt;
 
 pub struct FakeFilter {}
@@ -31,10 +30,11 @@ impl Filter for FakeFilter {
 
 #[tokio::main]
 async fn main() {
-    let builder = ClientBuilder::new()
-        .with_connector("unix")
-        .with_host("unix://127.0.0.1:8888");
-    let mut cli = EchoClient::build(builder);
+    // let builder = ClientBuilder::new()
+    //     .with_connector("unix")
+    //     .with_host("unix://127.0.0.1:8888");
+    let builder = ClientBuilder::from_static(&"http://127.0.0.1:8888").with_timeout(1000000);
+    let mut cli = EchoClient::new(builder);
     // let mut unary_cli = cli.clone().with_filter(FakeFilter {});
     // let mut cli = EchoClient::build(ClientBuilder::from_static("http://127.0.0.1:8888"));
     let resp = cli

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-use std::path::PathBuf;
+pub mod zookeeper_registry;
 
-fn main() {
-    let path = PathBuf::from("./src/generated");
-    println!("path: {:?}", path);
-    dubbo_build::prost::configure()
-        .output_dir(path)
-        .compile(&["proto/echo/echo.proto"], &["proto/"])
-        .unwrap();
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        let result = 2 + 2;
+        assert_eq!(result, 4);
+    }
 }

@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+pub mod cluster;
 pub mod codegen;
 pub mod common;
 pub mod context;
@@ -28,8 +29,7 @@ pub mod triple;
 pub mod utils;
 
 use http_body::Body;
-use std::future::Future;
-use std::pin::Pin;
+use std::{future::Future, pin::Pin};
 
 pub use framework::Dubbo;
 

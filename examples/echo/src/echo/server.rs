@@ -15,21 +15,18 @@
  * limitations under the License.
  */
 
-use std::io::ErrorKind;
-use std::pin::Pin;
+use std::{io::ErrorKind, pin::Pin};
 
 use async_trait::async_trait;
-use dubbo::filter::context::ContextFilter;
-use dubbo::filter::timeout::TimeoutFilter;
-use futures_util::Stream;
-use futures_util::StreamExt;
+use dubbo::filter::{context::ContextFilter, timeout::TimeoutFilter};
+use futures_util::{Stream, StreamExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use dubbo::codegen::*;
 // use dubbo::Dubbo;
 // use dubbo_config::RootConfig;
-use example_echo::protos::hello_echo::{
+use example_echo::generated::generated::{
     echo_server::{register_server, Echo, EchoServer},
     EchoRequest, EchoResponse,
 };
@@ -80,7 +77,7 @@ async fn main() {
 
     // 3. 通过serverbuilder来初始化Server
     let builder = ServerBuilder::new()
-        .with_listener("unix".to_string())
+        .with_listener("tcp".to_string())
         .with_service_names(vec!["grpc.examples.echo.Echo".to_string()])
         .with_addr("127.0.0.1:8888");
     builder.build().serve().await.unwrap();
