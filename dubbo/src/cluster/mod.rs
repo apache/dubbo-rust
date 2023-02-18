@@ -20,11 +20,7 @@ use std::{sync::Arc, task::Poll};
 use aws_smithy_http::body::SdkBody;
 use tower_service::Service;
 
-use crate::{
-    common::url::Url,
-    empty_body,
-    protocol::{triple::triple_invoker::TripleInvoker, BoxInvoker},
-};
+use crate::{empty_body, protocol::BoxInvoker};
 
 pub mod directory;
 pub mod loadbalance;
@@ -92,10 +88,11 @@ impl Service<http::Request<SdkBody>> for FailoverCluster {
 pub struct MockDirectory {}
 
 impl Directory for MockDirectory {
-    fn list(&self, meta: String) -> Vec<BoxInvoker> {
-        tracing::info!("MockDirectory: {}", meta);
-        let u = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter").unwrap();
-        vec![Box::new(TripleInvoker::new(u))]
+    fn list(&self, _meta: String) -> Vec<BoxInvoker> {
+        // tracing::info!("MockDirectory: {}", meta);
+        // let u = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter").unwrap();
+        // vec![Box::new(TripleInvoker::new(u))]
+        todo!()
     }
 
     fn is_empty(&self) -> bool {

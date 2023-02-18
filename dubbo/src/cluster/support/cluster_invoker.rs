@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
+use aws_smithy_http::body::SdkBody;
 use std::{str::FromStr, sync::Arc};
 
 use http::{uri::PathAndQuery, Request};
-use hyper::Body;
 
 use crate::{
     cluster::{
@@ -59,8 +59,8 @@ pub trait ClusterRequestBuilder {
         triple_client: &mut TripleClient,
         path: http::uri::PathAndQuery,
         invocation: Arc<RpcInvocation>,
-        body: hyper::Body,
-    ) -> http::Request<hyper::Body>;
+        body: SdkBody,
+    ) -> http::Request<SdkBody>;
 }
 
 impl ClusterInvoker {
@@ -133,8 +133,8 @@ impl ClusterRequestBuilder for ClusterInvoker {
         triple_client: &mut TripleClient,
         path: PathAndQuery,
         invocation: Arc<RpcInvocation>,
-        body: Body,
-    ) -> Request<Body> {
+        body: SdkBody,
+    ) -> Request<SdkBody> {
         let invokers = self.directory.list(invocation.clone());
         let invoker_url = self
             .select(invocation, Arc::new(invokers), Arc::new(Vec::new()))
