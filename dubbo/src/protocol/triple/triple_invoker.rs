@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+use aws_smithy_http::body::SdkBody;
 use std::fmt::{Debug, Formatter};
 use tower_service::Service;
 
@@ -41,7 +42,7 @@ impl Debug for TripleInvoker {
     }
 }
 
-impl Invoker<http::Request<hyper::Body>> for TripleInvoker {
+impl Invoker<http::Request<SdkBody>> for TripleInvoker {
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
@@ -52,7 +53,7 @@ impl Invoker<http::Request<hyper::Body>> for TripleInvoker {
         self.url.clone()
     }
 
-    fn call(&mut self, req: http::Request<hyper::Body>) -> Self::Future {
+    fn call(&mut self, req: http::Request<SdkBody>) -> Self::Future {
         self.conn.call(req)
     }
 

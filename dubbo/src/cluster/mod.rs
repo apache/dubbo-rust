@@ -15,6 +15,90 @@
  * limitations under the License.
  */
 
+use std::{sync::Arc, task::Poll};
+
+use aws_smithy_http::body::SdkBody;
+use tower_service::Service;
+
+use crate::{
+    common::url::Url,
+    empty_body,
+    protocol::{triple::triple_invoker::TripleInvoker, BoxInvoker},
+};
+
 pub mod directory;
 pub mod loadbalance;
 pub mod support;
+
+pub trait Directory {
+    fn list(&self, meta: String) -> Vec<BoxInvoker>;
+    fn is_empty(&self) -> bool;
+}
+
+type BoxDirectory = Box<dyn Directory>;
+
+pub struct FailoverCluster {
+    dir: Arc<BoxDirectory>,
+}
+
+impl FailoverCluster {
+    pub fn new(dir: BoxDirectory) -> FailoverCluster {
+        Self { dir: Arc::new(dir) }
+    }
+}
+
+impl Service<http::Request<SdkBody>> for FailoverCluster {
+    type Response = http::Response<crate::BoxBody>;
+
+    type Error = crate::Error;
+
+    type Future = crate::BoxFuture<Self::Response, Self::Error>;
+
+    fn poll_ready(
+        &mut self,
+        _cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        // if self.dir.is_empty() return err
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: http::Request<SdkBody>) -> Self::Future {
+        println!("req: {}", req.body().content_length().unwrap());
+        let clone_body = req.body().try_clone().unwrap();
+        let mut clone_req = http::Request::builder()
+            .uri(req.uri().clone())
+            .method(req.method().clone());
+        *clone_req.headers_mut().unwrap() = req.headers().clone();
+        let r = clone_req.body(clone_body).unwrap();
+        let invokers = self.dir.list("service_name".to_string());
+        for mut invoker in invokers {
+            let fut = async move {
+                let res = invoker.call(r).await;
+                return res;
+            };
+            return Box::pin(fut);
+        }
+        Box::pin(async move {
+            Ok(http::Response::builder()
+                .status(200)
+                .header("grpc-status", "12")
+                .header("content-type", "application/grpc")
+                .body(empty_body())
+                .unwrap())
+        })
+    }
+}
+
+pub struct MockDirectory {}
+
+impl Directory for MockDirectory {
+    fn list(&self, meta: String) -> Vec<BoxInvoker> {
+        tracing::info!("MockDirectory: {}", meta);
+        let u = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter").unwrap();
+        vec![Box::new(TripleInvoker::new(u))]
+    }
+
+    fn is_empty(&self) -> bool {
+        false
+    }
+}

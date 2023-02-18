@@ -22,6 +22,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use aws_smithy_http::body::SdkBody;
 use tower_service::Service;
 
 use crate::common::url::Url;
@@ -59,7 +60,7 @@ pub trait Invoker<ReqBody>: Debug {
 pub type BoxExporter = Box<dyn Exporter + Send + Sync>;
 pub type BoxInvoker = Box<
     dyn Invoker<
-            http::Request<hyper::Body>,
+            http::Request<SdkBody>,
             Response = http::Response<crate::BoxBody>,
             Error = crate::Error,
             Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,

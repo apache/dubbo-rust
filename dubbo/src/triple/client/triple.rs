@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
+use std::sync::Arc;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
+use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
 use rand::prelude::SliceRandom;
 use tower_service::Service;
@@ -27,7 +29,6 @@ use super::{super::transport::connection::Connection, builder::ClientBuilder};
 use crate::codegen::{ClusterInvoker, Directory, RpcInvocation};
 
 use crate::{
-    cluster::support::cluster_invoker::ClusterRequestBuilder,
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
     triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
 };
@@ -61,8 +62,8 @@ impl TripleClient {
         &self,
         uri: http::Uri,
         path: http::uri::PathAndQuery,
-        body: hyper::Body,
-    ) -> http::Request<hyper::Body> {
+        body: SdkBody,
+    ) -> http::Request<SdkBody> {
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(path);
 
@@ -352,6 +353,7 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
+        let sdk_body = SdkBody::from(body);
         let arc_invocation = Arc::new(invocation);
         let req;
         let http_uri;

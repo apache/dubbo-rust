@@ -22,10 +22,12 @@ use crate::{
     utils::boxed::BoxService,
 };
 
+use aws_smithy_http::body::SdkBody;
+
 use super::TripleClient;
 
 pub type ClientBoxService =
-    BoxService<http::Request<hyper::Body>, http::Response<crate::BoxBody>, crate::Error>;
+    BoxService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
 
 #[derive(Clone, Debug, Default)]
 pub struct ClientBuilder {
