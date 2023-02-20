@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
@@ -25,12 +25,10 @@ use rand::prelude::SliceRandom;
 use tower_service::Service;
 
 use super::{super::transport::connection::Connection, builder::ClientBuilder};
-use crate::{
-    cluster::{FailoverCluster, MockDirectory},
-    codegen::{Directory, RpcInvocation},
-};
+use crate::codegen::{ClusterInvoker, Directory, RpcInvocation};
 
 use crate::{
+    cluster::support::cluster_invoker::ClusterRequestBuilder,
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
     triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
 };
@@ -39,6 +37,7 @@ use crate::{
 pub struct TripleClient {
     pub(crate) send_compression_encoding: Option<CompressionEncoding>,
     pub(crate) directory: Option<Box<dyn Directory>>,
+    pub(crate) cluster_invoker: Option<ClusterInvoker>,
 }
 
 impl TripleClient {
@@ -52,7 +51,14 @@ impl TripleClient {
         builder.build()
     }
 
-    fn map_request(
+    pub fn with_cluster(self, invoker: ClusterInvoker) -> Self {
+        TripleClient {
+            cluster_invoker: Some(invoker),
+            ..self
+        }
+    }
+
+    pub fn map_request(
         &self,
         uri: http::Uri,
         path: http::uri::PathAndQuery,
@@ -144,19 +150,28 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
-        let bytes = hyper::body::to_bytes(body).await.unwrap();
-        let sdk_body = SdkBody::from(bytes);
+        let sdk_body = SdkBody::from(body);
+        let arc_invocation = Arc::new(invocation);
+        let req;
+        let http_uri;
+        if self.cluster_invoker.is_some() {
+            let cluster_invoker = self.cluster_invoker.as_ref().unwrap().clone();
+            req = cluster_invoker.build_req(self, path, arc_invocation.clone(), sdk_body);
+            http_uri = req.uri().clone();
+        } else {
+            let url_list = self
+                .directory
+                .as_ref()
+                .expect("msg")
+                .list(arc_invocation.clone());
+            let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+            http_uri =
+                http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
+            req = self.map_request(http_uri.clone(), path, sdk_body);
+        }
 
-        let url_list = self.directory.as_ref().expect("msg").list(invocation);
-        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
-        let http_uri =
-            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
-
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
-
-        // let mut conn = Connection::new().with_host(http_uri);
-        let mut cluster = FailoverCluster::new(Box::new(MockDirectory {}));
-        let response = cluster
+        let mut conn = Connection::new().with_host(http_uri);
+        let response = conn
             .call(req)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
@@ -210,14 +225,24 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
-
-        let url_list = self.directory.as_ref().expect("msg").list(invocation);
-        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
-        let http_uri =
-            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
-
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
-
+        let arc_invocation = Arc::new(invocation);
+        let req;
+        let http_uri;
+        if self.cluster_invoker.is_some() {
+            let cluster_invoker = self.cluster_invoker.as_ref().unwrap().clone();
+            req = cluster_invoker.build_req(self, path, arc_invocation.clone(), sdk_body);
+            http_uri = req.uri().clone();
+        } else {
+            let url_list = self
+                .directory
+                .as_ref()
+                .expect("msg")
+                .list(arc_invocation.clone());
+            let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+            http_uri =
+                http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
+            req = self.map_request(http_uri.clone(), path, sdk_body);
+        }
         let mut conn = Connection::new().with_host(http_uri);
         let response = conn
             .call(req)
@@ -257,14 +282,24 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
-
-        let url_list = self.directory.as_ref().expect("msg").list(invocation);
-        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
-        let http_uri =
-            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
-
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
-
+        let arc_invocation = Arc::new(invocation);
+        let req;
+        let http_uri;
+        if self.cluster_invoker.is_some() {
+            let cluster_invoker = self.cluster_invoker.as_ref().unwrap().clone();
+            req = cluster_invoker.build_req(self, path, arc_invocation.clone(), sdk_body);
+            http_uri = req.uri().clone();
+        } else {
+            let url_list = self
+                .directory
+                .as_ref()
+                .expect("msg")
+                .list(arc_invocation.clone());
+            let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+            http_uri =
+                http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
+            req = self.map_request(http_uri.clone(), path, sdk_body);
+        }
         let mut conn = Connection::new().with_host(http_uri);
         let response = conn
             .call(req)
@@ -320,13 +355,24 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
-
-        let url_list = self.directory.as_ref().expect("msg").list(invocation);
-        let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
-        let http_uri =
-            http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
-
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let arc_invocation = Arc::new(invocation);
+        let req;
+        let http_uri;
+        if self.cluster_invoker.is_some() {
+            let cluster_invoker = self.cluster_invoker.as_ref().unwrap().clone();
+            req = cluster_invoker.build_req(self, path, arc_invocation.clone(), sdk_body);
+            http_uri = req.uri().clone();
+        } else {
+            let url_list = self
+                .directory
+                .as_ref()
+                .expect("msg")
+                .list(arc_invocation.clone());
+            let real_url = url_list.choose(&mut rand::thread_rng()).expect("msg");
+            http_uri =
+                http::Uri::from_str(&format!("http://{}:{}/", real_url.ip, real_url.port)).unwrap();
+            req = self.map_request(http_uri.clone(), path, sdk_body);
+        }
 
         let mut conn = Connection::new().with_host(http_uri);
         let response = conn

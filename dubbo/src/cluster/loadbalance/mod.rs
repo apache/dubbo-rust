@@ -14,19 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use std::collections::HashMap;
 
-pub const REGISTRY_PROTOCOL: &str = "registry_protocol";
-pub const PROTOCOL: &str = "protocol";
-pub const REGISTRY: &str = "registry";
+use lazy_static::lazy_static;
 
-// URL key
-pub const DUBBO_KEY: &str = "dubbo";
-pub const PROVIDERS_KEY: &str = "providers";
-pub const LOCALHOST_IP: &str = "127.0.0.1";
-pub const METADATA_MAPPING_KEY: &str = "mapping";
-pub const VERSION_KEY: &str = "version";
-pub const GROUP_KEY: &str = "group";
-pub const INTERFACE_KEY: &str = "interface";
-pub const ANYHOST_KEY: &str = "anyhost";
-pub const SIDE_KEY: &str = "side";
-pub const TIMESTAMP_KEY: &str = "timestamp";
+use crate::cluster::loadbalance::{
+    impls::{random::RandomLoadBalance, roundrobin::RoundRobinLoadBalance},
+    types::BoxLoadBalance,
+};
+
+pub mod impls;
+pub mod types;
+
+lazy_static! {
+    pub static ref LOAD_BALANCE_EXTENSIONS: HashMap<String, BoxLoadBalance> =
+        init_loadbalance_extensions();
+}
+
+fn init_loadbalance_extensions() -> HashMap<String, BoxLoadBalance> {
+    let mut loadbalance_map: HashMap<String, BoxLoadBalance> = HashMap::new();
+    loadbalance_map.insert("random".to_string(), Box::new(RandomLoadBalance::default()));
+    loadbalance_map.insert(
+        "roundrobin".to_string(),
+        Box::new(RoundRobinLoadBalance::default()),
+    );
+    loadbalance_map
+}

@@ -16,12 +16,14 @@
  */
 
 #![allow(unused_variables, dead_code, missing_docs)]
+pub mod integration;
 pub mod memory_registry;
 pub mod protocol;
+pub mod types;
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 
-use crate::common::url::Url;
+use crate::{common::url::Url, registry::memory_registry::MemoryNotifyListener};
 
 pub trait Registry {
     type NotifyListener;
@@ -38,18 +40,24 @@ pub trait NotifyListener {
     fn notify_all(&self, event: ServiceEvent);
 }
 
+#[derive(Debug)]
 pub struct ServiceEvent {
     pub key: String,
     pub action: String,
     pub service: Vec<Url>,
 }
 
-pub type BoxRegistry =
-    Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener> + Send + Sync>;
+pub type BoxRegistry = Box<dyn Registry<NotifyListener = MemoryNotifyListener> + Send + Sync>;
+
+impl Debug for BoxRegistry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("BoxRegistry")
+    }
+}
 
 #[derive(Default)]
 pub struct RegistryWrapper {
-    pub registry: Option<Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener>>>,
+    pub registry: Option<Box<dyn Registry<NotifyListener = MemoryNotifyListener>>>,
 }
 
 impl Clone for RegistryWrapper {
