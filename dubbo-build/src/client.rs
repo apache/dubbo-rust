@@ -90,15 +90,10 @@ pub fn generate<T: Service>(
                     }
                 }
 
-                // pub fn with_filter<F>(self, filter: F) -> #service_ident<FilterService<T, F>>
-                // where
-                //     F: Filter,
-                // {
-                //     let inner = self.inner.with_filter(filter);
-                //     #service_ident {
-                //         inner,
-                //     }
-                // }
+                pub fn with_cluster(mut self, invoker: ClusterInvoker) -> Self {
+                    self.inner = self.inner.with_cluster(invoker);
+                    self
+                }
 
                 #methods
 
@@ -189,7 +184,7 @@ fn generate_unary<T: Method>(
         ) -> Result<Response<#response>, dubbo::status::Status> {
            let codec = #codec_name::<#request, #response>::default();
            let invocation = RpcInvocation::default()
-            .with_servie_unique_name(String::from(#service_unique_name))
+            .with_service_unique_name(String::from(#service_unique_name))
             .with_method_name(String::from(#method_name));
            let path = http::uri::PathAndQuery::from_static(#path);
            self.inner.unary(
@@ -223,7 +218,7 @@ fn generate_server_streaming<T: Method>(
 
             let codec = #codec_name::<#request, #response>::default();
             let invocation = RpcInvocation::default()
-             .with_servie_unique_name(String::from(#service_unique_name))
+             .with_service_unique_name(String::from(#service_unique_name))
              .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.server_streaming(
@@ -256,7 +251,7 @@ fn generate_client_streaming<T: Method>(
         ) -> Result<Response<#response>, dubbo::status::Status> {
             let codec = #codec_name::<#request, #response>::default();
             let invocation = RpcInvocation::default()
-             .with_servie_unique_name(String::from(#service_unique_name))
+             .with_service_unique_name(String::from(#service_unique_name))
              .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.client_streaming(
@@ -289,7 +284,7 @@ fn generate_streaming<T: Method>(
         ) -> Result<Response<Decoding<#response>>, dubbo::status::Status> {
             let codec = #codec_name::<#request, #response>::default();
             let invocation = RpcInvocation::default()
-             .with_servie_unique_name(String::from(#service_unique_name))
+             .with_service_unique_name(String::from(#service_unique_name))
              .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.bidi_streaming(

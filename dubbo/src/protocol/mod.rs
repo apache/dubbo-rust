@@ -15,10 +15,8 @@
  * limitations under the License.
  */
 
-pub mod server_desc;
-pub mod triple;
-
 use std::{
+    fmt::Debug,
     future::Future,
     task::{Context, Poll},
 };
@@ -28,6 +26,9 @@ use aws_smithy_http::body::SdkBody;
 use tower_service::Service;
 
 use crate::common::url::Url;
+
+pub mod server_desc;
+pub mod triple;
 
 #[async_trait]
 pub trait Protocol {
@@ -42,7 +43,7 @@ pub trait Exporter {
     fn unexport(&self);
 }
 
-pub trait Invoker<ReqBody> {
+pub trait Invoker<ReqBody>: Debug {
     type Response;
 
     type Error;

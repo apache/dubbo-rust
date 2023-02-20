@@ -31,6 +31,10 @@ pub mod echo_client {
                 inner: TripleClient::new(builder),
             }
         }
+        pub fn with_cluster(mut self, invoker: ClusterInvoker) -> Self {
+            self.inner = self.inner.with_cluster(invoker);
+            self
+        }
         /// UnaryEcho is unary echo.
         pub async fn unary_echo(
             &mut self,
@@ -41,7 +45,7 @@ pub mod echo_client {
                 super::EchoResponse,
             >::default();
             let invocation = RpcInvocation::default()
-                .with_servie_unique_name(String::from("grpc.examples.echo.Echo"))
+                .with_service_unique_name(String::from("grpc.examples.echo.Echo"))
                 .with_method_name(String::from("UnaryEcho"));
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/UnaryEcho",
@@ -58,7 +62,7 @@ pub mod echo_client {
                 super::EchoResponse,
             >::default();
             let invocation = RpcInvocation::default()
-                .with_servie_unique_name(String::from("grpc.examples.echo.Echo"))
+                .with_service_unique_name(String::from("grpc.examples.echo.Echo"))
                 .with_method_name(String::from("ServerStreamingEcho"));
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/ServerStreamingEcho",
@@ -75,7 +79,7 @@ pub mod echo_client {
                 super::EchoResponse,
             >::default();
             let invocation = RpcInvocation::default()
-                .with_servie_unique_name(String::from("grpc.examples.echo.Echo"))
+                .with_service_unique_name(String::from("grpc.examples.echo.Echo"))
                 .with_method_name(String::from("ClientStreamingEcho"));
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/ClientStreamingEcho",
@@ -92,7 +96,7 @@ pub mod echo_client {
                 super::EchoResponse,
             >::default();
             let invocation = RpcInvocation::default()
-                .with_servie_unique_name(String::from("grpc.examples.echo.Echo"))
+                .with_service_unique_name(String::from("grpc.examples.echo.Echo"))
                 .with_method_name(String::from("BidirectionalStreamingEcho"));
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/BidirectionalStreamingEcho",

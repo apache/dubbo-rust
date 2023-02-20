@@ -14,19 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use crate::{cluster::support::cluster_invoker::ClusterInvoker, registry::BoxRegistry};
+use std::sync::Arc;
 
-pub const REGISTRY_PROTOCOL: &str = "registry_protocol";
-pub const PROTOCOL: &str = "protocol";
-pub const REGISTRY: &str = "registry";
-
-// URL key
-pub const DUBBO_KEY: &str = "dubbo";
-pub const PROVIDERS_KEY: &str = "providers";
-pub const LOCALHOST_IP: &str = "127.0.0.1";
-pub const METADATA_MAPPING_KEY: &str = "mapping";
-pub const VERSION_KEY: &str = "version";
-pub const GROUP_KEY: &str = "group";
-pub const INTERFACE_KEY: &str = "interface";
-pub const ANYHOST_KEY: &str = "anyhost";
-pub const SIDE_KEY: &str = "side";
-pub const TIMESTAMP_KEY: &str = "timestamp";
+pub trait ClusterRegistryIntegration {
+    /// get cluster invoker struct
+    fn get_invoker(registry: BoxRegistry) -> Option<Arc<ClusterInvoker>>;
+}

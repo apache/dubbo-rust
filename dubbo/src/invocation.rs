@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
+use std::{collections::HashMap, fmt::Debug, str::FromStr};
+
 use futures_core::Stream;
-use std::{collections::HashMap, str::FromStr};
 
 pub struct Request<T> {
     pub message: T,
@@ -202,13 +203,16 @@ pub struct RpcInvocation {
 }
 
 impl RpcInvocation {
-    pub fn with_servie_unique_name(mut self, service_unique_name: String) -> Self {
+    pub fn with_service_unique_name(mut self, service_unique_name: String) -> Self {
         self.target_service_unique_name = service_unique_name;
         self
     }
     pub fn with_method_name(mut self, method_name: String) -> Self {
         self.method_name = method_name;
         self
+    }
+    pub fn unique_fingerprint(&self) -> String {
+        format!("{}#{}", self.target_service_unique_name, self.method_name)
     }
 }
 

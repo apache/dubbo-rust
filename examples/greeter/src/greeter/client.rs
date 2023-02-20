@@ -21,6 +21,7 @@ pub mod protos {
 }
 
 use dubbo::codegen::*;
+use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
 use tracing::Level;
@@ -38,7 +39,7 @@ async fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let mut cli = GreeterClient::new(ClientBuilder::from_static(&"http://127.0.0.1:8888"));
+    // let mut cli = GreeterClient::new(ClientBuilder::from_static(&"http://127.0.0.1:8888"));
 
     // Here is example for zk
     // let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {
@@ -49,6 +50,10 @@ async fn main() {
     // let directory = RegistryDirectory::new(Box::new(zkr));
     // cli = cli.with_directory(Box::new(directory));
 
+    let zkr = ZookeeperRegistry::default();
+    let directory = RegistryDirectory::new(Box::new(zkr));
+    let mut cli = GreeterClient::new(ClientBuilder::new().with_registry_directory(directory));
+    // using loop for loadbalance test
     println!("# unary call");
     let resp = cli
         .greet(Request::new(GreeterRequest {
