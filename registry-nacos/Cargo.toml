@@ -1,14 +1,16 @@
 [package]
 name = "dubbo-registry-nacos"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "Apache-2.0"
+description = "dubbo-rust-registry-nacos"
+repository = "https://github.com/apache/dubbo-rust.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 nacos-sdk = { version = "0.2", features = ["naming", "auth-by-http"] }
-dubbo = {path = "../dubbo/", version = "0.2.0"}
+dubbo = {path = "../dubbo/", version = "0.3.0" }
 serde_json = "1.0"
 serde = {version = "1.0.145",features = ["derive"]}
 tracing = "0.1"
