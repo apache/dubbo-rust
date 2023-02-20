@@ -15,9 +15,17 @@
  * limitations under the License.
  */
 
+use std::str::FromStr;
+
+use aws_smithy_http::body::SdkBody;
 use tower_service::Service;
 
-use crate::{common::url::Url, protocol::Invoker, triple::client::builder::ClientBoxService};
+use crate::{
+    common::url::Url,
+    protocol::Invoker,
+    triple::{client::builder::ClientBoxService, transport::connection::Connection},
+    utils::boxed::BoxService,
+};
 
 pub struct TripleInvoker {
     url: Url,
@@ -25,16 +33,17 @@ pub struct TripleInvoker {
 }
 
 impl TripleInvoker {
-    // pub fn new(url: Url) -> TripleInvoker {
-    //     let uri = http::Uri::from_str(&url.to_url()).unwrap();
-    //     Self {
-    //         url,
-    //         conn: ClientBuilder::from_uri(&uri).build()connect(),
-    //     }
-    // }
+    pub fn new(url: Url) -> TripleInvoker {
+        let uri = http::Uri::from_str(&url.to_url()).unwrap();
+        let conn = Connection::new().with_host(uri);
+        Self {
+            url,
+            conn: BoxService::new(conn),
+        }
+    }
 }
 
-impl Invoker<http::Request<hyper::Body>> for TripleInvoker {
+impl Invoker<http::Request<SdkBody>> for TripleInvoker {
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
@@ -45,7 +54,7 @@ impl Invoker<http::Request<hyper::Body>> for TripleInvoker {
         self.url.clone()
     }
 
-    fn call(&mut self, req: http::Request<hyper::Body>) -> Self::Future {
+    fn call(&mut self, req: http::Request<SdkBody>) -> Self::Future {
         self.conn.call(req)
     }
 
