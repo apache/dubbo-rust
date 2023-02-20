@@ -136,9 +136,9 @@ impl Directory for RegistryDirectory {
             .expect("msg")
             .subscribe(
                 url,
-                MemoryNotifyListener {
+                Arc::new(MemoryNotifyListener {
                     service_instances: Arc::clone(&self.service_instances),
-                },
+                }),
             )
             .expect("subscribe");
 
