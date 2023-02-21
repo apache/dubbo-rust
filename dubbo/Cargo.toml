@@ -1,6 +1,6 @@
 [package]
 name = "dubbo"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "dubbo"
@@ -37,7 +37,7 @@ aws-smithy-http = "0.54.1"
 itertools = "0.10.1"
 urlencoding = "2.1.2"
 
-dubbo-config = {path = "../config", version = "0.2.0"}
+dubbo-config = {path = "../config", version = "0.3.0" }
 
 #对象存储
 state = { version = "0.5", features = ["tls"] }
