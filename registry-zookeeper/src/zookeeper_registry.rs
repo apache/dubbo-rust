@@ -37,9 +37,8 @@ use dubbo::{
         url::Url,
     },
     registry::{
-        integration::ClusterRegistryIntegration,
-        memory_registry::{MemoryNotifyListener, MemoryRegistry},
-        NotifyListener, Registry, ServiceEvent,
+        integration::ClusterRegistryIntegration, memory_registry::MemoryRegistry, NotifyListener,
+        Registry, RegistryNotifyListener, ServiceEvent,
     },
     StdError,
 };
@@ -61,7 +60,7 @@ impl Watcher for LoggingWatcher {
 pub struct ZookeeperRegistry {
     root_path: String,
     zk_client: Arc<ZooKeeper>,
-    listeners: RwLock<HashMap<String, Arc<<ZookeeperRegistry as Registry>::NotifyListener>>>,
+    listeners: RwLock<HashMap<String, RegistryNotifyListener>>,
     memory_registry: Arc<Mutex<MemoryRegistry>>,
 }
 
@@ -103,7 +102,7 @@ impl ZookeeperRegistry {
         &self,
         path: String,
         service_name: String,
-        listener: Arc<<ZookeeperRegistry as Registry>::NotifyListener>,
+        listener: RegistryNotifyListener,
     ) -> ServiceInstancesChangedListener {
         let mut service_names = HashSet::new();
         service_names.insert(service_name.clone());
@@ -240,8 +239,6 @@ impl Default for ZookeeperRegistry {
 }
 
 impl Registry for ZookeeperRegistry {
-    type NotifyListener = MemoryNotifyListener;
-
     fn register(&mut self, url: Url) -> Result<(), StdError> {
         println!("register url: {}", url);
         let zk_path = format!(
@@ -268,7 +265,7 @@ impl Registry for ZookeeperRegistry {
     }
 
     // for consumer to find the changes of providers
-    fn subscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), StdError> {
+    fn subscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), StdError> {
         let service_name = url.get_service_name();
         let zk_path = format!("/{}/{}/{}", DUBBO_KEY, &service_name, PROVIDERS_KEY);
         if self
@@ -281,17 +278,13 @@ impl Registry for ZookeeperRegistry {
             return Ok(());
         }
 
-        let arc_listener = Arc::new(listener);
         self.listeners
             .write()
             .unwrap()
-            .insert(service_name.to_string(), Arc::clone(&arc_listener));
+            .insert(service_name.to_string(), listener.clone());
 
-        let zk_listener = self.create_listener(
-            zk_path.clone(),
-            service_name.to_string(),
-            Arc::clone(&arc_listener),
-        );
+        let zk_listener =
+            self.create_listener(zk_path.clone(), service_name.to_string(), listener.clone());
 
         let zk_changed_paths = self.zk_client.get_children_w(&zk_path, zk_listener);
         let result = match zk_changed_paths {
@@ -312,7 +305,7 @@ impl Registry for ZookeeperRegistry {
                 .collect(),
         };
         info!("notifying {}->{:?}", service_name, result);
-        arc_listener.notify(ServiceEvent {
+        listener.notify(ServiceEvent {
             key: service_name,
             action: String::from("ADD"),
             service: result,
@@ -320,7 +313,7 @@ impl Registry for ZookeeperRegistry {
         Ok(())
     }
 
-    fn unsubscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), StdError> {
+    fn unsubscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), StdError> {
         todo!()
     }
 }
@@ -329,7 +322,7 @@ pub struct ServiceInstancesChangedListener {
     zk_client: Arc<ZooKeeper>,
     path: String,
     service_name: String,
-    listener: Arc<MemoryNotifyListener>,
+    listener: RegistryNotifyListener,
 }
 
 impl Watcher for ServiceInstancesChangedListener {
