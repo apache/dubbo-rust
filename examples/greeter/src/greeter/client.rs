@@ -20,7 +20,10 @@ pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
 }
 
-use dubbo::codegen::*;
+use std::env;
+
+use dubbo::{codegen::*, common::url::Url};
+use dubbo_registry_nacos::nacos_registry::NacosRegistry;
 use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
@@ -28,21 +31,25 @@ use protos::{greeter_client::GreeterClient, GreeterRequest};
 #[tokio::main]
 async fn main() {
     logger::init();
-    // let mut cli = GreeterClient::new(ClientBuilder::from_static(&"http://127.0.0.1:8888"));
 
-    // Here is example for zk
-    // let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {
-    //     Ok(val) => val,
-    //     Err(_) => "localhost:2181".to_string(),
-    // };
-    // let zkr = ZookeeperRegistry::new(&zk_connect_string);
-    // let directory = RegistryDirectory::new(Box::new(zkr));
-    // cli = cli.with_directory(Box::new(directory));
+    let mut builder = ClientBuilder::new();
 
-    let zkr = ZookeeperRegistry::default();
-    let directory = RegistryDirectory::new(Box::new(zkr));
-    let mut cli = GreeterClient::new(ClientBuilder::new().with_registry_directory(directory));
-    // using loop for loadbalance test
+    if let Ok(zk_servers) = env::var("ZOOKEEPER_SERVERS") {
+        let zkr = ZookeeperRegistry::new(&zk_servers);
+        let directory = RegistryDirectory::new(Box::new(zkr));
+        builder = builder.with_directory(Box::new(directory));
+    } else if let Ok(nacos_url_str) = env::var("NACOS_URL") {
+        // NACOS_URL=nacos://mse-96efa264-p.nacos-ans.mse.aliyuncs.com
+        let nacos_url = Url::from_url(&nacos_url_str).unwrap();
+        let registry = NacosRegistry::new(nacos_url);
+        let directory = RegistryDirectory::new(Box::new(registry));
+        builder = builder.with_directory(Box::new(directory));
+    } else {
+        builder = builder.with_host("http://127.0.0.1:8888");
+    }
+
+    let mut cli = GreeterClient::new(builder);
+
     println!("# unary call");
     let resp = cli
         .greet(Request::new(GreeterRequest {
