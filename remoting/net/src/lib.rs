@@ -18,8 +18,8 @@
 pub mod conn;
 pub mod dial;
 pub mod incoming;
+mod pool;
 mod probe;
-mod tests;
 
 use std::{borrow::Cow, fmt, net::Ipv6Addr, path::Path};
 

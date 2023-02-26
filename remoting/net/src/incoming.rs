@@ -108,3 +108,32 @@ impl Stream for DefaultIncoming {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use tokio::net::TcpListener;
+    use tokio_stream::wrappers::TcpListenerStream;
+    use tracing::info;
+
+    use crate::incoming::Incoming;
+    use crate::{DefaultIncoming, MakeIncoming};
+
+    #[tokio::test]
+    async fn test_read_bytes() {
+        let listener = TcpListener::bind("[::]:8081").await.unwrap();
+        let incoming = DefaultIncoming::Tcp(TcpListenerStream::new(listener))
+            .make_incoming()
+            .await
+            .unwrap();
+        println!("[VOLO] server start at: {:?}", incoming);
+        let mut incoming = incoming;
+        loop {
+            let conn = incoming.accept().await.unwrap();
+            if let Some(conn) = conn {
+                info!("[VOLO] recv a connection from: {:?}", conn.info.peer_addr);
+            } else {
+                info!("[VOLO] recv a connection from: None");
+            }
+        }
+    }
+}

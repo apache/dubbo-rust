@@ -313,3 +313,23 @@ impl AsyncWrite for Conn {
         self.stream.is_write_vectored()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::dial::DefaultMakeTransport;
+    use crate::Address;
+    use tokio::io::AsyncWriteExt;
+
+    // listen by command: nc -l 8858 -v
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_write_bytes() {
+        let transport = DefaultMakeTransport::new();
+        let mut conn = transport
+            .make_connection(Address::Ip("127.0.0.1:8858".parse().unwrap()))
+            .await
+            .unwrap();
+        conn.write_all("\n\rhello dubbo-rust\n\r".to_string().as_bytes())
+            .await
+            .unwrap();
+    }
+}
