@@ -128,16 +128,19 @@ mod tests {
             let mut incoming = incoming;
             match incoming.accept().await.unwrap() {
                 Some(mut conn) => {
-                    println!("[VOLO] recv a connection from: {:?}", conn.info.peer_addr);
+                    println!(
+                        "[Dubbo-Rust] recv a connection from: {:?}",
+                        conn.info.peer_addr
+                    );
                     let mut buf = vec![0; 1024];
                     let n = conn.read(&mut buf).await.unwrap();
                     println!(
-                        "[VOLO] recv a connection from: {:?}",
+                        "[Dubbo-Rust] recv a connection from: {:?}",
                         String::from_utf8(buf[..n].to_vec()).unwrap()
                     );
                 }
                 None => {
-                    println!("[VOLO] recv a connection from: None");
+                    println!("[Dubbo-Rust] recv a connection from: None");
                 }
             }
         });
