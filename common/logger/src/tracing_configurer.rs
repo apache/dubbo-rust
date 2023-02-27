@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
-use crate::Level;
+// https://github.com/tokio-rs/tracing/issues/971
+
+use tracing::Level;
 
 pub(crate) fn default() {
     if let Some(true) = configured() {
@@ -23,12 +25,11 @@ pub(crate) fn default() {
     } else {
         tracing_subscriber::fmt()
             .compact()
-            // enable everything
-            .with_max_level(Level::TRACE)
-            .with_thread_names(false)
             .with_line_number(true)
+            .with_max_level(Level::DEBUG)
             // sets this to be the default, global collector for this application.
-            .init();
+            .try_init()
+            .expect("init err.");
     }
 }
 

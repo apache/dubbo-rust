@@ -48,7 +48,6 @@ pub struct Dubbo {
 
 impl Dubbo {
     pub fn new() -> Dubbo {
-        tracing_subscriber::fmt::init();
         Self {
             protocols: HashMap::new(),
             registries: None,

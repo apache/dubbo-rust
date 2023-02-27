@@ -1,3 +1,4 @@
+#![feature(once_cell)]
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -19,6 +20,7 @@ pub use tracing::{self, Level};
 
 mod tracing_configurer;
 
+// put on main method
 pub fn init() {
     tracing_configurer::default()
 }

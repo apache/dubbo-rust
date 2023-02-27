@@ -46,6 +46,7 @@ impl Filter for FakeFilter {
 
 #[tokio::main]
 async fn main() {
+    logger::init();
     register_server(EchoServerImpl {
         name: "echo".to_string(),
     });

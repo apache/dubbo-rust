@@ -30,6 +30,7 @@ impl Filter for FakeFilter {
 
 #[tokio::main]
 async fn main() {
+    logger::init();
     // let builder = ClientBuilder::new()
     //     .with_connector("unix")
     //     .with_host("unix://127.0.0.1:8888");
