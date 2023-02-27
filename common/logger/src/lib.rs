@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-pub use tracing;
-pub use tracing::Level;
+pub use tracing::{self, Level};
 
 mod tracing_configurer;
 

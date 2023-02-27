@@ -25,8 +25,10 @@ use tokio_stream::wrappers::ReceiverStream;
 use dubbo::{codegen::*, Dubbo};
 use dubbo_config::RootConfig;
 use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
-use logger::tracing::{info, span};
-use logger::Level;
+use logger::{
+    tracing::{info, span},
+    Level,
+};
 use protos::{
     greeter_server::{register_server, Greeter},
     GreeterReply, GreeterRequest,
