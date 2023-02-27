@@ -316,8 +316,7 @@ impl AsyncWrite for Conn {
 
 #[cfg(test)]
 mod tests {
-    use crate::dial::DefaultMakeTransport;
-    use crate::Address;
+    use crate::{dial::DefaultMakeTransport, Address};
     use tokio::io::AsyncWriteExt;
 
     // listen by command: nc -l 8858 -v

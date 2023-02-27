@@ -111,29 +111,37 @@ impl Stream for DefaultIncoming {
 
 #[cfg(test)]
 mod tests {
-    use tokio::net::TcpListener;
+    use tokio::{io::AsyncReadExt, net::TcpListener};
     use tokio_stream::wrappers::TcpListenerStream;
-    use tracing::info;
 
-    use crate::incoming::Incoming;
-    use crate::{DefaultIncoming, MakeIncoming};
+    use crate::{incoming::Incoming, DefaultIncoming, MakeIncoming};
 
     #[tokio::test]
     async fn test_read_bytes() {
-        let listener = TcpListener::bind("[::]:8081").await.unwrap();
+        let listener = TcpListener::bind("127.0.0.1:8858").await.unwrap();
         let incoming = DefaultIncoming::Tcp(TcpListenerStream::new(listener))
             .make_incoming()
             .await
             .unwrap();
-        println!("[VOLO] server start at: {:?}", incoming);
-        let mut incoming = incoming;
-        loop {
-            let conn = incoming.accept().await.unwrap();
-            if let Some(conn) = conn {
-                info!("[VOLO] recv a connection from: {:?}", conn.info.peer_addr);
-            } else {
-                info!("[VOLO] recv a connection from: None");
+        println!("[Dubbo-Rust] server start at: {:?}", incoming);
+        let join_handle = tokio::spawn(async move {
+            let mut incoming = incoming;
+            match incoming.accept().await.unwrap() {
+                Some(mut conn) => {
+                    println!("[VOLO] recv a connection from: {:?}", conn.info.peer_addr);
+                    let mut buf = vec![0; 1024];
+                    let n = conn.read(&mut buf).await.unwrap();
+                    println!(
+                        "[VOLO] recv a connection from: {:?}",
+                        String::from_utf8(buf[..n].to_vec()).unwrap()
+                    );
+                }
+                None => {
+                    println!("[VOLO] recv a connection from: None");
+                }
             }
-        }
+        });
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        drop(join_handle);
     }
 }
