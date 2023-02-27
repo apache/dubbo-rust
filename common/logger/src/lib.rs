@@ -15,11 +15,22 @@
  * limitations under the License.
  */
 
+pub use tracing;
+pub use tracing::Level;
+
+mod tracing_configurer;
+
+pub fn init() {
+    tracing_configurer::default()
+}
+
 #[cfg(test)]
 mod tests {
+    use tracing::debug;
+
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    fn test_print_info_log() {
+        super::init();
+        debug!("hello rust");
     }
 }
