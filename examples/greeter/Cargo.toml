@@ -31,7 +31,7 @@ tokio-stream = "0.1"
 logger = {path="../../common/logger"}
 dubbo = {path = "../../dubbo", version = "0.3.0" }
 dubbo-config = {path = "../../config", version = "0.3.0" }
-dubbo-registry-zookeeper = {path = "../../registry/zookeeper", version = "0.3.0" }
+dubbo-registry-zookeeper = {path = "../../registry-zookeeper", version = "0.3.0" }
 
 [build-dependencies]
 dubbo-build = {path = "../../dubbo-build", version = "0.3.0" }

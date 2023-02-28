@@ -1,8 +1,9 @@
 [workspace]
 members = [
   "xds",
-  "registry/zookeeper",
-  "registry/nacos",
+  "registry",
+  "registry-zookeeper",
+  "registry-nacos",
   "metadata",
   "config",
   "dubbo",
@@ -26,10 +27,4 @@ lazy_static = "1"
 futures = "0.3"
 tracing = "0.1"
 tracing-subscriber = "0.3.15"
-serde = "1"
-serde_json = "1"
-urlencoding = "2.1.2"
-logger = {path="./common/logger"}
-anyhow = "1.0.66"
-dubbo = { path = "./dubbo/" }
 

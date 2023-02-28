@@ -25,8 +25,8 @@ use dubbo::{
     common::url::Url,
     registry::{NotifyListener, Registry, RegistryNotifyListener, ServiceEvent},
 };
-use logger::tracing::{error, info, warn};
 use nacos_sdk::api::naming::{NamingService, NamingServiceBuilder, ServiceInstance};
+use tracing::{error, info, warn};
 
 use crate::utils::{build_nacos_client_props, is_concrete_str, is_wildcard_str, match_range};
 
