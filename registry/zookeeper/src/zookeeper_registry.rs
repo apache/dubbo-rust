@@ -24,8 +24,8 @@ use std::{
     time::Duration,
 };
 
+use logger::tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
 #[allow(unused_imports)]
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
@@ -52,7 +52,7 @@ pub const REGISTRY_GROUP_KEY: &str = "registry.group";
 struct LoggingWatcher;
 impl Watcher for LoggingWatcher {
     fn handle(&self, e: WatchedEvent) {
-        println!("{:?}", e)
+        info!("{:?}", e)
     }
 }
 
@@ -240,7 +240,7 @@ impl Default for ZookeeperRegistry {
 
 impl Registry for ZookeeperRegistry {
     fn register(&mut self, url: Url) -> Result<(), StdError> {
-        println!("register url: {}", url);
+        debug!("register url: {}", url);
         let zk_path = format!(
             "/{}/{}/{}/{}",
             DUBBO_KEY,
