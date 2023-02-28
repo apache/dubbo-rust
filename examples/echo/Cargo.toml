@@ -34,7 +34,7 @@ hyper = { version = "0.14.19", features = ["full"]}
 
 dubbo = {path = "../../dubbo", version = "0.3.0" }
 dubbo-config = {path = "../../config", version = "0.3.0" }
-dubbo-registry-zookeeper = {path = "../../registry-zookeeper", version = "0.3.0" }
+dubbo-registry-zookeeper = {path = "../../registry/zookeeper", version = "0.3.0" }
 
 [build-dependencies]
 dubbo-build = {path = "../../dubbo-build", version = "0.3.0" }
