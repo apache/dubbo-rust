@@ -17,7 +17,7 @@
 
 // https://github.com/tokio-rs/tracing/issues/971
 
-use tracing::Level;
+use tracing::{debug, Level};
 
 pub(crate) fn default() {
     if let Some(true) = configured() {
@@ -31,6 +31,7 @@ pub(crate) fn default() {
             .try_init()
             .expect("init err.");
     }
+    debug!("Tracing configured.")
 }
 
 pub(crate) fn parse_from_config() {
