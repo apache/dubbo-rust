@@ -24,21 +24,10 @@ use dubbo::codegen::*;
 use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
-use tracing::Level;
-use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() {
-    // a builder for `FmtSubscriber`.
-    let subscriber = FmtSubscriber::builder()
-        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
-        // will be written to stdout.
-        .with_max_level(Level::INFO)
-        // completes the builder.
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
+    logger::init();
     // let mut cli = GreeterClient::new(ClientBuilder::from_static(&"http://127.0.0.1:8888"));
 
     // Here is example for zk

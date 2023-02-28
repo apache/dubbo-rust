@@ -1,11 +1,10 @@
 [package]
-name = "common"
+name = "logger"
 version = "0.3.0"
 edition = "2021"
-license = "Apache-2.0"
-description = "dubbo-rust-common"
-repository = "https://github.com/apache/dubbo-rust.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tracing = "0.1"
+tracing-subscriber = "0.3"
