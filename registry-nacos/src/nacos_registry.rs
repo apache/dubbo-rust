@@ -163,8 +163,7 @@ impl Registry for NacosRegistry {
         let nacos_service_instance = Self::create_nacos_service_instance(url);
 
         info!("register service: {}", nacos_service_name);
-
-        let ret = self.nacos_naming_service.register_service(
+        let ret = self.nacos_naming_service.register_instance(
             nacos_service_name,
             group_name,
             nacos_service_instance,
