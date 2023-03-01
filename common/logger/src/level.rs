@@ -25,9 +25,9 @@ impl LevelWrapper {
     }
 }
 
-impl From<String> for LevelWrapper {
-    fn from(s: String) -> Self {
-        match s.to_lowercase().as_str().trim() {
+impl From<Option<String>> for LevelWrapper {
+    fn from(s: Option<String>) -> Self {
+        match s.unwrap().to_lowercase().as_str().trim() {
             "error" => LevelWrapper::new(Level::ERROR),
             "warn" => LevelWrapper::new(Level::WARN),
             "info" => LevelWrapper::new(Level::INFO),
