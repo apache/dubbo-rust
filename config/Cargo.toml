@@ -15,3 +15,4 @@ serde_yaml.workspace = true
 lazy_static.workspace = true
 once_cell.workspace = true
 utils.workspace = true
+logger.workspace=true
