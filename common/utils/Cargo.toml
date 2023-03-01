@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 serde_yaml.workspace = true
 serde = { workspace = true, features = ["derive"] }
-logger.workspace=true
 project-root = "0.2.2"
 anyhow.workspace=true
+once_cell.workspace = true

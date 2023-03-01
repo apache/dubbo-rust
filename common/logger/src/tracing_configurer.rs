@@ -17,27 +17,25 @@
 
 // https://github.com/tokio-rs/tracing/issues/971
 
-use tracing::{debug, Level};
+use crate::level::LevelWrapper;
+use std::path::PathBuf;
+use tracing::debug;
+use utils::path_util;
+use utils::yaml_util;
 
 pub(crate) fn default() {
-    if let Some(true) = configured() {
-        parse_from_config()
-    } else {
-        tracing_subscriber::fmt()
-            .compact()
-            .with_line_number(true)
-            .with_max_level(Level::DEBUG)
-            // sets this to be the default, global collector for this application.
-            .try_init()
-            .expect("init err.");
-    }
+    let path_buf = PathBuf::new()
+        .join(path_util::app_root_dir())
+        .join("application.yaml");
+    let level: LevelWrapper = yaml_util::yaml_key_reader(path_buf, "logging.level")
+        .unwrap()
+        .into();
+    tracing_subscriber::fmt()
+        .compact()
+        .with_line_number(true)
+        .with_max_level(level.inner)
+        // sets this to be the default, global collector for this application.
+        .try_init()
+        .expect("init err.");
     debug!("Tracing configured.")
-}
-
-pub(crate) fn parse_from_config() {
-    todo!()
-}
-
-pub(crate) fn configured() -> Option<bool> {
-    None
 }
