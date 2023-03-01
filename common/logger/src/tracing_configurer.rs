@@ -20,8 +20,7 @@
 use crate::level::LevelWrapper;
 use std::path::PathBuf;
 use tracing::debug;
-use utils::path_util;
-use utils::yaml_util;
+use utils::{path_util, yaml_util};
 
 pub(crate) fn default() {
     let path_buf = PathBuf::new()

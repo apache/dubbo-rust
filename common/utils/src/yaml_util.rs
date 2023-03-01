@@ -14,9 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use std::collections::HashMap;
-use std::sync::Mutex;
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf, sync::Mutex};
 
 use anyhow::Error;
 use once_cell::sync::Lazy;
@@ -67,8 +65,10 @@ pub fn yaml_key_reader(path: PathBuf, key: &str) -> Result<Option<String>, Error
 mod tests {
     use std::collections::HashMap;
 
-    use crate::yaml_util::yaml_key_reader;
-    use crate::{path_util::app_root_dir, yaml_util::yaml_file_parser};
+    use crate::{
+        path_util::app_root_dir,
+        yaml_util::{yaml_file_parser, yaml_key_reader},
+    };
 
     #[test]
     fn test_yaml_file_parser() {
