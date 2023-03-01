@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use std::env;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 pub fn app_root_dir() -> PathBuf {
     match project_root::get_project_root() {

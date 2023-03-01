@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use std::path::PathBuf;
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, path::PathBuf};
 
 use crate::{protocol::Protocol, registry::RegistryConfig};
 use logger::tracing;

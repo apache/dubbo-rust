@@ -14,8 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use std::fs;
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use anyhow::Error;
 use serde_yaml::from_slice;
@@ -39,8 +38,7 @@ where
 mod tests {
     use std::collections::HashMap;
 
-    use crate::path_util::app_root_dir;
-    use crate::yaml_util::yaml_file_parser;
+    use crate::{path_util::app_root_dir, yaml_util::yaml_file_parser};
 
     #[test]
     fn test_yaml_file_parser() {
