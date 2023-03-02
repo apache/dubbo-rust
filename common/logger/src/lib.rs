@@ -15,22 +15,32 @@
  * limitations under the License.
  */
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 pub use tracing::{self, Level};
 
+// flag for the sake of avoiding multiple initialization
+static TRACING_CONFIGURED: AtomicBool = AtomicBool::new(false);
+
+mod level;
 mod tracing_configurer;
 
 // put on main method
 pub fn init() {
-    tracing_configurer::default()
+    if !TRACING_CONFIGURED.load(Ordering::SeqCst) {
+        tracing_configurer::default()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use tracing::debug;
+    use tracing::{debug, info, trace};
 
     #[test]
     fn test_print_info_log() {
         super::init();
-        debug!("hello rust");
+        debug!("hello rust:debug");
+        trace!("hello rust:trace");
+        info!("hello rust:info");
     }
 }

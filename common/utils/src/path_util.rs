@@ -15,10 +15,24 @@
  * limitations under the License.
  */
 
-pub use config::*;
+use std::{env, path::PathBuf};
 
-pub mod config;
-pub mod protocol;
-pub mod provider;
-pub mod registry;
-pub mod service;
+pub fn app_root_dir() -> PathBuf {
+    match project_root::get_project_root() {
+        // Cargo.lock file as app root dir
+        Ok(p) => p,
+        Err(_) => env::current_dir().unwrap(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_app_root_dir() {
+        let dir = app_root_dir().join("application.yaml");
+        println!("dir: {}", dir.display());
+    }
+}

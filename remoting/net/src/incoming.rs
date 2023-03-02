@@ -20,6 +20,7 @@ use std::{
 };
 
 use futures::Stream;
+use logger::tracing;
 use pin_project::pin_project;
 use tokio::net::TcpListener;
 #[cfg(target_family = "unix")]
@@ -111,6 +112,7 @@ impl Stream for DefaultIncoming {
 
 #[cfg(test)]
 mod tests {
+    use logger::tracing::debug;
     use tokio::{io::AsyncReadExt, net::TcpListener};
     use tokio_stream::wrappers::TcpListenerStream;
 
@@ -123,24 +125,24 @@ mod tests {
             .make_incoming()
             .await
             .unwrap();
-        println!("[Dubbo-Rust] server start at: {:?}", incoming);
+        debug!("[Dubbo-Rust] server start at: {:?}", incoming);
         let join_handle = tokio::spawn(async move {
             let mut incoming = incoming;
             match incoming.accept().await.unwrap() {
                 Some(mut conn) => {
-                    println!(
+                    debug!(
                         "[Dubbo-Rust] recv a connection from: {:?}",
                         conn.info.peer_addr
                     );
                     let mut buf = vec![0; 1024];
                     let n = conn.read(&mut buf).await.unwrap();
-                    println!(
+                    debug!(
                         "[Dubbo-Rust] recv a connection from: {:?}",
                         String::from_utf8(buf[..n].to_vec()).unwrap()
                     );
                 }
                 None => {
-                    println!("[Dubbo-Rust] recv a connection from: None");
+                    debug!("[Dubbo-Rust] recv a connection from: None");
                 }
             }
         });

@@ -14,11 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use crate::Level;
 
-pub use config::*;
+pub(crate) struct LevelWrapper {
+    pub(crate) inner: Level,
+}
+impl LevelWrapper {
+    pub fn new(level: Level) -> Self {
+        LevelWrapper { inner: level }
+    }
+}
 
-pub mod config;
-pub mod protocol;
-pub mod provider;
-pub mod registry;
-pub mod service;
+impl From<Option<String>> for LevelWrapper {
+    fn from(s: Option<String>) -> Self {
+        match s.unwrap().to_lowercase().as_str().trim() {
+            "error" => LevelWrapper::new(Level::ERROR),
+            "warn" => LevelWrapper::new(Level::WARN),
+            "info" => LevelWrapper::new(Level::INFO),
+            "debug" => LevelWrapper::new(Level::DEBUG),
+            "trace" => LevelWrapper::new(Level::TRACE),
+            _ => LevelWrapper::new(Level::INFO),
+        }
+    }
+}

@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-use std::{collections::HashMap, env, fs};
+use std::{collections::HashMap, env, path::PathBuf};
 
 use crate::{protocol::Protocol, registry::RegistryConfig};
+use logger::tracing;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use tracing::trace;
+use utils::yaml_util::yaml_file_parser;
 
 use super::{protocol::ProtocolConfig, provider::ProviderConfig, service::ServiceConfig};
 
-pub const DUBBO_CONFIG_PATH: &str = "./dubbo.yaml";
+pub const DUBBO_CONFIG_PATH: &str = "application.yaml";
 
 pub static GLOBAL_ROOT_CONFIG: OnceCell<RootConfig> = OnceCell::new();
 pub const DUBBO_CONFIG_PREFIX: &str = "dubbo";
@@ -78,14 +79,16 @@ impl RootConfig {
                     err,
                     DUBBO_CONFIG_PATH
                 );
-                DUBBO_CONFIG_PATH.to_string()
+                utils::path_util::app_root_dir()
+                    .join(DUBBO_CONFIG_PATH)
+                    .to_str()
+                    .unwrap()
+                    .to_string()
             }
         };
 
-        tracing::info!("current path: {:?}", env::current_dir());
-        let data = fs::read(config_path)?;
-        trace!("config data: {:?}", String::from_utf8(data.clone()));
-        let conf: HashMap<String, RootConfig> = serde_yaml::from_slice(&data).unwrap();
+        let conf: HashMap<String, RootConfig> =
+            yaml_file_parser(PathBuf::new().join(config_path)).unwrap();
         let root_config: RootConfig = conf.get(DUBBO_CONFIG_PREFIX).unwrap().clone();
         tracing::debug!("origin config: {:?}", conf);
         Ok(root_config)
@@ -181,27 +184,9 @@ mod tests {
 
     #[test]
     fn test_load() {
-        // case 1: read config yaml from default path
-        println!("current path: {:?}", env::current_dir());
+        logger::init();
         let r = RootConfig::new();
-        r.load();
-    }
-
-    #[test]
-    fn test_load1() {
-        // case 2: read config yaml from path in env
-        println!("current path: {:?}", env::current_dir());
-        let r = RootConfig::new();
-        r.load();
-    }
-
-    #[test]
-    fn test_write_yaml() {
-        let mut r = RootConfig::new();
-        r.test_config();
-        let yaml = serde_yaml::to_string(&r).unwrap();
-        println!("config data: {:?}", yaml);
-
-        fs::write("./test_dubbo.yaml", yaml);
+        let r = r.load().unwrap();
+        println!("{:#?}", r);
     }
 }
