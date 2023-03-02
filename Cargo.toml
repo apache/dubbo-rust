@@ -13,7 +13,8 @@ members = [
   "dubbo-build",
   "remoting/net",
   "protocol/dubbo2",
-  "protocol/protocol"
+  "protocol/protocol",
+  "protocol/triple"
 ]
 
 
@@ -35,6 +36,8 @@ logger = {path="./common/logger"}
 utils = {path="./common/utils"}
 net = {path="./remoting/net"}
 protocol = {path="./protocol/protocol"}
+dubbo2 = {path="./protocol/dubbo2"}
+triple = {path="./protocol/triple"}
 anyhow = "1.0.66"
 dubbo = { path = "./dubbo/" }
 bb8 = "0.8.0" # A connecton pool based on tokio
