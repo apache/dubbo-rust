@@ -1,0 +1,4 @@
+logging:
+  level: INFO
+  file:
+    path: /tmp/test.log

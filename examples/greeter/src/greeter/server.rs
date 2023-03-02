@@ -15,47 +15,51 @@
  * limitations under the License.
  */
 
-pub mod protos {
-    #![allow(non_camel_case_types)]
-    include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
-}
-
-use futures_util::StreamExt;
-use protos::{
-    greeter_server::{register_server, Greeter},
-    GreeterReply, GreeterRequest,
-};
-
 use std::{io::ErrorKind, pin::Pin};
 
 use async_trait::async_trait;
-use futures_util::Stream;
+use futures_util::{Stream, StreamExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use dubbo::{codegen::*, Dubbo};
 use dubbo_config::RootConfig;
+use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
+use logger::{
+    tracing::{info, span},
+    Level,
+};
+use protos::{
+    greeter_server::{register_server, Greeter},
+    GreeterReply, GreeterRequest,
+};
+
+pub mod protos {
+    #![allow(non_camel_case_types)]
+    include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
+}
 
 type ResponseStream =
     Pin<Box<dyn Stream<Item = Result<GreeterReply, dubbo::status::Status>> + Send>>;
 
 #[tokio::main]
 async fn main() {
+    logger::init();
+    let span = span!(Level::DEBUG, "greeter.server");
+    let _enter = span.enter();
     register_server(GreeterServerImpl {
         name: "greeter".to_string(),
     });
-
-    // Dubbo::new().start().await;
-    Dubbo::new()
-        .with_config({
-            let r = RootConfig::new();
-            match r.load() {
-                Ok(config) => config,
-                Err(_err) => panic!("err: {:?}", _err), // response was droped
-            }
-        })
-        .start()
-        .await;
+    let zkr = ZookeeperRegistry::default();
+    let r = RootConfig::new();
+    let r = match r.load() {
+        Ok(config) => config,
+        Err(_err) => panic!("err: {:?}", _err), // response was droped
+    };
+    let mut f = Dubbo::new()
+        .with_config(r)
+        .add_registry("zookeeper", Box::new(zkr));
+    f.start().await;
 }
 
 #[allow(dead_code)]
@@ -71,7 +75,7 @@ impl Greeter for GreeterServerImpl {
         &self,
         request: Request<GreeterRequest>,
     ) -> Result<Response<GreeterReply>, dubbo::status::Status> {
-        println!("GreeterServer::greet {:?}", request.metadata);
+        info!("GreeterServer::greet {:?}", request.metadata);
 
         Ok(Response::new(GreeterReply {
             message: "hello, dubbo-rust".to_string(),

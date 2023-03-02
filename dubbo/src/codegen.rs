@@ -27,7 +27,10 @@ pub use hyper::Body as hyperBody;
 pub use tower_service::Service;
 
 pub use super::{
-    cluster::directory::{Directory, RegistryDirectory},
+    cluster::{
+        directory::{Directory, RegistryDirectory},
+        support::cluster_invoker::ClusterInvoker,
+    },
     empty_body,
     invocation::{IntoStreamingRequest, Request, Response, RpcInvocation},
     protocol::{triple::triple_invoker::TripleInvoker, Invoker},

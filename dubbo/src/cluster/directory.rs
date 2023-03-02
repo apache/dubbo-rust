@@ -32,7 +32,7 @@ use crate::{
 ///
 /// [Directory Service](http://en.wikipedia.org/wiki/Directory_service)
 pub trait Directory: Debug + DirectoryClone {
-    fn list(&self, invocation: RpcInvocation) -> Vec<Url>;
+    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<Url>;
 }
 
 pub trait DirectoryClone {
@@ -77,9 +77,9 @@ impl StaticDirectory {
 }
 
 impl Directory for StaticDirectory {
-    fn list(&self, invocation: RpcInvocation) -> Vec<Url> {
+    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<Url> {
         let url = Url::from_url(&format!(
-            "triple://{}:{}/{}",
+            "tri://{}:{}/{}",
             self.uri.host().unwrap(),
             self.uri.port().unwrap(),
             invocation.get_target_service_unique_name(),
@@ -121,7 +121,7 @@ impl DirectoryClone for RegistryDirectory {
 }
 
 impl Directory for RegistryDirectory {
-    fn list(&self, invocation: RpcInvocation) -> Vec<Url> {
+    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<Url> {
         let service_name = invocation.get_target_service_unique_name();
 
         let url = Url::from_url(&format!(
@@ -136,9 +136,9 @@ impl Directory for RegistryDirectory {
             .expect("msg")
             .subscribe(
                 url,
-                MemoryNotifyListener {
+                Arc::new(MemoryNotifyListener {
                     service_instances: Arc::clone(&self.service_instances),
-                },
+                }),
             )
             .expect("subscribe");
 

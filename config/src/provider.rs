@@ -25,10 +25,9 @@ use super::service::ServiceConfig;
 pub struct ProviderConfig {
     #[serde(default)]
     pub registry_ids: Vec<String>,
-
     #[serde(default)]
     pub protocol_ids: Vec<String>,
-
+    #[serde(default)]
     pub services: HashMap<String, ServiceConfig>,
 }
 
