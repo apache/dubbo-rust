@@ -60,7 +60,7 @@ const INNERCLASS_SYMBOL: &str = "$";
 const INNERCLASS_COMPATIBLE_SYMBOL: &str = "___";
 
 pub struct NacosRegistry {
-    nacos_naming_service: Arc<dyn NamingService>,
+    nacos_naming_service: Arc<dyn NamingService + Sync + Send + 'static>,
     listeners: Mutex<HashMap<String, HashSet<Arc<NotifyListenerWrapper>>>>,
 }
 
