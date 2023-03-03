@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 pub const REGISTRY_PROTOCOL: &str = "registry_protocol";
-pub const PROTOCOL: &str = "base";
+pub const PROTOCOL: &str = "protocol";
 pub const REGISTRY: &str = "registry";
 
 // URL key
