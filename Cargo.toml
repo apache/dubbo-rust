@@ -12,6 +12,8 @@ members = [
   "examples/greeter",
   "dubbo-build",
   "remoting/net",
+  "remoting/http",
+  "remoting/zookeeper",
   "protocol/dubbo2",
   "protocol/protocol",
   "protocol/triple"
