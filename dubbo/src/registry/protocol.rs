@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+use base::Url;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -23,7 +24,6 @@ use std::{
 
 use super::{memory_registry::MemoryRegistry, BoxRegistry};
 use crate::{
-    common::url::Url,
     protocol::{
         triple::{triple_exporter::TripleExporter, triple_protocol::TripleProtocol},
         BoxExporter, BoxInvoker, Protocol,
@@ -116,7 +116,7 @@ impl Protocol for RegistryProtocol {
                 return pro.export(url).await;
             }
             _ => {
-                tracing::error!("protocol {:?} not implemented", url.scheme);
+                tracing::error!("base {:?} not implemented", url.scheme);
                 Box::new(TripleExporter::new())
             }
         }

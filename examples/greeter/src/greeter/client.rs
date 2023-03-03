@@ -22,8 +22,9 @@ pub mod protos {
 
 use std::env;
 
-use dubbo::{codegen::*, common::url::Url};
+use dubbo::codegen::*;
 
+use base::Url;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
 use registry_nacos::NacosRegistry;

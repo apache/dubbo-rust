@@ -23,7 +23,7 @@ use std::{
 };
 use tracing::debug;
 
-use crate::common::url::Url;
+use base::Url;
 
 use super::{NotifyListener, Registry, RegistryNotifyListener};
 
@@ -69,7 +69,7 @@ impl Registry for MemoryRegistry {
         Ok(())
     }
 
-    fn unregister(&mut self, url: crate::common::url::Url) -> Result<(), crate::StdError> {
+    fn unregister(&mut self, url: base::Url) -> Result<(), crate::StdError> {
         let registry_group = match url.get_param(REGISTRY_GROUP_KEY) {
             Some(key) => key,
             None => "dubbo".to_string(),
@@ -88,7 +88,7 @@ impl Registry for MemoryRegistry {
 
     fn subscribe(
         &self,
-        url: crate::common::url::Url,
+        url: base::Url,
         listener: RegistryNotifyListener,
     ) -> Result<(), crate::StdError> {
         todo!()
@@ -96,7 +96,7 @@ impl Registry for MemoryRegistry {
 
     fn unsubscribe(
         &self,
-        url: crate::common::url::Url,
+        url: base::Url,
         listener: RegistryNotifyListener,
     ) -> Result<(), crate::StdError> {
         todo!()

@@ -14,24 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-use crate::triple::server::builder::ServerBuilder;
-use base::Url;
-
-#[derive(Default, Clone)]
-pub struct TripleServer {
-    builder: ServerBuilder,
-}
-
-impl TripleServer {
-    pub fn new() -> TripleServer {
-        Self {
-            builder: ServerBuilder::new(),
-        }
-    }
-
-    pub async fn serve(mut self, url: Url) {
-        self.builder = ServerBuilder::from(url);
-        self.builder.build().serve().await.unwrap()
-    }
-}
+#![cfg_attr(
+    debug_assertions,
+    allow(dead_code, unused_imports, unused_variables, unused_mut)
+)]
+pub mod constants;
+pub mod url;
+pub use url::Url;

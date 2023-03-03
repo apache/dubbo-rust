@@ -3,6 +3,7 @@ members = [
   "common/logger",
   "common/utils",
   "common/extention",
+  "common/base",
   "registry/zookeeper",
   "registry/nacos",
   "metadata",
@@ -18,7 +19,7 @@ members = [
   "remoting/exchange",
   "remoting/xds",
   "protocol/dubbo2",
-  "protocol/protocol",
+  "protocol/base",
   "protocol/triple"
 ]
 
@@ -39,8 +40,9 @@ serde_json = "1"
 urlencoding = "2.1.2"
 logger = {path="./common/logger"}
 utils = {path="./common/utils"}
+base = {path="./common/base"}
 remoting-net = {path="./remoting/net"}
-protocol = {path="./protocol/protocol"}
+protocol = {path= "protocol/base" }
 protocol-dubbo2 = {path="./protocol/dubbo2"}
 protocol-triple = {path="./protocol/triple"}
 registry-zookeeper = {path="./registry/zookeeper"}

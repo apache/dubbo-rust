@@ -20,13 +20,13 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use crate::common::consts::{GROUP_KEY, INTERFACE_KEY, VERSION_KEY};
+use crate::constants::{GROUP_KEY, INTERFACE_KEY, VERSION_KEY};
 use http::Uri;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Url {
     pub raw_url_string: String,
-    // value of scheme is different to protocol name, eg. triple -> tri://
+    // value of scheme is different to base name, eg. triple -> tri://
     pub scheme: String,
     pub location: String,
     pub ip: String,
@@ -48,7 +48,7 @@ impl Url {
         let uri = url
             .parse::<http::Uri>()
             .map_err(|err| {
-                tracing::error!("fail to parse url({}), err: {:?}", url, err);
+                logger::tracing::error!("fail to parse url({}), err: {:?}", url, err);
             })
             .unwrap();
         let query = uri.path_and_query().unwrap().query();
@@ -179,8 +179,8 @@ impl From<&str> for Url {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::common::consts::{ANYHOST_KEY, VERSION_KEY};
+    use crate::constants::{ANYHOST_KEY, VERSION_KEY};
+    use crate::url::Url;
 
     #[test]
     fn test_from_url() {

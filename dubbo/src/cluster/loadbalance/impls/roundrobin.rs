@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use base::Url;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -26,7 +27,6 @@ use std::{
 use crate::{
     cluster::loadbalance::types::{LoadBalance, Metadata},
     codegen::RpcInvocation,
-    common::url::Url,
 };
 
 pub struct RoundRobinLoadBalance {

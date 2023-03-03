@@ -20,11 +20,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use base::Url;
 use itertools::Itertools;
 use tracing::info;
 
 use crate::{
-    common::url::Url,
     registry::{BoxRegistry, Registry},
     StdError,
 };

@@ -22,11 +22,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use base::Url;
 use futures::{future, Future};
 use tracing::{debug, info};
 
 use crate::{
-    common::url::Url,
     protocol::{BoxExporter, Protocol},
     registry::{
         protocol::RegistryProtocol,
@@ -94,7 +94,7 @@ impl Dubbo {
                 info!("protocol_url: {:?}", protocol_url);
                 Url::from_url(&protocol_url)
             } else {
-                return Err(format!("protocol {:?} not exists", service_config.protocol).into());
+                return Err(format!("base {:?} not exists", service_config.protocol).into());
             };
             info!("url: {:?}", url);
             if url.is_none() {
@@ -126,7 +126,7 @@ impl Dubbo {
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
         for (name, items) in self.protocols.iter() {
             for url in items.iter() {
-                info!("protocol: {:?}, service url: {:?}", name, url);
+                info!("base: {:?}, service url: {:?}", name, url);
                 let exporter = mem_reg.clone().export(url.to_owned());
                 async_vec.push(exporter);
                 //TODO multiple registry
