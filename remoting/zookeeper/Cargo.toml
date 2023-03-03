@@ -1,5 +1,5 @@
 [package]
-name = "zookeeper"
+name = "remoting-zookeeper"
 version = "0.1.0"
 edition = "2021"
 
