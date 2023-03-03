@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
+use std::{
+    error::Error,
+    fmt::{Debug, Display, Formatter},
+};
 
 pub struct InvokerError(String);
 

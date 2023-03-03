@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 use base::{Node, Url};
-use protocol::invocation::BoxInvocation;
-use protocol::invoker::{BaseInvoker, Invoker};
+use protocol::{
+    invocation::BoxInvocation,
+    invoker::{BaseInvoker, Invoker},
+};
 use std::sync::Arc;
 
 pub struct TripleInvoker {

@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use std::any::Any;
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 pub trait Invocation {
     fn get_method_name(&self) -> String;

@@ -24,8 +24,10 @@ use std::{
     time::Duration,
 };
 
-use base::constants::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY};
-use base::Url;
+use base::{
+    constants::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY},
+    Url,
+};
 use logger::tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
@@ -381,8 +383,7 @@ mod tests {
 
     use zookeeper::{Acl, CreateMode, WatchedEvent, Watcher};
 
-    use crate::zookeeper_registry::ZookeeperRegistry;
-    use crate::ZookeeperRegistry;
+    use crate::{zookeeper_registry::ZookeeperRegistry, ZookeeperRegistry};
 
     struct TestZkWatcher {
         pub watcher: Arc<Option<TestZkWatcher>>,

@@ -14,12 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::invocation::BoxInvocation;
-use crate::output::{BoxOutput, RPCOutput};
+use crate::{
+    invocation::BoxInvocation,
+    output::{BoxOutput, RPCOutput},
+};
 use base::{Node, Url};
-use std::fmt::{Display, Formatter};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::{
+    fmt::{Display, Formatter},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 pub struct BaseInvoker {
     url: Arc<Url>,

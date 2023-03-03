@@ -183,8 +183,10 @@ impl From<&str> for Url {
 
 #[cfg(test)]
 mod tests {
-    use crate::constants::{ANYHOST_KEY, VERSION_KEY};
-    use crate::url::Url;
+    use crate::{
+        constants::{ANYHOST_KEY, VERSION_KEY},
+        url::Url,
+    };
 
     #[test]
     fn test_from_url() {
