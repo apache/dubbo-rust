@@ -383,7 +383,7 @@ mod tests {
 
     use zookeeper::{Acl, CreateMode, WatchedEvent, Watcher};
 
-    use crate::{zookeeper_registry::ZookeeperRegistry, ZookeeperRegistry};
+    use crate::ZookeeperRegistry;
 
     struct TestZkWatcher {
         pub watcher: Arc<Option<TestZkWatcher>>,

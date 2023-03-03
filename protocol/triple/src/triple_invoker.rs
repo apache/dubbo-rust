@@ -28,7 +28,7 @@ pub struct TripleInvoker {
 impl Invoker for TripleInvoker {
     type Output = ();
 
-    fn invoke(&self, invocation: BoxInvocation) -> Self::Output {
+    fn invoke(&self, _invocation: BoxInvocation) -> Self::Output {
         todo!()
     }
 }
