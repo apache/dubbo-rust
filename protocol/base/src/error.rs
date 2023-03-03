@@ -14,13 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#![cfg_attr(
-    debug_assertions,
-    allow(dead_code, unused_imports, unused_variables, unused_mut)
-)]
-pub mod constants;
-pub mod node;
-pub mod url;
 
-pub use node::Node;
-pub use url::Url;
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter};
+
+pub struct InvokerError(String);
+
+impl Debug for InvokerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+impl Display for InvokerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+impl Error for InvokerError {}

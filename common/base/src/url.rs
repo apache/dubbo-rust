@@ -157,6 +157,10 @@ impl Url {
     pub fn short_url(&self) -> String {
         format!("{}://{}:{}", self.scheme, self.ip, self.port)
     }
+
+    pub fn protocol(&self) -> String {
+        self.scheme.clone()
+    }
 }
 
 impl Display for Url {

@@ -14,13 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#![cfg_attr(
-    debug_assertions,
-    allow(dead_code, unused_imports, unused_variables, unused_mut)
-)]
-pub mod constants;
-pub mod node;
-pub mod url;
+use base::{Node, Url};
+use protocol::invocation::BoxInvocation;
+use protocol::invoker::{BaseInvoker, Invoker};
+use std::sync::Arc;
 
-pub use node::Node;
-pub use url::Url;
+pub struct TripleInvoker {
+    base: BaseInvoker,
+}
+
+impl Invoker for TripleInvoker {
+    type Output = ();
+
+    fn invoke(&self, invocation: BoxInvocation) -> Self::Output {
+        todo!()
+    }
+}
+
+impl Node for TripleInvoker {
+    fn get_url(&self) -> Arc<Url> {
+        self.base.get_url()
+    }
+
+    fn is_available(&self) -> bool {
+        self.base.is_available()
+    }
+
+    fn destroy(&self) {
+        todo!()
+    }
+
+    fn is_destroyed(&self) -> bool {
+        self.base.is_destroyed()
+    }
+}

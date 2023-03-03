@@ -14,3 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+use std::any::Any;
+use std::sync::Arc;
+
+pub trait Invocation {
+    fn get_method_name(&self) -> String;
+    fn get_parameter_types(&self) -> Vec<String>;
+    fn get_arguments(&self) -> Vec<String>;
+    fn get_reply(&self) -> Arc<dyn Any>;
+}
+
+pub type BoxInvocation = Arc<dyn Invocation + Send + Sync>;
