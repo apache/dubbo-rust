@@ -24,6 +24,10 @@ use std::{
     time::Duration,
 };
 
+use base::{
+    constants::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY},
+    Url,
+};
 use logger::tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
@@ -32,10 +36,6 @@ use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKee
 use dubbo::{
     cluster::support::cluster_invoker::ClusterInvoker,
     codegen::BoxRegistry,
-    common::{
-        consts::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY},
-        url::Url,
-    },
     registry::{
         integration::ClusterRegistryIntegration, memory_registry::MemoryRegistry, NotifyListener,
         Registry, RegistryNotifyListener, ServiceEvent,
@@ -383,7 +383,7 @@ mod tests {
 
     use zookeeper::{Acl, CreateMode, WatchedEvent, Watcher};
 
-    use crate::zookeeper_registry::ZookeeperRegistry;
+    use crate::ZookeeperRegistry;
 
     struct TestZkWatcher {
         pub watcher: Arc<Option<TestZkWatcher>>,

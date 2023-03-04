@@ -15,23 +15,7 @@
  * limitations under the License.
  */
 
-use crate::triple::server::builder::ServerBuilder;
-use base::Url;
-
-#[derive(Default, Clone)]
-pub struct TripleServer {
-    builder: ServerBuilder,
-}
-
-impl TripleServer {
-    pub fn new() -> TripleServer {
-        Self {
-            builder: ServerBuilder::new(),
-        }
-    }
-
-    pub async fn serve(mut self, url: Url) {
-        self.builder = ServerBuilder::from(url);
-        self.builder.build().serve().await.unwrap()
-    }
-}
+pub mod error;
+pub mod invocation;
+pub mod invoker;
+pub mod output;

@@ -15,23 +15,13 @@
  * limitations under the License.
  */
 
-use crate::triple::server::builder::ServerBuilder;
-use base::Url;
+use std::{any::Any, sync::Arc};
 
-#[derive(Default, Clone)]
-pub struct TripleServer {
-    builder: ServerBuilder,
+pub trait Invocation {
+    fn get_method_name(&self) -> String;
+    fn get_parameter_types(&self) -> Vec<String>;
+    fn get_arguments(&self) -> Vec<String>;
+    fn get_reply(&self) -> Arc<dyn Any>;
 }
 
-impl TripleServer {
-    pub fn new() -> TripleServer {
-        Self {
-            builder: ServerBuilder::new(),
-        }
-    }
-
-    pub async fn serve(mut self, url: Url) {
-        self.builder = ServerBuilder::from(url);
-        self.builder.build().serve().await.unwrap()
-    }
-}
+pub type BoxInvocation = Arc<dyn Invocation + Send + Sync>;

@@ -36,6 +36,7 @@ aws-smithy-http = "0.54.1"
 itertools.workspace = true
 urlencoding.workspace = true
 lazy_static.workspace = true
+base.workspace=true
 
 dubbo-config = { path = "../config", version = "0.3.0" }
 

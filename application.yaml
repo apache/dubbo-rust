@@ -17,3 +17,8 @@ dubbo:
         group: test
         protocol: triple
         interface: org.apache.dubbo.sample.tri.Greeter
+  consumer:
+    references:
+      GreeterClientImpl:
+        url: tri://localhost:20000
+        protocol: tri

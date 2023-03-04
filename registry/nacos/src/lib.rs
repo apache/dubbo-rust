@@ -16,16 +16,14 @@
  */
 mod utils;
 
+use base::Url;
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
 use anyhow::anyhow;
-use dubbo::{
-    common::url::Url,
-    registry::{NotifyListener, Registry, RegistryNotifyListener, ServiceEvent},
-};
+use dubbo::registry::{NotifyListener, Registry, RegistryNotifyListener, ServiceEvent};
 use logger::tracing::{error, info, warn};
 use nacos_sdk::api::naming::{NamingService, NamingServiceBuilder, ServiceInstance};
 

@@ -25,7 +25,7 @@ use async_trait::async_trait;
 use aws_smithy_http::body::SdkBody;
 use tower_service::Service;
 
-use crate::common::url::Url;
+use base::Url;
 
 pub mod server_desc;
 pub mod triple;

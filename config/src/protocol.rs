@@ -77,7 +77,7 @@ impl ProtocolRetrieve for ProtocolConfig {
         } else {
             let result = self.get_protocol(protocol_key);
             if let Some(..) = result {
-                panic!("default triple protocol dose not defined.")
+                panic!("default triple base dose not defined.")
             } else {
                 result.unwrap()
             }

@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+pub mod triple_invoker;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }

@@ -15,5 +15,14 @@
  * limitations under the License.
  */
 
-pub mod consts;
-pub mod url;
+use std::sync::Arc;
+
+use crate::Url;
+
+pub trait Node {
+    fn get_url(&self) -> Arc<Url>;
+    fn is_available(&self) -> bool;
+    fn destroy(&self);
+
+    fn is_destroyed(&self) -> bool;
+}
