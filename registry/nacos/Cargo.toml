@@ -15,6 +15,7 @@ serde_json.workspace = true
 serde = { workspace = true, features = ["derive"] }
 anyhow.workspace = true
 logger.workspace = true
+base.workspace = true
 [dev-dependencies]
 tracing-subscriber = "0.3.16"
 tracing = "0.1"

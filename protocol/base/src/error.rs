@@ -15,18 +15,23 @@
  * limitations under the License.
  */
 
-pub const REGISTRY_PROTOCOL: &str = "registry_protocol";
-pub const PROTOCOL: &str = "protocol";
-pub const REGISTRY: &str = "registry";
+use std::{
+    error::Error,
+    fmt::{Debug, Display, Formatter},
+};
 
-// URL key
-pub const DUBBO_KEY: &str = "dubbo";
-pub const PROVIDERS_KEY: &str = "providers";
-pub const LOCALHOST_IP: &str = "127.0.0.1";
-pub const METADATA_MAPPING_KEY: &str = "mapping";
-pub const VERSION_KEY: &str = "version";
-pub const GROUP_KEY: &str = "group";
-pub const INTERFACE_KEY: &str = "interface";
-pub const ANYHOST_KEY: &str = "anyhost";
-pub const SIDE_KEY: &str = "side";
-pub const TIMESTAMP_KEY: &str = "timestamp";
+pub struct InvokerError(String);
+
+impl Debug for InvokerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+impl Display for InvokerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+impl Error for InvokerError {}

@@ -33,6 +33,7 @@ dubbo = { path = "../../dubbo", version = "0.3.0" }
 dubbo-config = { path = "../../config", version = "0.3.0" }
 registry-zookeeper.workspace = true
 registry-nacos.workspace = true
+base.workspace = true
 
 [build-dependencies]
 dubbo-build = { path = "../../dubbo-build", version = "0.3.0" }

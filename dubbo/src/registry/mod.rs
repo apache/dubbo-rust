@@ -26,7 +26,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::common::url::Url;
+use base::Url;
 
 pub type RegistryNotifyListener = Arc<dyn NotifyListener + Send + Sync + 'static>;
 pub trait Registry {

@@ -14,5 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+pub mod host_util;
 pub mod path_util;
 pub mod yaml_util;

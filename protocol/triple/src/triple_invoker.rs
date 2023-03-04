@@ -14,17 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+use base::{Node, Url};
+use protocol::{
+    invocation::BoxInvocation,
+    invoker::{BaseInvoker, Invoker},
+};
+use std::sync::Arc;
+
+pub struct TripleInvoker {
+    base: BaseInvoker,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl Invoker for TripleInvoker {
+    type Output = ();
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    fn invoke(&self, _invocation: BoxInvocation) -> Self::Output {
+        todo!()
+    }
+}
+
+impl Node for TripleInvoker {
+    fn get_url(&self) -> Arc<Url> {
+        self.base.get_url()
+    }
+
+    fn is_available(&self) -> bool {
+        self.base.is_available()
+    }
+
+    fn destroy(&self) {
+        todo!()
+    }
+
+    fn is_destroyed(&self) -> bool {
+        self.base.is_destroyed()
     }
 }
