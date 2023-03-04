@@ -14,19 +14,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#![cfg_attr(
-    debug_assertions,
-    allow(dead_code, unused_imports, unused_variables, unused_mut)
-)]
-pub use codec::Codec;
-pub mod builder_client;
-pub mod builder_server;
-pub mod codec;
-pub mod error;
-pub mod exchange;
-pub mod exchange_client;
-pub mod exchange_server;
-
-pub use exchange::BoxedExchangeBody;
-pub use exchange::Request;
-pub use exchange::Response;
+// for tower ServiceBuilder; the input starts from Bytes
+// exchange is a part of LayerStack
