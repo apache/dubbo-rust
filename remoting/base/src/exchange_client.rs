@@ -16,13 +16,19 @@
  */
 
 use base::Url;
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use std::sync::Arc;
-use std::time;
-use std::time::Duration;
+use std::{
+    sync::{
+        atomic::{AtomicBool, AtomicI32, Ordering},
+        Arc,
+    },
+    time,
+    time::Duration,
+};
 
-use crate::error::ClientError;
-use crate::exchange::{Request, Response};
+use crate::{
+    error::ClientError,
+    exchange::{Request, Response},
+};
 
 pub struct BoxedClient(Arc<dyn Client>);
 

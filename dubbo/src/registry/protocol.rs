@@ -16,6 +16,7 @@
  */
 
 use base::Url;
+use logger::tracing;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},

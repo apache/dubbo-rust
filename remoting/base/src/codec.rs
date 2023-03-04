@@ -18,14 +18,12 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Error};
-use bytes;
-use bytes::Bytes;
+use bytes::{self, Bytes};
 use dashmap::DashMap;
 
 use protocol::ProtocolName;
 
-use crate::error::CodecError;
-use crate::Response;
+use crate::{error::CodecError, Response};
 
 #[derive(Clone)]
 pub struct BoxedCodec(Arc<dyn Codec>);
@@ -94,9 +92,11 @@ mod tests {
 
     use bytes::Bytes;
 
-    use crate::codec::{BoxedCodec, CodecRegistry, CodecResult};
-    use crate::error::CodecError;
-    use crate::Codec;
+    use crate::{
+        codec::{BoxedCodec, CodecRegistry, CodecResult},
+        error::CodecError,
+        Codec,
+    };
 
     #[derive(Default)]
     struct TestCodec;

@@ -9,6 +9,6 @@ edition = "2021"
 bytes.workspace = true
 base.workspace = true
 thiserror.workspace = true
-dashmap.workspacpe = true
+dashmap.workspace = true
 protocol.workspace = true
 anyhow.workspace = true

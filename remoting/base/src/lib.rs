@@ -27,6 +27,4 @@ pub mod exchange;
 pub mod exchange_client;
 pub mod exchange_server;
 
-pub use exchange::BoxedExchangeBody;
-pub use exchange::Request;
-pub use exchange::Response;
+pub use exchange::{BoxedExchangeBody, Request, Response};

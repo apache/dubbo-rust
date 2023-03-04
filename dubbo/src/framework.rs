@@ -22,10 +22,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use base::Url;
-use futures::{future, Future};
-use tracing::{debug, info};
-
 use crate::{
     protocol::{BoxExporter, Protocol},
     registry::{
@@ -34,7 +30,10 @@ use crate::{
         BoxRegistry, Registry,
     },
 };
+use base::Url;
 use dubbo_config::{get_global_config, protocol::ProtocolRetrieve, RootConfig};
+use futures::{future, Future};
+use logger::tracing;
 
 // Invoker是否可以基于hyper写一个通用的
 
@@ -78,10 +77,10 @@ impl Dubbo {
         }
 
         let root_config = self.config.as_ref().unwrap();
-        debug!("global conf: {:?}", root_config);
+        tracing::debug!("global conf: {:?}", root_config);
         // env::set_var("ZOOKEEPER_SERVERS",root_config);
         for (_, service_config) in root_config.provider.services.iter() {
-            info!("init service name: {}", service_config.interface);
+            tracing::info!("init service name: {}", service_config.interface);
             let url = if root_config
                 .protocols
                 .contains_key(service_config.protocol.as_str())
@@ -91,12 +90,12 @@ impl Dubbo {
                     .get_protocol_or_default(service_config.protocol.as_str());
                 let protocol_url =
                     format!("{}/{}", protocol.to_url(), service_config.interface.clone(),);
-                info!("protocol_url: {:?}", protocol_url);
+                tracing::info!("protocol_url: {:?}", protocol_url);
                 Url::from_url(&protocol_url)
             } else {
                 return Err(format!("base {:?} not exists", service_config.protocol).into());
             };
-            info!("url: {:?}", url);
+            tracing::info!("url: {:?}", url);
             if url.is_none() {
                 continue;
             }
@@ -116,7 +115,7 @@ impl Dubbo {
 
     pub async fn start(&mut self) {
         self.init().unwrap();
-        info!("starting...");
+        tracing::info!("starting...");
         // TODO: server registry
         let mem_reg = Box::new(
             RegistryProtocol::new()
@@ -126,7 +125,7 @@ impl Dubbo {
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
         for (name, items) in self.protocols.iter() {
             for url in items.iter() {
-                info!("base: {:?}, service url: {:?}", name, url);
+                tracing::info!("base: {:?}, service url: {:?}", name, url);
                 let exporter = mem_reg.clone().export(url.to_owned());
                 async_vec.push(exporter);
                 //TODO multiple registry

@@ -16,8 +16,7 @@
  */
 
 use crate::error::CodecError;
-use std::any::Any;
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 pub type BoxedExchangeBody = Arc<dyn Any>;
 
