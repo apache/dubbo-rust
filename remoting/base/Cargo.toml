@@ -6,3 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bytes.workspace = true
+base.workspace = true
+thiserror.workspace = true
+dashmap.workspacpe = true
+protocol.workspace = true
+anyhow.workspace = true

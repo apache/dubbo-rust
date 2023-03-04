@@ -14,24 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use thiserror::Error;
 
-use std::{
-    error::Error,
-    fmt::{Debug, Display, Formatter},
-};
-
-pub struct InvokerError(String);
-
-impl Debug for InvokerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.as_str())
-    }
+#[derive(Error, Debug)]
+pub enum InvokerError {
+    #[error("unknown invoker error.")]
+    Unknown,
 }
-
-impl Display for InvokerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.as_str())
-    }
-}
-
-impl Error for InvokerError {}

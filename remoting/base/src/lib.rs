@@ -14,10 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#![cfg_attr(
+    debug_assertions,
+    allow(dead_code, unused_imports, unused_variables, unused_mut)
+)]
+pub use codec::Codec;
+pub mod codec;
 pub mod error;
-pub mod invocation;
-pub mod invoker;
-pub mod output;
+pub mod exchange;
+pub mod exchange_client;
+pub mod exchange_server;
 
-pub type ProtocolName = &'static str;
+pub use exchange::BoxedExchangeBody;
+pub use exchange::Request;
+pub use exchange::Response;

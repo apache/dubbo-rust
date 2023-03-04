@@ -14,17 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+
+use crate::error::CodecError;
+use std::any::Any;
+use std::sync::Arc;
+
+pub type BoxedExchangeBody = Arc<dyn Any>;
+
+pub struct Request {
+    id: u64,
+    version: String, // protocol version
+    serial_id: u8,   // serial ID (ignore)
+    body: Option<BoxedExchangeBody>,
+    two_way: bool,
+    event: bool,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct Response {
+    id: u64,
+    version: String, // protocol version
+    serial_id: u8,   // serial ID (ignore)
+    status: u8,
+    body: Option<BoxedExchangeBody>, // mean result
+    event: bool,
+    error: Option<CodecError>,
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+impl Response {
+    fn is_heart_beat(&self) -> bool {
+        self.event && self.body.is_none()
     }
 }

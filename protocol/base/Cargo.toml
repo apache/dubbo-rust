@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 dashmap.workspace = true
 base.workspace = true
+thiserror.workspace = true
