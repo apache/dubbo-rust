@@ -18,3 +18,6 @@
 pub type RegistryName = String;
 // protocolKey defined in protocol layer, mean specified protocol
 pub type ProtocolKey = String;
+pub type ServiceName = String;
+
+pub type ServiceKey = String;

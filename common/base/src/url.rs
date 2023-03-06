@@ -21,6 +21,7 @@ use std::{
 };
 
 use crate::constants::{GROUP_KEY, INTERFACE_KEY, VERSION_KEY};
+use crate::types::alias::{ProtocolKey, ServiceKey, ServiceName};
 use http::Uri;
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -70,11 +71,11 @@ impl Url {
         Some(url_inst)
     }
 
-    pub fn get_service_key(&self) -> String {
+    pub fn get_service_key(&self) -> ServiceKey {
         self.service_key.clone()
     }
 
-    pub fn get_service_name(&self) -> String {
+    pub fn get_service_name(&self) -> ServiceName {
         self.service_name.clone()
     }
 

@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
+use base::types::alias::ProtocolKey;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ServiceConfig {
     pub version: String,
     pub group: String,
-    pub protocol: String,
+    pub protocol: ProtocolKey,
     pub interface: String,
 }
 
@@ -38,7 +39,7 @@ impl ServiceConfig {
         Self { group, ..self }
     }
 
-    pub fn protocol(self, protocol: String) -> Self {
+    pub fn protocol(self, protocol: ProtocolKey) -> Self {
         Self { protocol, ..self }
     }
 

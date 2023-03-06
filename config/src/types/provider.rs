@@ -17,6 +17,7 @@
 
 use std::collections::HashMap;
 
+use base::types::alias::ServiceName;
 use serde::{Deserialize, Serialize};
 
 use super::service::ServiceConfig;
@@ -28,7 +29,7 @@ pub struct ProviderConfig {
     #[serde(default)]
     pub protocol_ids: Vec<String>,
     #[serde(default)]
-    pub services: HashMap<String, ServiceConfig>,
+    pub services: HashMap<ServiceName, ServiceConfig>,
 }
 
 impl ProviderConfig {
@@ -50,7 +51,7 @@ impl ProviderConfig {
         self
     }
 
-    pub fn with_services(mut self, services: HashMap<String, ServiceConfig>) -> Self {
+    pub fn with_services(mut self, services: HashMap<ServiceName, ServiceConfig>) -> Self {
         self.services = services;
         self
     }

@@ -14,12 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use base::types::alias::ProtocolKey;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct RegistryConfig {
     #[serde(default)]
-    pub protocol: String,
+    pub protocol: ProtocolKey,
     #[serde(default)]
     pub address: String,
 }
