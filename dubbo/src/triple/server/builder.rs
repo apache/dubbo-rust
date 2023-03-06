@@ -23,6 +23,7 @@ use std::{
 use base::Url;
 use http::{Request, Response, Uri};
 use hyper::body::Body;
+use logger::tracing;
 use tower_service::Service;
 
 use crate::{triple::transport::DubboServer, BoxBody};

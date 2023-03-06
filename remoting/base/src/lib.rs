@@ -14,17 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+#![cfg_attr(
+    debug_assertions,
+    allow(dead_code, unused_imports, unused_variables, unused_mut)
+)]
+pub use codec::Codec;
+pub mod builder;
+pub mod codec;
+pub mod error;
+pub mod exchange;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use exchange::{BoxedExchangeBody, Request, Response};

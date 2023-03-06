@@ -14,40 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use base::{Node, Url};
 
-use protocol_base::{
-    invocation::BoxInvocation,
-    invoker::{BaseInvoker, Invoker},
-};
-use std::sync::Arc;
+use crate::error::CodecError;
+use std::{any::Any, sync::Arc};
+pub mod client;
+pub mod server;
 
-pub struct TripleInvoker {
-    base: BaseInvoker,
+pub type BoxedExchangeBody = Arc<dyn Any>;
+
+pub struct Request {
+    id: u64,
+    version: String, // protocol version
+    serial_id: u8,   // serial ID (ignore)
+    body: Option<BoxedExchangeBody>,
+    two_way: bool,
+    event: bool,
 }
 
-impl Invoker for TripleInvoker {
-    type Output = ();
-
-    fn invoke(&self, _invocation: BoxInvocation) -> Self::Output {
-        todo!()
-    }
+pub struct Response {
+    id: u64,
+    version: String, // protocol version
+    serial_id: u8,   // serial ID (ignore)
+    status: u8,
+    body: Option<BoxedExchangeBody>, // mean result
+    event: bool,
+    error: Option<CodecError>,
 }
 
-impl Node for TripleInvoker {
-    fn get_url(&self) -> Arc<Url> {
-        self.base.get_url()
-    }
-
-    fn is_available(&self) -> bool {
-        self.base.is_available()
-    }
-
-    fn destroy(&self) {
-        todo!()
-    }
-
-    fn is_destroyed(&self) -> bool {
-        self.base.is_destroyed()
+impl Response {
+    fn is_heart_beat(&self) -> bool {
+        self.event && self.body.is_none()
     }
 }

@@ -22,6 +22,7 @@ use std::{
 
 use http::Uri;
 use hyper::client::connect::dns::Name;
+use logger::tracing;
 use tokio::net::TcpStream;
 use tower_service::Service;
 

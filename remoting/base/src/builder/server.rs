@@ -14,40 +14,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use base::{Node, Url};
-
-use protocol_base::{
-    invocation::BoxInvocation,
-    invoker::{BaseInvoker, Invoker},
-};
-use std::sync::Arc;
-
-pub struct TripleInvoker {
-    base: BaseInvoker,
-}
-
-impl Invoker for TripleInvoker {
-    type Output = ();
-
-    fn invoke(&self, _invocation: BoxInvocation) -> Self::Output {
-        todo!()
-    }
-}
-
-impl Node for TripleInvoker {
-    fn get_url(&self) -> Arc<Url> {
-        self.base.get_url()
-    }
-
-    fn is_available(&self) -> bool {
-        self.base.is_available()
-    }
-
-    fn destroy(&self) {
-        todo!()
-    }
-
-    fn is_destroyed(&self) -> bool {
-        self.base.is_destroyed()
-    }
-}
+// for tower ServiceBuilder; the input starts from Bytes
+// exchange is a part of LayerStack
