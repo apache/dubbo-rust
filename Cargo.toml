@@ -44,7 +44,8 @@ logger = {path="./common/logger"}
 utils = {path="./common/utils"}
 base = {path="./common/base"}
 remoting-net = {path="./remoting/net"}
-protocol = {path= "protocol/base" }
+remoting-base = {path="./remoting/base"}
+protocol-base = {path= "protocol/base" }
 protocol-dubbo2 = {path="./protocol/dubbo2"}
 protocol-triple = {path="./protocol/triple"}
 registry-zookeeper = {path="./registry/zookeeper"}

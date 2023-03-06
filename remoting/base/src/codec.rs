@@ -20,8 +20,7 @@ use std::sync::Arc;
 use anyhow::{anyhow, Error};
 use bytes::{self, Bytes};
 use dashmap::DashMap;
-
-use protocol::ProtocolName;
+use protocol_base::ProtocolName;
 
 use crate::{error::CodecError, Response};
 

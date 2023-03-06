@@ -1,5 +1,5 @@
 [package]
-name = "remoting-exchange"
+name = "remoting-base"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,5 +10,5 @@ bytes.workspace = true
 base.workspace = true
 thiserror.workspace = true
 dashmap.workspace = true
-protocol.workspace = true
+protocol-base.workspace = true
 anyhow.workspace = true
