@@ -15,13 +15,25 @@
  * limitations under the License.
  */
 
-pub use config::*;
+use base::constants::{DEFAULT_CONFIG_FILE, ENV_DUBBO_CONFIG_FILE, ENV_DUBBO_CONFIG_PATH};
+use std::path::PathBuf;
+use utils::env_util::get_env_value;
+use utils::path_util::app_root_dir;
 
-pub mod config;
-
-pub mod api;
-pub mod location;
-pub mod types;
-pub mod util;
-
-pub use location::get_config_file;
+// resolve yaml config file
+pub fn get_config_file() -> PathBuf {
+    let mut path_buf = PathBuf::new();
+    // resolve config path
+    if get_env_value(ENV_DUBBO_CONFIG_PATH).is_some() {
+        path_buf = path_buf.join(get_env_value(ENV_DUBBO_CONFIG_PATH).unwrap());
+    } else {
+        path_buf = path_buf.join(app_root_dir());
+    }
+    // resolve config filename
+    if get_env_value(ENV_DUBBO_CONFIG_FILE).is_some() {
+        path_buf = path_buf.join(get_env_value(ENV_DUBBO_CONFIG_FILE).unwrap());
+    } else {
+        path_buf = path_buf.join(DEFAULT_CONFIG_FILE);
+    }
+    path_buf
+}

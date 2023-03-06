@@ -14,3 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+pub fn set_property_with_key_path(key: &str, value: &str) {
+    todo!()
+}
