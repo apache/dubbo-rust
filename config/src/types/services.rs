@@ -21,7 +21,7 @@ use base::types::alias::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub type ServiceConfig = HashMap<ServiceName, Service>;
+pub type ServicesConfig = HashMap<ServiceName, Service>;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Service {

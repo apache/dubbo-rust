@@ -26,7 +26,7 @@ pub struct Registry {
     #[serde(default)]
     pub protocol: RegistryId,
     #[serde(default)]
-    pub timeout: Duration,
+    pub timeout: String,
     #[serde(default)]
     pub address: String,
     #[serde(default)]

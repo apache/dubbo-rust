@@ -17,7 +17,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::service::ServiceConfig;
+use super::services::ServiceConfig;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ProviderConfig {

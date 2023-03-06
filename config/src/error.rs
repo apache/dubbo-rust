@@ -20,6 +20,8 @@ use thiserror::Error;
 pub enum ConfigError {
     #[error("protocol {0} not found.")]
     ProtocolNotFound(String),
+    #[error("registry {0} not found.")]
+    RegistryNotFound(String),
     #[error("Unknown error")]
     Unknown,
 }

@@ -20,7 +20,7 @@ use crate::types::consumer::ConsumerConfig;
 use crate::types::protocol::ProtocolConfig;
 use crate::types::provider::ProviderConfig;
 use crate::types::registry::RegistryConfig;
-use crate::types::service::ServiceConfig;
+use crate::types::services::ServicesConfig;
 use crate::util::yaml_file_parser;
 use base::constants::DUBBO_KEY;
 use getset::{CopyGetters, Getters, MutGetters, Setters};
@@ -34,7 +34,7 @@ pub mod consumer;
 pub mod protocol;
 pub mod provider;
 pub mod registry;
-pub mod service;
+pub mod services;
 
 /// used to storage all structed config, from some source: cmd, file..;
 /// Impl Config trait, business init by read Config trait
@@ -62,7 +62,7 @@ pub struct RootConfig {
 
     #[serde(default)]
     #[getset(get, set, get_mut)]
-    pub services: ServiceConfig,
+    pub services: ServicesConfig,
 }
 
 impl Default for RootConfig {
