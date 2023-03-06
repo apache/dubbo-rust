@@ -48,7 +48,7 @@ pub struct Reference {
     #[serde(default)]
     pub group: GroupId,
     #[serde(default)]
-    pub interface_name: InterfaceName,
+    pub interface: InterfaceName,
     #[serde(default)]
     pub registry_ids: Vec<RegistryId>,
     #[serde(default)]
@@ -56,5 +56,5 @@ pub struct Reference {
     #[serde(default)]
     pub params: HashMap<ParamKey, String>,
     #[serde(default)]
-    pub retries: u8,
+    pub retries: String,
 }

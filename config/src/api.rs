@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use crate::error::ConfigError;
 use anyhow::{anyhow, Error, Result};
 
+use crate::types::consumer::Reference;
 use crate::types::protocol::Protocol;
 use crate::types::registry::Registry;
 use crate::types::services::Service;
@@ -39,6 +40,21 @@ pub trait ConfigApi {
     ) -> Result<(), Error>;
     fn dubbo_get_services(&self, service_name: &str) -> Result<Service, Error>;
     fn dubbo_set_services(
+        &self,
+        service_name: &str,
+        key: String,
+        value: String,
+    ) -> Result<(), Error>;
+    fn dubbo_provider_get_services(&self, service_name: &str) -> Result<Service, Error>;
+    fn dubbo_provider_set_services(
+        &self,
+        service_name: &str,
+        key: String,
+        value: String,
+    ) -> Result<(), Error>;
+
+    fn dubbo_consumer_get_references(&self, service_name: &str) -> Result<Reference, Error>;
+    fn dubbo_consumer_set_references(
         &self,
         service_name: &str,
         key: String,
@@ -114,7 +130,7 @@ impl ConfigApi for ConfigWrapper {
     fn dubbo_get_services(&self, service_name: &str) -> Result<Service, Error> {
         let guard = self.inner.lock().unwrap();
         if !guard.services.contains_key(service_name) {
-            return Err(anyhow!(ConfigError::RegistryNotFound(
+            return Err(anyhow!(ConfigError::ServiceNotFound(
                 service_name.to_string()
             )));
         }
@@ -140,7 +156,83 @@ impl ConfigApi for ConfigWrapper {
             "group" => x.group = value,
             "version" => x.version = value,
             "serialization" => x.serialization = value,
-            _ => {}
+            _ => {
+                return Err(anyhow!(ConfigError::UnsupportedKey(key)));
+            }
+        }
+        Ok(())
+    }
+
+    fn dubbo_provider_get_services(&self, service_name: &str) -> Result<Service, Error> {
+        let guard = self.inner.lock().unwrap();
+        if !guard.services.contains_key(service_name) {
+            return Err(anyhow!(ConfigError::ServiceNotFound(
+                service_name.to_string()
+            )));
+        }
+        Ok(guard.services.get(service_name).unwrap().clone())
+    }
+
+    fn dubbo_provider_set_services(
+        &self,
+        service_name: &str,
+        key: String,
+        value: String,
+    ) -> Result<(), Error> {
+        let mut guard = self.inner.lock().unwrap();
+        if !guard.provider.services.contains_key(service_name) {
+            guard
+                .services
+                .insert(service_name.to_string(), Service::default());
+        }
+        let x = guard.provider.services.get_mut(service_name).unwrap();
+        match key.as_str() {
+            "protocol" => x.protocol = value,
+            "interface" => x.interface = value,
+            "group" => x.group = value,
+            "version" => x.version = value,
+            "serialization" => x.serialization = value,
+            _ => {
+                return Err(anyhow!(ConfigError::UnsupportedKey(key)));
+            }
+        }
+        Ok(())
+    }
+
+    fn dubbo_consumer_get_references(&self, service_name: &str) -> Result<Reference, Error> {
+        let guard = self.inner.lock().unwrap();
+        if !guard.consumer.references.contains_key(service_name) {
+            return Err(anyhow!(ConfigError::ServiceNotFound(
+                service_name.to_string()
+            )));
+        }
+        Ok(guard.consumer.references.get(service_name).unwrap().clone())
+    }
+
+    fn dubbo_consumer_set_references(
+        &self,
+        service_name: &str,
+        key: String,
+        value: String,
+    ) -> Result<(), Error> {
+        let mut guard = self.inner.lock().unwrap();
+        if !guard.consumer.references.contains_key(service_name) {
+            guard
+                .services
+                .insert(service_name.to_string(), Service::default());
+        }
+        let x = guard.consumer.references.get_mut(service_name).unwrap();
+        match key.as_str() {
+            "protocol" => x.protocol = value,
+            "interface" => x.interface = value,
+            "group" => x.group = value,
+            "cluster" => x.cluster = value,
+            "retries" => x.retries = value,
+            "url" => x.url = value,
+            "registry_ids" => x.registry_ids = value.split(',').map(|x| x.to_string()).collect(),
+            _ => {
+                return Err(anyhow!(ConfigError::UnsupportedKey(key)));
+            }
         }
         Ok(())
     }

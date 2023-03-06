@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 
+use crate::types::services::ServicesConfig;
 use serde::{Deserialize, Serialize};
-
-use super::services::ServiceConfig;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ProviderConfig {
@@ -26,5 +25,5 @@ pub struct ProviderConfig {
     #[serde(default)]
     pub protocol_ids: Vec<String>,
     #[serde(default)]
-    pub services: ServiceConfig,
+    pub services: ServicesConfig,
 }

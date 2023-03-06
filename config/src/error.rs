@@ -22,6 +22,10 @@ pub enum ConfigError {
     ProtocolNotFound(String),
     #[error("registry {0} not found.")]
     RegistryNotFound(String),
-    #[error("Unknown error")]
+    #[error("service {0} not found.")]
+    ServiceNotFound(String),
+    #[error("unsupported key {0}.")]
+    UnsupportedKey(String),
+    #[error("Service error")]
     Unknown,
 }

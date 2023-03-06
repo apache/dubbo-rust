@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use base::types::alias::{ParamKey, RegistryId, RegistryType};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Duration;
+
+use serde::{Deserialize, Serialize};
+
+use base::types::alias::{ParamKey, RegistryId, RegistryType};
 
 pub type RegistryConfig = HashMap<RegistryId, Registry>;
 
