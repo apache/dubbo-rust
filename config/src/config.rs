@@ -45,9 +45,6 @@ pub struct RootConfig {
 
     #[serde(default)]
     pub registries: HashMap<RegistryName, RegistryConfig>,
-
-    #[serde(default)]
-    pub data: HashMap<String, String>,
 }
 
 pub fn get_global_config() -> &'static RootConfig {
@@ -65,7 +62,6 @@ impl RootConfig {
             protocols: HashMap::new(),
             registries: HashMap::new(),
             provider: ProviderConfig::new(),
-            data: HashMap::new(),
         }
     }
 
@@ -108,66 +104,10 @@ impl RootConfig {
 
         self.provider = provider.clone();
         println!("provider config: {:?}", provider);
-        // 通过环境变量读取某个文件。加在到内存中
-        self.data.insert(
-            "dubbo.provider.url".to_string(),
-            "dubbo://127.0.0.1:8888/?serviceName=hellworld".to_string(),
-        );
-        // self.data.insert("dubbo.consume.", v)
     }
 
     #[inline]
     pub fn leak(self) -> &'static Self {
         Box::leak(Box::new(self))
-    }
-}
-
-impl Config for RootConfig {
-    fn bool(&self, key: String) -> bool {
-        match self.data.get(&key) {
-            None => false,
-            Some(val) => match val.parse::<bool>() {
-                Ok(v) => v,
-                Err(_err) => {
-                    tracing::error!("key: {}, val: {} is not boolean", key, val);
-                    false
-                }
-            },
-        }
-    }
-
-    fn string(&self, key: String) -> String {
-        match self.data.get(&key) {
-            None => "".to_string(),
-            Some(val) => val.to_string(),
-        }
-    }
-}
-
-pub trait BusinessConfig {
-    fn init() -> Self;
-    fn load() -> Result<(), std::convert::Infallible>;
-}
-
-pub trait Config {
-    fn bool(&self, key: String) -> bool;
-    fn string(&self, key: String) -> String;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_config() {
-        let mut r = RootConfig::new();
-        r.test_config();
-    }
-
-    #[test]
-    fn test_load() {
-        let r = RootConfig::new();
-        let r = r.load().unwrap();
-        println!("{:#?}", r);
     }
 }

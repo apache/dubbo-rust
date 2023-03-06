@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// type for registryName;can be customized
+// type for registryName;can be customized;RegistryKey eg. zookeeper/nacos/consul
 pub type RegistryName = String;
+pub type RegistryKey = String;
 // protocolKey defined in protocol layer, mean specified protocol
-pub type ProtocolKey = String;
 pub type ServiceName = String;
-
 pub type ServiceKey = String;
+//
+pub type ProtocolKey = String;
