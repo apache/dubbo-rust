@@ -66,10 +66,7 @@ mod tests {
     use std::collections::HashMap;
     use utils::path_util::app_root_dir;
 
-    use crate::{
-        path_util::app_root_dir,
-        util::{yaml_file_parser, yaml_key_reader},
-    };
+    use crate::util::{yaml_file_parser, yaml_key_reader};
 
     #[test]
     fn test_yaml_file_parser() {

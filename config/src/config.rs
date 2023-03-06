@@ -15,22 +15,20 @@
  * limitations under the License.
  */
 
-use std::{collections::HashMap, env, path::PathBuf};
+use std::{collections::HashMap, env};
 
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 
+use crate::get_config_file;
 use base::constants::DUBBO_KEY;
 use base::types::alias::RegistryName;
-use logger::tracing;
-use utils::util::yaml_file_parser;
 
+use crate::types::protocol::{Protocol, ProtocolConfig};
 use crate::types::provider::ProviderConfig;
+use crate::types::registry::RegistryConfig;
 use crate::types::service::ServiceConfig;
 use crate::util::yaml_file_parser;
-use crate::{protocol::Protocol, registry::RegistryConfig};
-
-use super::{protocol::ProtocolConfig, provider::ProviderConfig, service::ServiceConfig};
 
 pub static GLOBAL_ROOT_CONFIG: OnceCell<RootConfig> = OnceCell::new();
 
@@ -72,27 +70,7 @@ impl RootConfig {
     }
 
     pub fn load(&self) -> std::io::Result<Self> {
-        let config_path = match env::var("DUBBO_CONFIG_PATH") {
-            Ok(v) => {
-                tracing::info!("read config_path from env: {:?}", v);
-                v
-            }
-            Err(err) => {
-                tracing::warn!(
-                    "error loading config_path: {:?}, use default path: {:?}",
-                    err,
-                    DUBBO_CONFIG_PATH
-                );
-                utils::path_util::app_root_dir()
-                    .join(DUBBO_CONFIG_PATH)
-                    .to_str()
-                    .unwrap()
-                    .to_string()
-            }
-        };
-
-        let conf: HashMap<String, RootConfig> =
-            yaml_file_parser(PathBuf::new().join(config_path)).unwrap();
+        let conf: HashMap<String, RootConfig> = yaml_file_parser(get_config_file()).unwrap();
         let root_config: RootConfig = conf.get(DUBBO_KEY).unwrap().clone();
         tracing::debug!("origin config: {:?}", conf);
         Ok(root_config)
@@ -188,7 +166,6 @@ mod tests {
 
     #[test]
     fn test_load() {
-        logger::init();
         let r = RootConfig::new();
         let r = r.load().unwrap();
         println!("{:#?}", r);
