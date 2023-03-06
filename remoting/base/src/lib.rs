@@ -19,12 +19,9 @@
     allow(dead_code, unused_imports, unused_variables, unused_mut)
 )]
 pub use codec::Codec;
-pub mod builder_client;
-pub mod builder_server;
+pub mod builder;
 pub mod codec;
 pub mod error;
 pub mod exchange;
-pub mod exchange_client;
-pub mod exchange_server;
 
 pub use exchange::{BoxedExchangeBody, Request, Response};

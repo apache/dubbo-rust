@@ -17,6 +17,8 @@
 
 use crate::error::CodecError;
 use std::{any::Any, sync::Arc};
+pub mod client;
+pub mod server;
 
 pub type BoxedExchangeBody = Arc<dyn Any>;
 
