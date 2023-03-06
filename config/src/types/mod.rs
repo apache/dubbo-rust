@@ -15,15 +15,13 @@
  * limitations under the License.
  */
 
-use crate::error::ConfigError;
+use crate::get_config_location;
 use crate::types::consumer::ConsumerConfig;
-use crate::types::protocol::{Protocol, ProtocolConfig};
+use crate::types::protocol::ProtocolConfig;
 use crate::types::provider::ProviderConfig;
 use crate::types::registry::RegistryConfig;
 use crate::types::service::ServiceConfig;
 use crate::util::yaml_file_parser;
-use crate::{get_config_location, get_root_config};
-use anyhow::{anyhow, Error};
 use base::constants::DUBBO_KEY;
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use serde::Deserialize;

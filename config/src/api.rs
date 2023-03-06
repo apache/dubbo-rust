@@ -23,6 +23,8 @@ use anyhow::{anyhow, Error, Result};
 use crate::types::protocol::Protocol;
 use crate::ConfigWrapper;
 
+// could be used for config_center
+
 pub trait ConfigApi {
     fn dubbo_set_protocol(&self, protocol: &str, key: String, value: String) -> Result<(), Error>;
     fn dubbo_get_protocol(&self, protocol: &str) -> Result<Protocol, Error>;
