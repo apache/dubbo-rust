@@ -22,8 +22,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Protocol {
+    #[serde(default)]
     pub ip: String,
+    #[serde(default)]
     pub port: Port,
+    #[serde(default)]
     pub name: ProtocolKey,
 
     #[serde(skip_serializing, skip_deserializing)]

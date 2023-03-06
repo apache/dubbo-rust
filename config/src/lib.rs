@@ -22,6 +22,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+pub mod api;
+pub mod error;
 pub mod location;
 pub mod types;
 pub mod util;

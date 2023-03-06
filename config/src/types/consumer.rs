@@ -34,10 +34,13 @@ pub struct ConsumerConfig {
     #[serde(default)]
     pub protocol_ids: Vec<String>,
     #[serde(default)]
-    pub references: HashMap<ServiceName, ReferenceConfig>,
+    pub references: ReferenceConfig,
 }
+
+pub type ReferenceConfig = HashMap<ServiceName, Reference>;
+
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub struct ReferenceConfig {
+pub struct Reference {
     #[serde(default)]
     pub url: String,
     #[serde(default)]
