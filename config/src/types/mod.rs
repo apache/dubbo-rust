@@ -15,8 +15,74 @@
  * limitations under the License.
  */
 
+use crate::error::ConfigError;
+use crate::types::consumer::ConsumerConfig;
+use crate::types::protocol::{Protocol, ProtocolConfig};
+use crate::types::provider::ProviderConfig;
+use crate::types::registry::RegistryConfig;
+use crate::types::service::ServiceConfig;
+use crate::util::yaml_file_parser;
+use crate::{get_config_location, get_root_config};
+use anyhow::{anyhow, Error};
+use base::constants::DUBBO_KEY;
+use getset::{CopyGetters, Getters, MutGetters, Setters};
+use serde::Deserialize;
+use serde::Serialize;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+
 pub mod consumer;
 pub mod protocol;
 pub mod provider;
 pub mod registry;
 pub mod service;
+
+/// used to storage all structed config, from some source: cmd, file..;
+/// Impl Config trait, business init by read Config trait
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone, Getters, Setters, MutGetters, CopyGetters)]
+pub struct RootConfig {
+    #[serde(default)]
+    pub location: PathBuf,
+
+    #[serde(default)]
+    #[getset(get, set, get_mut)]
+    pub protocols: ProtocolConfig,
+
+    #[serde(default)]
+    #[getset(get, set, get_mut)]
+    pub provider: ProviderConfig,
+
+    #[serde(default)]
+    #[getset(get, set, get_mut)]
+    pub registries: RegistryConfig,
+
+    #[serde(default)]
+    #[getset(get, set, get_mut)]
+    pub consumer: ConsumerConfig,
+
+    #[serde(default)]
+    #[getset(get, set, get_mut)]
+    pub services: ServiceConfig,
+}
+
+impl Default for RootConfig {
+    fn default() -> RootConfig {
+        let conf: HashMap<String, RootConfig> = yaml_file_parser(get_config_location()).unwrap();
+        let mut root_config: RootConfig = conf.get(DUBBO_KEY).unwrap().clone();
+        root_config.location = get_config_location();
+        root_config
+    }
+}
+
+#[derive(Clone)]
+pub struct ConfigWrapper {
+    pub inner: Arc<Mutex<RootConfig>>,
+}
+
+impl ConfigWrapper {
+    pub fn new(inner: Arc<Mutex<RootConfig>>) -> Self {
+        ConfigWrapper { inner }
+    }
+}

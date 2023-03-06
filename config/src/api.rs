@@ -20,34 +20,39 @@ use std::collections::HashMap;
 use crate::error::ConfigError;
 use anyhow::{anyhow, Error, Result};
 
-use crate::get_root_config;
 use crate::types::protocol::Protocol;
+use crate::ConfigWrapper;
 
-pub fn dubbo_set_protocol(protocol: &str, key: String, value: String) -> Result<(), Error> {
-    let root_config = get_root_config();
-    let mut guard = root_config.lock().unwrap();
-    if !guard.protocols().contains_key(protocol) {
-        guard
-            .protocols
-            .insert(protocol.to_string(), Protocol::default());
-    }
-    let x = guard.protocols.get_mut(protocol).unwrap();
-    match key.as_str() {
-        "ip" => x.ip = value,
-        "port" => x.port = value,
-        "name" => x.name = value,
-        _ => {
-            HashMap::insert(&mut x.params, key, value);
-        }
-    }
-    Ok(())
+pub trait ConfigApi {
+    fn dubbo_set_protocol(&self, protocol: &str, key: String, value: String) -> Result<(), Error>;
+    fn dubbo_get_protocol(&self, protocol: &str) -> Result<Protocol, Error>;
 }
 
-pub fn dubbo_get_protocol(protocol: &str) -> Result<Protocol, Error> {
-    let root_config = get_root_config();
-    let guard = root_config.lock().unwrap();
-    if !guard.protocols.contains_key(protocol) {
-        return Err(anyhow!(ConfigError::ProtocolNotFound(protocol.to_string())));
+impl ConfigApi for ConfigWrapper {
+    fn dubbo_set_protocol(&self, protocol: &str, key: String, value: String) -> Result<(), Error> {
+        let mut guard = self.inner.lock().unwrap();
+        if !guard.protocols.contains_key(protocol) {
+            guard
+                .protocols
+                .insert(protocol.to_string(), Protocol::default());
+        }
+        let x = guard.protocols.get_mut(protocol).unwrap();
+        match key.as_str() {
+            "ip" => x.ip = value,
+            "port" => x.port = value,
+            "name" => x.name = value,
+            _ => {
+                HashMap::insert(&mut x.params, key, value);
+            }
+        }
+        Ok(())
     }
-    Ok(guard.protocols.get(protocol).unwrap().clone())
+
+    fn dubbo_get_protocol(&self, protocol: &str) -> Result<Protocol, Error> {
+        let guard = self.inner.lock().unwrap();
+        if !guard.protocols.contains_key(protocol) {
+            return Err(anyhow!(ConfigError::ProtocolNotFound(protocol.to_string())));
+        }
+        Ok(guard.protocols.get(protocol).unwrap().clone())
+    }
 }
