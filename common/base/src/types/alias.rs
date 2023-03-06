@@ -30,5 +30,5 @@ pub type Version = String;
 pub type InterfaceName = String;
 
 pub type ClusterStrategy = String;
-
+pub type FilterKey = String;
 pub type ParamKey = String;

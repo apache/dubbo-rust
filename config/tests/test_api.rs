@@ -17,11 +17,34 @@
 
 #[cfg(test)]
 mod tests_api {
+    use std::env;
+    use std::sync::Once;
+
+    use ctor::ctor;
+
     use config::get_root_config;
+    use config::location::set_config_file_path;
+
+    static INIT: Once = Once::new();
+
+    #[ctor]
+    fn setup() {
+        INIT.call_once(|| {
+            set_config_file_path(format!(
+                "{}/{}",
+                env::current_dir()
+                    .unwrap()
+                    .into_os_string()
+                    .to_str()
+                    .unwrap(),
+                "tests"
+            ));
+        });
+    }
 
     #[test]
     fn test_api_overwrite_yaml() {
         let root_config = get_root_config();
-        println!("{:?}", root_config);
+        println!("{:#?}", root_config);
     }
 }

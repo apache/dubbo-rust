@@ -19,3 +19,5 @@ anyhow.workspace = true
 base.workspace = true
 tracing.workspace = true
 tokio.workspace = true
+[dev-dependencies]
+ctor.workspace = true

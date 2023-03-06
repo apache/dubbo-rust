@@ -16,12 +16,12 @@
  */
 
 use base::constants::DUBBO_KEY;
-use base::types::alias::RegistryId;
+use base::types::alias::{RegistryId, ServiceName};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 pub mod location;
 pub mod types;
@@ -31,6 +31,7 @@ use crate::types::consumer::ConsumerConfig;
 use crate::types::protocol::ProtocolConfig;
 use crate::types::provider::ProviderConfig;
 use crate::types::registry::RegistryConfig;
+use crate::types::service::ServiceConfig;
 use crate::util::yaml_file_parser;
 pub use location::get_config_location;
 
@@ -45,6 +46,9 @@ static GLOBAL_ROOT_CONFIG: Lazy<ConfigWrapper> =
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RootConfig {
     #[serde(default)]
+    pub location: PathBuf,
+
+    #[serde(default)]
     pub protocols: ProtocolConfig,
 
     #[serde(default)]
@@ -53,13 +57,18 @@ pub struct RootConfig {
     #[serde(default)]
     pub registries: HashMap<RegistryId, RegistryConfig>,
 
-    pub consumers: HashMap<String, ConsumerConfig>,
+    #[serde(default)]
+    pub consumer: ConsumerConfig,
+
+    #[serde(default)]
+    pub services: HashMap<ServiceName, ServiceConfig>,
 }
 
 impl Default for RootConfig {
     fn default() -> RootConfig {
         let conf: HashMap<String, RootConfig> = yaml_file_parser(get_config_location()).unwrap();
-        let root_config: RootConfig = conf.get(DUBBO_KEY).unwrap().clone();
+        let mut root_config: RootConfig = conf.get(DUBBO_KEY).unwrap().clone();
+        root_config.location = get_config_location();
         root_config
     }
 }

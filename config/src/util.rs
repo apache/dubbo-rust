@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use std::any::{Any, TypeId};
 use std::{collections::HashMap, fs, path::PathBuf, sync::Mutex};
 
 use anyhow::Error;
@@ -61,12 +62,23 @@ pub fn yaml_key_reader(path: PathBuf, key: &str) -> Result<Option<String>, Error
     Ok(Some(value.as_str().unwrap().to_string()))
 }
 
+pub fn is_empty_value<T: Sized + Any + ToString>(value: T) -> bool {
+    if TypeId::of::<T>() == TypeId::of::<String>() {
+        return value.to_string().is_empty();
+    } else if TypeId::of::<T>() == TypeId::of::<i32>() {
+        return value.to_string() == "0";
+    } else if TypeId::of::<T>() == TypeId::of::<f64>() {
+        return value.to_string() == "0";
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
     use utils::path_util::app_root_dir;
 
-    use crate::util::{yaml_file_parser, yaml_key_reader};
+    use crate::util::{is_empty_value, yaml_file_parser, yaml_key_reader};
 
     #[test]
     fn test_yaml_file_parser() {
@@ -90,5 +102,13 @@ mod tests {
         println!("{:?}", config);
         let config = yaml_key_reader(path, "logging.file.path").unwrap();
         println!("{:?}", config);
+    }
+
+    #[test]
+    fn test_is_empty_value() {
+        assert!(is_empty_value(0));
+        assert!(is_empty_value(0.0));
+        assert!(is_empty_value("".to_string()));
+        println!("&str is not empty{}", is_empty_value(0.0));
     }
 }

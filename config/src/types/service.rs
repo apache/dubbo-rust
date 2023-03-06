@@ -15,43 +15,17 @@
  * limitations under the License.
  */
 
-use base::types::alias::ProtocolKey;
+use base::types::alias::{GroupId, InterfaceName, ProtocolKey, Version};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ServiceConfig {
-    pub version: String,
-    pub group: String,
+    #[serde(default)]
+    pub version: Version,
+    #[serde(default)]
+    pub group: GroupId,
+    #[serde(default)]
     pub protocol: ProtocolKey,
-    pub interface: String,
-}
-
-impl ServiceConfig {
-    pub fn interface(self, interface: String) -> Self {
-        Self { interface, ..self }
-    }
-
-    pub fn version(self, version: String) -> Self {
-        Self { version, ..self }
-    }
-
-    pub fn group(self, group: String) -> Self {
-        Self { group, ..self }
-    }
-
-    pub fn protocol(self, protocol: ProtocolKey) -> Self {
-        Self { protocol, ..self }
-    }
-
-    // pub fn get_url(&self) -> Vec<Url> {
-    //     let mut urls = Vec::new();
-    //     for (_, conf) in self.protocol_configs.iter() {
-    //         urls.push(Url {
-    //             url: conf.to_owned().to_url(),
-    //             service_key: "".to_string(),
-    //         });
-    //     }
-
-    //     urls
-    // }
+    #[serde(default)]
+    pub interface: InterfaceName,
 }

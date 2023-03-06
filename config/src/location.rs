@@ -37,3 +37,7 @@ pub fn get_config_location() -> PathBuf {
     }
     path_buf
 }
+
+pub fn set_config_file_path(path: String) {
+    std::env::set_var(ENV_DUBBO_CONFIG_PATH, path);
+}

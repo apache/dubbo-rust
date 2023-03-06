@@ -22,7 +22,7 @@ dubbo:
         serialization: hessian2
         interface: org.apache.dubbo.samples.UserProviderTriple
   consumer:
-    filter: tracing
+    filter: "tracing"
     registry-ids:
       - demoZK
     references:

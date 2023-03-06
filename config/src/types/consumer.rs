@@ -21,13 +21,16 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use base::types::alias::{
-    ClusterStrategy, GroupId, InterfaceName, ParamKey, ProtocolKey, RegistryId, ServiceName,
+    ClusterStrategy, FilterKey, GroupId, InterfaceName, ParamKey, ProtocolKey, RegistryId,
+    ServiceName,
 };
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ConsumerConfig {
     #[serde(default)]
-    pub registry_ids: Vec<String>,
+    pub registry_ids: Vec<RegistryId>,
+    #[serde(default)]
+    pub filter: FilterKey,
     #[serde(default)]
     pub protocol_ids: Vec<String>,
     #[serde(default)]

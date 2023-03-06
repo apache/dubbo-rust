@@ -34,11 +34,7 @@ pub struct ProviderConfig {
 
 impl ProviderConfig {
     pub fn new() -> Self {
-        ProviderConfig {
-            registry_ids: vec![],
-            protocol_ids: vec![],
-            services: HashMap::new(),
-        }
+        ProviderConfig::default()
     }
 
     pub fn with_registry_ids(mut self, registry_ids: Vec<String>) -> Self {
