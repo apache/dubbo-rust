@@ -30,7 +30,7 @@ async-trait = "0.1.56"
 tokio-stream = "0.1"
 logger = { path = "../../common/logger" }
 dubbo = { path = "../../dubbo", version = "0.3.0" }
-dubbo-config = { path = "../../config", version = "0.3.0" }
+config.workspace = true
 registry-zookeeper.workspace = true
 registry-nacos.workspace = true
 base.workspace = true

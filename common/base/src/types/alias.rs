@@ -14,28 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-use base::constants::DEFAULT_CONFIG_FILE;
-pub use config::*;
-use std::path::PathBuf;
-
-pub mod config;
-pub use provider;
-pub use service;
-pub use types::protocol;
-pub use types::registry;
-use utils::path_util::app_root_dir;
-
-pub mod api;
-pub mod types;
-pub mod util;
-
-pub fn get_config_file() -> PathBuf {
-    PathBuf::new()
-        .join(app_root_dir())
-        .join(DEFAULT_CONFIG_FILE)
-}
-
-pub fn config_api() -> RootConfig {
-    todo!()
-}
+// type for registryName;can be customized
+pub type RegistryName = String;
+// protocolKey defined in protocol layer, mean specified protocol
+pub type ProtocolKey = String;

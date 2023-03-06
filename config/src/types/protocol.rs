@@ -17,6 +17,7 @@
 
 use std::collections::HashMap;
 
+use base::types::alias::ProtocolKey;
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_PROTOCOL: &str = "triple";
@@ -31,7 +32,7 @@ pub struct Protocol {
     pub params: HashMap<String, String>,
 }
 
-pub type ProtocolConfig = HashMap<String, Protocol>;
+pub type ProtocolConfig = HashMap<ProtocolKey, Protocol>;
 
 pub trait ProtocolRetrieve {
     fn get_protocol(&self, protocol_key: &str) -> Option<Protocol>;

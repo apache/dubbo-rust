@@ -48,7 +48,7 @@ impl Url {
         let uri = url
             .parse::<http::Uri>()
             .map_err(|err| {
-                logger::tracing::error!("fail to parse url({}), err: {:?}", url, err);
+                tracing::error!("fail to parse url({}), err: {:?}", url, err);
             })
             .unwrap();
         let query = uri.path_and_query().unwrap().query();

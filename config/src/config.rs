@@ -17,18 +17,22 @@
 
 use std::{collections::HashMap, env, path::PathBuf};
 
-use crate::{protocol::Protocol, registry::RegistryConfig};
-use logger::tracing;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use utils::yaml_util::yaml_file_parser;
+
+use base::constants::DUBBO_KEY;
+use base::types::alias::RegistryName;
+use logger::tracing;
+use utils::util::yaml_file_parser;
+
+use crate::types::provider::ProviderConfig;
+use crate::types::service::ServiceConfig;
+use crate::util::yaml_file_parser;
+use crate::{protocol::Protocol, registry::RegistryConfig};
 
 use super::{protocol::ProtocolConfig, provider::ProviderConfig, service::ServiceConfig};
 
-pub const DUBBO_CONFIG_PATH: &str = "application.yaml";
-
 pub static GLOBAL_ROOT_CONFIG: OnceCell<RootConfig> = OnceCell::new();
-pub const DUBBO_CONFIG_PREFIX: &str = "dubbo";
 
 /// used to storage all structed config, from some source: cmd, file..;
 /// Impl Config trait, business init by read Config trait
@@ -42,7 +46,7 @@ pub struct RootConfig {
     pub provider: ProviderConfig,
 
     #[serde(default)]
-    pub registries: HashMap<String, RegistryConfig>,
+    pub registries: HashMap<RegistryName, RegistryConfig>,
 
     #[serde(default)]
     pub data: HashMap<String, String>,
@@ -89,7 +93,7 @@ impl RootConfig {
 
         let conf: HashMap<String, RootConfig> =
             yaml_file_parser(PathBuf::new().join(config_path)).unwrap();
-        let root_config: RootConfig = conf.get(DUBBO_CONFIG_PREFIX).unwrap().clone();
+        let root_config: RootConfig = conf.get(DUBBO_KEY).unwrap().clone();
         tracing::debug!("origin config: {:?}", conf);
         Ok(root_config)
     }

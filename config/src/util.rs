@@ -64,10 +64,11 @@ pub fn yaml_key_reader(path: PathBuf, key: &str) -> Result<Option<String>, Error
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use utils::path_util::app_root_dir;
 
     use crate::{
         path_util::app_root_dir,
-        yaml_util::{yaml_file_parser, yaml_key_reader},
+        util::{yaml_file_parser, yaml_key_reader},
     };
 
     #[test]
@@ -76,7 +77,7 @@ mod tests {
             .join("common")
             .join("utils")
             .join("tests")
-            .join("application.yaml");
+            .join("../../dubbo.yaml");
         let config = yaml_file_parser::<HashMap<String, HashMap<String, String>>>(path).unwrap();
         println!("{:?}", config);
     }
@@ -87,7 +88,7 @@ mod tests {
             .join("common")
             .join("utils")
             .join("tests")
-            .join("application.yaml");
+            .join("../../dubbo.yaml");
         let config = yaml_key_reader(path.clone(), "logging.level").unwrap();
         println!("{:?}", config);
         let config = yaml_key_reader(path, "logging.file.path").unwrap();

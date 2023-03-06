@@ -29,3 +29,6 @@ pub const INTERFACE_KEY: &str = "interface";
 pub const ANYHOST_KEY: &str = "anyhost";
 pub const SIDE_KEY: &str = "side";
 pub const TIMESTAMP_KEY: &str = "timestamp";
+
+// file name
+pub const DEFAULT_CONFIG_FILE: &str = "dubbo.yaml";

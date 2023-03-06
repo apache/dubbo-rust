@@ -15,27 +15,7 @@
  * limitations under the License.
  */
 
-use base::constants::DEFAULT_CONFIG_FILE;
-pub use config::*;
-use std::path::PathBuf;
-
-pub mod config;
-pub use provider;
-pub use service;
-pub use types::protocol;
-pub use types::registry;
-use utils::path_util::app_root_dir;
-
-pub mod api;
-pub mod types;
-pub mod util;
-
-pub fn get_config_file() -> PathBuf {
-    PathBuf::new()
-        .join(app_root_dir())
-        .join(DEFAULT_CONFIG_FILE)
-}
-
-pub fn config_api() -> RootConfig {
-    todo!()
-}
+pub(crate) mod protocol;
+pub(crate) mod provider;
+pub(crate) mod registry;
+pub(crate) mod service;

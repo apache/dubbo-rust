@@ -94,5 +94,5 @@ jobs:
           ../../target/debug/greeter-client
         env:
           ZOOKEEPER_SERVERS: 127.0.0.1:2181
-          DUBBO_CONFIG_PATH: ./application.yaml
+          DUBBO_CONFIG_PATH: ./dubbo.yaml
         working-directory: examples/greeter
