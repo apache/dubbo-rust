@@ -14,25 +14,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use base::types::alias::{ParamKey, RegistryId, RegistryType};
-use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
-use std::time::Duration;
+
+use serde::Deserialize;
+use serde::Serialize;
+
+use base::types::alias::{
+    ClusterStrategy, GroupId, InterfaceName, ParamKey, ProtocolKey, RegistryId, ServiceName,
+};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub struct RegistryConfig {
+pub struct ConsumerConfig {
     #[serde(default)]
-    pub protocol: RegistryId,
+    pub registry_ids: Vec<String>,
     #[serde(default)]
-    pub timeout: Duration,
+    pub protocol_ids: Vec<String>,
     #[serde(default)]
-    pub address: String,
+    pub references: HashMap<ServiceName, ReferenceConfig>,
+}
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub struct ReferenceConfig {
     #[serde(default)]
-    pub username: String,
+    pub url: String,
     #[serde(default)]
-    pub password: String,
+    pub protocol: ProtocolKey,
+    #[serde(default)]
+    pub group: GroupId,
+    #[serde(default)]
+    pub interface_name: InterfaceName,
+    #[serde(default)]
+    pub registry_ids: Vec<RegistryId>,
+    #[serde(default)]
+    pub cluster: ClusterStrategy,
     #[serde(default)]
     pub params: HashMap<ParamKey, String>,
     #[serde(default)]
-    pub registry_type: RegistryType,
+    pub retries: u8,
 }

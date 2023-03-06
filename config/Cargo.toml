@@ -18,3 +18,4 @@ utils.workspace = true
 anyhow.workspace = true
 base.workspace = true
 tracing.workspace = true
+tokio.workspace = true

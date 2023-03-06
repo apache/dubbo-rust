@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-pub(crate) mod protocol;
-pub(crate) mod provider;
-pub(crate) mod registry;
-pub(crate) mod service;
+pub mod consumer;
+pub mod protocol;
+pub mod provider;
+pub mod registry;
+pub mod service;

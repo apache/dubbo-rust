@@ -17,19 +17,17 @@
 
 use std::collections::HashMap;
 
-use base::types::alias::ProtocolKey;
+use base::types::alias::{ParamKey, ProtocolKey};
 use serde::{Deserialize, Serialize};
-
-pub const DEFAULT_PROTOCOL: &str = "triple";
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Protocol {
     pub ip: String,
     pub port: String,
-    pub name: String,
+    pub name: ProtocolKey,
 
     #[serde(skip_serializing, skip_deserializing)]
-    pub params: HashMap<String, String>,
+    pub params: HashMap<ParamKey, String>,
 }
 
 pub type ProtocolConfig = HashMap<ProtocolKey, Protocol>;

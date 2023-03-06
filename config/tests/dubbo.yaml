@@ -6,21 +6,39 @@ dubbo:
   protocols:
     triple:
       ip: 0.0.0.0
-      port: '8888'
+      port: 8888
       name: tri
   registries:
     demoZK:
       protocol: zookeeper
       address: 0.0.0.0:2181
   provider:
+    registry-ids: zk
     services:
-      GreeterProvider:
-        version: 1.0.0
-        group: test
-        protocol: triple
-        interface: org.apache.dubbo.sample.tri.Greeter
+      UserProvider:
+        serialization: hessian2
+        interface: org.apache.dubbo.samples.UserProvider
+      UserProviderTriple:
+        serialization: hessian2
+        interface: org.apache.dubbo.samples.UserProviderTriple
   consumer:
+    filter: tracing
+    registry-ids:
+      - demoZK
     references:
       GreeterClientImpl:
         url: tri://localhost:20000
         protocol: tri
+        retries: 5
+  services:
+    "UserProvider":
+      registry-ids: "demoZk"
+      protocol: "dubbo"
+      interface: "org.apache.dubbo.UserProvider"
+      loadbalance: "random"
+      warmup: "100"
+      cluster: "failover"
+      methods:
+        - name: "GetUser"
+          retries: 1
+          loadbalance: "random"

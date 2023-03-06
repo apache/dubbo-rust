@@ -14,21 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// type for registryName;can be customized;RegistryKey eg. zookeeper/nacos/consul
-pub type RegistryId = String;
-pub type RegistryKey = String;
-// service/application
-pub type RegistryType = String;
-// protocolKey defined in protocol layer, mean specified protocol
-pub type ServiceName = String;
-pub type ServiceKey = String;
-//
-pub type ProtocolKey = String;
-pub type GroupId = String;
-pub type Version = String;
 
-pub type InterfaceName = String;
+#[cfg(test)]
+mod tests_api {
+    use config::get_root_config;
 
-pub type ClusterStrategy = String;
-
-pub type ParamKey = String;
+    #[test]
+    fn test_api_overwrite_yaml() {
+        let root_config = get_root_config();
+        println!("{:?}", root_config);
+    }
+}
