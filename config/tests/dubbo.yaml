@@ -17,7 +17,7 @@ dubbo:
       protocol: zookeeper
       address: 0.0.0.0:2181
   provider:
-    registry-ids: zk
+    registry_ids: zk
     services:
       UserProvider:
         serialization: hessian2
@@ -27,7 +27,7 @@ dubbo:
         interface: org.apache.dubbo.samples.UserProviderTriple
   consumer:
     filter: "tracing"
-    registry-ids:
+    registry_ids:
       - demoZK
     references:
       GreeterClientImpl:
@@ -36,7 +36,7 @@ dubbo:
         retries: 5
   services:
     "UserProvider":
-      registry-ids: "demoZk"
+      registry_ids: "demoZk"
       protocol: "dubbo"
       interface: "org.apache.dubbo.UserProvider"
       loadbalance: "random"

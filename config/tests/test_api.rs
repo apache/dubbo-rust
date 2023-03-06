@@ -45,23 +45,23 @@ mod tests_api {
     }
 
     #[test]
-    fn test_dubbo_set_protocol_overwrite_yaml_by_api() {
+    fn test_dubbo_protocol_set_overwrite_yaml_by_api() {
         let config_wrapper = get_root_config();
-        let old_config = config_wrapper.dubbo_get_protocol("dubbo").unwrap();
+        let old_config = config_wrapper.dubbo_protocol_get("dubbo").unwrap();
         assert_eq!(old_config.port, "8888".to_string());
         config_wrapper
-            .dubbo_set_protocol("dubbo", "ip".to_string(), "122.22.22.22".to_string())
+            .dubbo_protocol_set("dubbo", "ip".to_string(), "122.22.22.22".to_string())
             .unwrap();
         config_wrapper
-            .dubbo_set_protocol("dubbo", "port".to_string(), "111".to_string())
+            .dubbo_protocol_set("dubbo", "port".to_string(), "111".to_string())
             .unwrap();
         config_wrapper
-            .dubbo_set_protocol("dubbo", "name".to_string(), "dubbo".to_string())
+            .dubbo_protocol_set("dubbo", "name".to_string(), "dubbo".to_string())
             .unwrap();
         config_wrapper
-            .dubbo_set_protocol("dubbo", "nam1e".to_string(), "dubbo".to_string())
+            .dubbo_protocol_set("dubbo", "nam1e".to_string(), "dubbo".to_string())
             .unwrap();
-        let new_config = config_wrapper.dubbo_get_protocol("dubbo").unwrap();
+        let new_config = config_wrapper.dubbo_protocol_get("dubbo").unwrap();
         assert_eq!(new_config.port, "111".to_string());
         assert_eq!(new_config.name, "dubbo".to_string());
     }
