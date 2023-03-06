@@ -46,5 +46,22 @@ mod tests_api {
     fn test_api_overwrite_yaml() {
         let root_config = get_root_config();
         println!("{:#?}", root_config);
+        root_config
+            .lock()
+            .unwrap()
+            .protocols
+            .get_mut("dubbo")
+            .unwrap()
+            .port = 20987;
+        assert_eq!(
+            root_config
+                .lock()
+                .unwrap()
+                .protocols
+                .get("dubbo")
+                .unwrap()
+                .port,
+            20987
+        );
     }
 }

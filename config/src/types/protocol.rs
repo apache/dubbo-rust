@@ -17,13 +17,13 @@
 
 use std::collections::HashMap;
 
-use base::types::alias::{ParamKey, ProtocolKey};
+use base::types::alias::{ParamKey, Port, ProtocolKey};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Protocol {
     pub ip: String,
-    pub port: String,
+    pub port: Port,
     pub name: ProtocolKey,
 
     #[serde(skip_serializing, skip_deserializing)]
@@ -31,55 +31,3 @@ pub struct Protocol {
 }
 
 pub type ProtocolConfig = HashMap<ProtocolKey, Protocol>;
-
-pub trait ProtocolRetrieve {
-    fn get_protocol(&self, protocol_key: &str) -> Option<Protocol>;
-    fn get_protocol_or_default(&self, protocol_key: &str) -> Protocol;
-}
-
-impl Protocol {
-    pub fn name(self, name: String) -> Self {
-        Self { name, ..self }
-    }
-
-    pub fn ip(self, ip: String) -> Self {
-        Self { ip, ..self }
-    }
-
-    pub fn port(self, port: String) -> Self {
-        Self { port, ..self }
-    }
-
-    pub fn params(self, params: HashMap<String, String>) -> Self {
-        Self { params, ..self }
-    }
-
-    pub fn to_url(self) -> String {
-        format!("{}://{}:{}", self.name, self.ip, self.port)
-    }
-}
-
-impl ProtocolRetrieve for ProtocolConfig {
-    fn get_protocol(&self, protocol_key: &str) -> Option<Protocol> {
-        let result = self.get(protocol_key);
-        if let Some(..) = result {
-            Some(result.unwrap().clone())
-        } else {
-            None
-        }
-    }
-
-    fn get_protocol_or_default(&self, protocol_key: &str) -> Protocol {
-        let result = self.get_protocol(protocol_key);
-        if let Some(..) = result {
-            result.unwrap()
-        } else {
-            let result = self.get_protocol(protocol_key);
-            if let Some(..) = result {
-                panic!("default triple base dose not defined.")
-            } else {
-                result.unwrap()
-            }
-        }
-    }
-}

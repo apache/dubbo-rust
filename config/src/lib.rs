@@ -16,7 +16,6 @@
  */
 
 use base::constants::DUBBO_KEY;
-use base::types::alias::{RegistryId, ServiceName};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -33,6 +32,7 @@ use crate::types::provider::ProviderConfig;
 use crate::types::registry::RegistryConfig;
 use crate::types::service::ServiceConfig;
 use crate::util::yaml_file_parser;
+use getset::{CopyGetters, Getters, MutGetters, Setters};
 pub use location::get_config_location;
 
 pub type ConfigWrapper = Arc<Mutex<RootConfig>>;
@@ -43,25 +43,30 @@ static GLOBAL_ROOT_CONFIG: Lazy<ConfigWrapper> =
 /// used to storage all structed config, from some source: cmd, file..;
 /// Impl Config trait, business init by read Config trait
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Getters, Setters, MutGetters, CopyGetters)]
 pub struct RootConfig {
     #[serde(default)]
     pub location: PathBuf,
 
     #[serde(default)]
+    #[getset(get, set, get_mut)]
     pub protocols: ProtocolConfig,
 
     #[serde(default)]
+    #[getset(get, set, get_mut)]
     pub provider: ProviderConfig,
 
     #[serde(default)]
-    pub registries: HashMap<RegistryId, RegistryConfig>,
+    #[getset(get, set, get_mut)]
+    pub registries: RegistryConfig,
 
     #[serde(default)]
+    #[getset(get, set, get_mut)]
     pub consumer: ConsumerConfig,
 
     #[serde(default)]
-    pub services: HashMap<ServiceName, ServiceConfig>,
+    #[getset(get, set, get_mut)]
+    pub services: ServiceConfig,
 }
 
 impl Default for RootConfig {

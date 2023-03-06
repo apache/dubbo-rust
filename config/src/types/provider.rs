@@ -15,9 +15,6 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
-
-use base::types::alias::ServiceName;
 use serde::{Deserialize, Serialize};
 
 use super::service::ServiceConfig;
@@ -29,26 +26,5 @@ pub struct ProviderConfig {
     #[serde(default)]
     pub protocol_ids: Vec<String>,
     #[serde(default)]
-    pub services: HashMap<ServiceName, ServiceConfig>,
-}
-
-impl ProviderConfig {
-    pub fn new() -> Self {
-        ProviderConfig::default()
-    }
-
-    pub fn with_registry_ids(mut self, registry_ids: Vec<String>) -> Self {
-        self.registry_ids = registry_ids;
-        self
-    }
-
-    pub fn with_protocol_ids(mut self, protocol_ids: Vec<String>) -> Self {
-        self.protocol_ids = protocol_ids;
-        self
-    }
-
-    pub fn with_services(mut self, services: HashMap<ServiceName, ServiceConfig>) -> Self {
-        self.services = services;
-        self
-    }
+    pub services: ServiceConfig,
 }

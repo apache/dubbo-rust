@@ -15,11 +15,16 @@
  * limitations under the License.
  */
 
-use base::types::alias::{GroupId, InterfaceName, ProtocolKey, Version};
+use base::types::alias::{
+    GroupId, InterfaceName, ProtocolKey, SerializationKey, ServiceName, Version,
+};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+pub type ServiceConfig = HashMap<ServiceName, Service>;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub struct ServiceConfig {
+pub struct Service {
     #[serde(default)]
     pub version: Version,
     #[serde(default)]
@@ -28,4 +33,6 @@ pub struct ServiceConfig {
     pub protocol: ProtocolKey,
     #[serde(default)]
     pub interface: InterfaceName,
+    #[serde(default)]
+    pub serialization: SerializationKey,
 }

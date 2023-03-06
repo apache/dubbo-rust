@@ -22,6 +22,7 @@ pub type RegistryType = String;
 // protocolKey defined in protocol layer, mean specified protocol
 pub type ServiceName = String;
 pub type ServiceKey = String;
+pub type SerializationKey = String;
 //
 pub type ProtocolKey = String;
 pub type GroupId = String;
@@ -32,3 +33,5 @@ pub type InterfaceName = String;
 pub type ClusterStrategy = String;
 pub type FilterKey = String;
 pub type ParamKey = String;
+
+pub type Port = u32;

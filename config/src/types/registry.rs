@@ -19,8 +19,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
+pub type RegistryConfig = HashMap<RegistryId, Registry>;
+
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub struct RegistryConfig {
+pub struct Registry {
     #[serde(default)]
     pub protocol: RegistryId,
     #[serde(default)]
