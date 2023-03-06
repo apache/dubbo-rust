@@ -31,11 +31,13 @@ pub mod util;
 // resolve yaml config file
 pub fn get_config_file() -> PathBuf {
     let mut path_buf = PathBuf::new();
+    // resolve config path
     if get_env_value(ENV_DUBBO_CONFIG_PATH).is_some() {
         path_buf = path_buf.join(get_env_value(ENV_DUBBO_CONFIG_PATH).unwrap());
     } else {
         path_buf = path_buf.join(app_root_dir());
     }
+    // resolve config filename
     if get_env_value(ENV_DUBBO_CONFIG_FILE).is_some() {
         path_buf = path_buf.join(get_env_value(ENV_DUBBO_CONFIG_FILE).unwrap());
     } else {
