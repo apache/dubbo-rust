@@ -64,13 +64,11 @@ pub fn yaml_key_reader(path: PathBuf, key: &str) -> Result<Option<String>, Error
 
 pub fn is_empty_value<T: Sized + Any + ToString>(value: T) -> bool {
     if TypeId::of::<T>() == TypeId::of::<String>() {
-        return value.to_string().is_empty();
-    } else if TypeId::of::<T>() == TypeId::of::<i32>() {
-        return value.to_string() == "0";
-    } else if TypeId::of::<T>() == TypeId::of::<f64>() {
-        return value.to_string() == "0";
+        let value_str = value.to_string();
+        value_str.is_empty() || value_str.to_string() == "null" || value_str.to_string() == "0"
+    } else {
+        false
     }
-    false
 }
 
 #[cfg(test)]
@@ -106,8 +104,7 @@ mod tests {
 
     #[test]
     fn test_is_empty_value() {
-        assert!(is_empty_value(0));
-        assert!(is_empty_value(0.0));
+        assert!(is_empty_value("0".to_string()));
         assert!(is_empty_value("".to_string()));
         println!("&str is not empty{}", is_empty_value(0.0));
     }

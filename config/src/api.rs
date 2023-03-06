@@ -157,7 +157,10 @@ impl ConfigApi for ConfigWrapper {
             "version" => x.version = value,
             "serialization" => x.serialization = value,
             _ => {
-                return Err(anyhow!(ConfigError::UnsupportedKey(key)));
+                return Err(anyhow!(ConfigError::UnsupportedKey(
+                    "services".to_string(),
+                    key
+                )));
             }
         }
         Ok(())
@@ -193,7 +196,10 @@ impl ConfigApi for ConfigWrapper {
             "version" => x.version = value,
             "serialization" => x.serialization = value,
             _ => {
-                return Err(anyhow!(ConfigError::UnsupportedKey(key)));
+                return Err(anyhow!(ConfigError::UnsupportedKey(
+                    "provider.services".to_string(),
+                    key
+                )));
             }
         }
         Ok(())
@@ -231,7 +237,10 @@ impl ConfigApi for ConfigWrapper {
             "url" => x.url = value,
             "registry_ids" => x.registry_ids = value.split(',').map(|x| x.to_string()).collect(),
             _ => {
-                return Err(anyhow!(ConfigError::UnsupportedKey(key)));
+                return Err(anyhow!(ConfigError::UnsupportedKey(
+                    "consumer.references".to_string(),
+                    key
+                )));
             }
         }
         Ok(())

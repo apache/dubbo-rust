@@ -24,8 +24,8 @@ pub enum ConfigError {
     RegistryNotFound(String),
     #[error("service {0} not found.")]
     ServiceNotFound(String),
-    #[error("unsupported key {0}.")]
-    UnsupportedKey(String),
+    #[error("unsupported key {1} for {0}.")]
+    UnsupportedKey(String, String),
     #[error("Service error")]
     Unknown,
 }
