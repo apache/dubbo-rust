@@ -28,9 +28,9 @@ pub mod location;
 pub mod types;
 pub mod util;
 
-pub(crate) static GLOBAL_ROOT_CONFIG: Lazy<ConfigWrapper> =
+pub(crate) static DUBBO_CONFIG: Lazy<ConfigWrapper> =
     Lazy::new(|| ConfigWrapper::new(Arc::new(Mutex::new(RootConfig::default()))));
 
-pub fn get_root_config() -> ConfigWrapper {
-    GLOBAL_ROOT_CONFIG.clone()
+pub fn get_dubbo_config() -> ConfigWrapper {
+    DUBBO_CONFIG.clone()
 }

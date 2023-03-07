@@ -24,7 +24,7 @@ mod tests_api {
     use ctor::ctor;
 
     use config::api::ConfigApi;
-    use config::get_root_config;
+    use config::get_dubbo_config;
     use config::location::set_config_file_path;
     use config::types::protocol::Protocol;
     use config::types::registry::Registry;
@@ -49,7 +49,7 @@ mod tests_api {
 
     #[test]
     fn test_dubbo_protocol_set_overwrite_yaml_by_api() -> Result<(), Error> {
-        let config_wrapper = get_root_config();
+        let config_wrapper = get_dubbo_config();
         let old_config = config_wrapper.dubbo_protocol_get("dubbo")?;
         assert_eq!(old_config.port, "8888".to_string());
         config_wrapper.dubbo_protocol_set(
@@ -73,14 +73,14 @@ mod tests_api {
 
     #[test]
     fn test_registry_config() -> Result<(), Error> {
-        let zk_config: Registry = get_root_config().dubbo_registry_get("demoZK")?;
+        let zk_config: Registry = get_dubbo_config().dubbo_registry_get("demoZK")?;
         assert_eq!("zookeeper", zk_config.protocol);
         Ok(())
     }
 
     #[test]
     fn test_default_value() -> Result<(), Error> {
-        let zk_config: Registry = get_root_config().dubbo_registry_get("demoZK")?;
+        let zk_config: Registry = get_dubbo_config().dubbo_registry_get("demoZK")?;
         assert_eq!("3000", zk_config.timeout);
         Ok(())
     }

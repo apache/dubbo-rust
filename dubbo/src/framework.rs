@@ -34,7 +34,7 @@ use crate::{
         BoxRegistry, Registry,
     },
 };
-use dubbo_config::{get_root_config, protocol::ProtocolRetrieve, RootConfig};
+use dubbo_config::{get_dubbo_config, protocol::ProtocolRetrieve, RootConfig};
 
 // Invoker是否可以基于hyper写一个通用的
 
@@ -74,7 +74,7 @@ impl Dubbo {
 
     pub fn init(&mut self) -> Result<(), Box<dyn Error>> {
         if self.config.is_none() {
-            self.config = Some(get_root_config())
+            self.config = Some(get_dubbo_config())
         }
 
         let root_config = self.config.as_ref().unwrap();

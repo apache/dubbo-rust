@@ -12,7 +12,7 @@ repository = "https://github.com/apache/dubbo-rust.git"
 [dependencies]
 hyper = { version = "0.14.19", features = ["full"] }
 http = "0.2"
-tower-service = "0.3.1"
+tower-service.workspace = true
 http-body = "0.4.4"
 tower = { version = "0.4.12", features = ["timeout"] }
 futures-util = "0.3.23"
