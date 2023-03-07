@@ -23,6 +23,7 @@ use std::{
 };
 
 use base::Url;
+use config::{get_dubbo_config, RootConfig};
 use futures::{future, Future};
 use tracing::{debug, info};
 
@@ -34,7 +35,6 @@ use crate::{
         BoxRegistry, Registry,
     },
 };
-use dubbo_config::{get_dubbo_config, protocol::ProtocolRetrieve, RootConfig};
 
 // Invoker是否可以基于hyper写一个通用的
 
@@ -42,7 +42,7 @@ use dubbo_config::{get_dubbo_config, protocol::ProtocolRetrieve, RootConfig};
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
     registries: Option<Registries>,
-    service_registry: HashMap<String, Vec<Url>>, // registry: Urls
+    service_registry: HashMap<String, Vec<Url>>,
     config: Option<&'static RootConfig>,
 }
 
@@ -52,13 +52,8 @@ impl Dubbo {
             protocols: HashMap::new(),
             registries: None,
             service_registry: HashMap::new(),
-            config: None,
+            config: Some(get_dubbo_config().leak_for_read()),
         }
-    }
-
-    pub fn with_config(mut self, config: RootConfig) -> Self {
-        self.config = Some(config.leak());
-        self
     }
 
     pub fn add_registry(mut self, registry_key: &str, registry: BoxRegistry) -> Self {
@@ -73,24 +68,21 @@ impl Dubbo {
     }
 
     pub fn init(&mut self) -> Result<(), Box<dyn Error>> {
-        if self.config.is_none() {
-            self.config = Some(get_dubbo_config())
-        }
-
         let root_config = self.config.as_ref().unwrap();
         debug!("global conf: {:?}", root_config);
-        // env::set_var("ZOOKEEPER_SERVERS",root_config);
         for (_, service_config) in root_config.provider.services.iter() {
             info!("init service name: {}", service_config.interface);
             let url = if root_config
                 .protocols
                 .contains_key(service_config.protocol.as_str())
             {
-                let protocol = root_config
-                    .protocols
-                    .get_protocol_or_default(service_config.protocol.as_str());
-                let protocol_url =
-                    format!("{}/{}", protocol.to_url(), service_config.interface.clone(),);
+                let protocol = root_config.protocols.get(service_config.protocol.as_str());
+                if protocol.is_none() {
+                    return Err(format!("protocol {:?} not exists", service_config.protocol).into());
+                }
+                let protocol_url = protocol
+                    .unwrap()
+                    .to_url_string(service_config.interface.as_str());
                 info!("protocol_url: {:?}", protocol_url);
                 Url::from_url(&protocol_url)
             } else {

@@ -45,3 +45,13 @@ impl ConfigValidator for Protocol {
         todo!()
     }
 }
+
+impl Protocol {
+    pub fn to_url_string(&self, interface: &str) -> String {
+        let mut url = format!("{}://{}:{}/{}", self.name, self.ip, self.port, interface);
+        for (k, v) in self.params.iter() {
+            url = format!("{}&{}={}", url, k, v);
+        }
+        url
+    }
+}
