@@ -102,7 +102,7 @@ impl ConfigApi for ConfigWrapper {
         let value = value.to_string();
         match key {
             "protocol" => x.protocol = value,
-            "registry_type" => x.registry_type = value,
+            "registry_type" => x.registry_type = value.split(",").map(|x| x.to_string()).collect(),
             "address" => x.address = value,
             "password" => x.password = value,
             "username" => x.username = value,
