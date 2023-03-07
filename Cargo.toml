@@ -60,4 +60,7 @@ ctor = "0.1.23"
 getset = "0.1.2"
 thiserror = "1.0.29"
 validator = "0.15"
+bytes = "1.0.1"
+tower-layer = "0.3.1"
+tower-service = "0.3.1"
 

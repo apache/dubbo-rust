@@ -19,9 +19,9 @@ futures-util = "0.3.23"
 futures-core = "0.3.23"
 tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
 prost = "0.10.4"
-async-trait = "0.1.56"
-tower-layer = "0.3"
-bytes = "1.0"
+async-trait.worksapce = true
+tower-layer.workspace = true
+bytes.workspace = true
 pin-project.workspace = true
 rand = "0.8.5"
 serde_json.workspace = true
