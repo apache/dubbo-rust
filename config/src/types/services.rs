@@ -19,7 +19,7 @@ use crate::types::default::*;
 use crate::types::ConfigValidator;
 use anyhow::Error;
 use base::types::alias::{
-    GroupId, InterfaceName, ProtocolId, ProtocolKey, SerializationKey, ServiceName, VersionNumber,
+    GroupId, InterfaceName, ProtocolId, SerializationKey, ServiceName, VersionNumber,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

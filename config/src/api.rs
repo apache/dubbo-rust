@@ -19,6 +19,7 @@ use std::collections::HashMap;
 
 use crate::error::ConfigError;
 use anyhow::{anyhow, Error, Result};
+use base::types::alias::ServiceName;
 
 use crate::types::consumer::Reference;
 use crate::types::protocol::Protocol;
@@ -31,10 +32,13 @@ use crate::ConfigWrapper;
 pub trait ConfigApi {
     fn dubbo_protocol_set(&self, protocol: &str, key: &str, value: &str) -> Result<(), Error>;
     fn dubbo_protocol_get(&self, protocol: &str) -> Result<Protocol, Error>;
+    fn dubbo_registry_ids(&self) -> Option<Vec<String>>;
     fn dubbo_registry_get(&self, registry_id: &str) -> Result<Registry, Error>;
     fn dubbo_registry_set(&self, registry_id: &str, key: &str, value: &str) -> Result<(), Error>;
+    fn dubbo_services_name(&self) -> Option<Vec<String>>;
     fn dubbo_services_get(&self, service_name: &str) -> Result<Service, Error>;
     fn dubbo_services_set(&self, service_name: &str, key: &str, value: &str) -> Result<(), Error>;
+    fn dubbo_provider_services_name(&self) -> Option<Vec<String>>;
     fn dubbo_provider_services_get(&self, service_name: &str) -> Result<Service, Error>;
     fn dubbo_provider_services_set(
         &self,
@@ -81,6 +85,11 @@ impl ConfigApi for ConfigWrapper {
         Ok(guard.protocols.get(protocol).unwrap().clone())
     }
 
+    fn dubbo_registry_ids(&self) -> Option<Vec<String>> {
+        let guard = self.inner.lock().unwrap();
+        Some(guard.registries.keys().map(|x| x.to_string()).collect())
+    }
+
     fn dubbo_registry_get(&self, registry_id: &str) -> Result<Registry, Error> {
         let guard = self.inner.lock().unwrap();
         if !guard.registries.contains_key(registry_id) {
@@ -112,6 +121,11 @@ impl ConfigApi for ConfigWrapper {
             }
         }
         Ok(())
+    }
+
+    fn dubbo_services_name(&self) -> Option<Vec<ServiceName>> {
+        let guard = self.inner.lock().unwrap();
+        Some(guard.services.keys().map(|x| x.to_string()).collect())
     }
 
     fn dubbo_services_get(&self, service_name: &str) -> Result<Service, Error> {
@@ -147,6 +161,18 @@ impl ConfigApi for ConfigWrapper {
             }
         }
         Ok(())
+    }
+
+    fn dubbo_provider_services_name(&self) -> Option<Vec<String>> {
+        let guard = self.inner.lock().unwrap();
+        Some(
+            guard
+                .provider
+                .services
+                .keys()
+                .map(|x| x.to_string())
+                .collect(),
+        )
     }
 
     fn dubbo_provider_services_get(&self, service_name: &str) -> Result<Service, Error> {
