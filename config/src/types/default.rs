@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-use base::types::alias::{GroupId, VersionNumber};
+use base::constants::REGISTRY_TYPE_SERVICE;
+use base::types::alias::{GroupId, RegistryType, VersionNumber};
 use utils::host_util;
 
 pub fn default_group_id() -> GroupId {
@@ -36,4 +37,12 @@ pub fn localhost() -> String {
 
 pub fn default_timeout() -> String {
     "3000".to_string()
+}
+
+pub fn default_port() -> String {
+    host_util::scan_free_port(28000).to_string()
+}
+
+pub fn default_registry_type() -> Vec<RegistryType> {
+    vec![REGISTRY_TYPE_SERVICE.to_string()]
 }

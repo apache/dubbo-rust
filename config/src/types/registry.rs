@@ -17,7 +17,7 @@
 use anyhow::Error;
 use std::collections::HashMap;
 
-use crate::types::default::default_timeout;
+use crate::types::default::*;
 use serde::{Deserialize, Serialize};
 
 use crate::types::ConfigValidator;
@@ -38,8 +38,8 @@ pub struct Registry {
     pub password: String,
     #[serde(default)]
     pub params: HashMap<ParamKey, String>,
-    #[serde(default)]
-    pub registry_type: RegistryType,
+    #[serde(default = "default_registry_type")]
+    pub registry_type: Vec<RegistryType>,
 }
 
 impl ConfigValidator for Registry {

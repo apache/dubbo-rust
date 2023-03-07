@@ -18,6 +18,9 @@ pub const REGISTRY_PROTOCOL: &str = "registry_protocol";
 pub const PROTOCOL: &str = "protocol";
 pub const REGISTRY: &str = "registry";
 
+pub const REGISTRY_TYPE_SERVICE: &str = "service";
+pub const REGISTRY_TYPE_APPLICATION: &str = "application";
+
 // URL key
 pub const DUBBO_KEY: &str = "dubbo";
 pub const PROVIDERS_KEY: &str = "providers";
