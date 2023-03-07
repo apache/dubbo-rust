@@ -25,7 +25,7 @@ use std::{
 use base::Url;
 use config::{get_dubbo_config, RootConfig};
 use futures::{future, Future};
-use tracing::{debug, info};
+use logger::tracing::{debug, info};
 
 use crate::{
     protocol::{BoxExporter, Protocol},
