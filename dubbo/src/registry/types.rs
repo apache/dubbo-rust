@@ -22,7 +22,7 @@ use std::{
 
 use base::Url;
 use itertools::Itertools;
-use tracing::info;
+use logger::tracing::info;
 
 use crate::{
     registry::{BoxRegistry, Registry},

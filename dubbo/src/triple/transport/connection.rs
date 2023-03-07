@@ -18,8 +18,8 @@
 use std::task::Poll;
 
 use hyper::client::{conn::Builder, service::Connect};
+use logger::tracing::debug;
 use tower_service::Service;
-use tracing::debug;
 
 use crate::{boxed, triple::transport::connector::get_connector};
 

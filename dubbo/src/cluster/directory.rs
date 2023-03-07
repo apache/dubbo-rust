@@ -27,6 +27,7 @@ use crate::{
     registry::{memory_registry::MemoryNotifyListener, BoxRegistry, RegistryWrapper},
 };
 use base::Url;
+use logger::tracing;
 
 /// Directory.
 ///
