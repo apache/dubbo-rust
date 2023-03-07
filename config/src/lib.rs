@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 
 pub use crate::types::ConfigWrapper;
 pub use crate::types::RootConfig;
-pub use location::get_config_location;
+pub use location::resolve_config_location;
 
 pub mod api;
 pub mod error;

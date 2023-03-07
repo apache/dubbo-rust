@@ -18,15 +18,12 @@
 // https://github.com/tokio-rs/tracing/issues/971
 
 use crate::level::LevelWrapper;
+use config::resolve_config_location;
 use config::util::yaml_key_reader;
-use std::path::PathBuf;
 use tracing::debug;
-use utils::path_util;
 
 pub(crate) fn default() {
-    let path_buf = PathBuf::new()
-        .join(path_util::app_root_dir())
-        .join("../../../dubbo.yaml");
+    let path_buf = resolve_config_location();
     let level: LevelWrapper = yaml_key_reader(path_buf, "logging.level").unwrap().into();
     tracing_subscriber::fmt()
         .compact()

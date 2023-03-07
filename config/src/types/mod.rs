@@ -21,7 +21,7 @@ use crate::types::provider::ProviderConfig;
 use crate::types::registry::RegistryConfig;
 use crate::types::services::ServicesConfig;
 use crate::util::yaml_file_parser;
-use crate::{get_config_location, get_dubbo_config};
+use crate::{get_dubbo_config, resolve_config_location};
 use anyhow::Error;
 use base::constants::DUBBO_KEY;
 use getset::{CopyGetters, Getters, MutGetters, Setters};
@@ -69,9 +69,10 @@ pub struct RootConfig {
 
 impl Default for RootConfig {
     fn default() -> RootConfig {
-        let conf: HashMap<String, RootConfig> = yaml_file_parser(get_config_location()).unwrap();
+        let conf: HashMap<String, RootConfig> =
+            yaml_file_parser(resolve_config_location()).unwrap();
         let mut root_config: RootConfig = conf.get(DUBBO_KEY).unwrap().clone();
-        root_config.location = get_config_location();
+        root_config.location = resolve_config_location();
         root_config
     }
 }

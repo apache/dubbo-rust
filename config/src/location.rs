@@ -21,7 +21,7 @@ use utils::env_util::get_env_value;
 use utils::path_util::app_root_dir;
 
 // resolve yaml config file
-pub fn get_config_location() -> PathBuf {
+pub fn resolve_config_location() -> PathBuf {
     let mut path_buf = PathBuf::new();
     // resolve config path
     if get_env_value(ENV_DUBBO_CONFIG_PATH).is_some() {
