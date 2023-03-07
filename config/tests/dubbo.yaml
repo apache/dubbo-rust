@@ -11,7 +11,7 @@ dubbo:
     dubbo:
       ip: 0.0.0.0
       port: 8888
-      name: tri
+      name: dubbo
   registries:
     demoZK:
       protocol: zookeeper
