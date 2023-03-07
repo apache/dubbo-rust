@@ -29,41 +29,31 @@ use crate::ConfigWrapper;
 // could be used for config_center
 
 pub trait ConfigApi {
-    fn dubbo_protocol_set(&self, protocol: &str, key: String, value: String) -> Result<(), Error>;
+    fn dubbo_protocol_set(&self, protocol: &str, key: &str, value: &str) -> Result<(), Error>;
     fn dubbo_protocol_get(&self, protocol: &str) -> Result<Protocol, Error>;
     fn dubbo_registry_get(&self, registry_id: &str) -> Result<Registry, Error>;
-    fn dubbo_registry_set(
-        &self,
-        registry_id: &str,
-        key: String,
-        value: String,
-    ) -> Result<(), Error>;
+    fn dubbo_registry_set(&self, registry_id: &str, key: &str, value: &str) -> Result<(), Error>;
     fn dubbo_services_get(&self, service_name: &str) -> Result<Service, Error>;
-    fn dubbo_services_set(
-        &self,
-        service_name: &str,
-        key: String,
-        value: String,
-    ) -> Result<(), Error>;
+    fn dubbo_services_set(&self, service_name: &str, key: &str, value: &str) -> Result<(), Error>;
     fn dubbo_provider_services_get(&self, service_name: &str) -> Result<Service, Error>;
     fn dubbo_provider_services_set(
         &self,
         service_name: &str,
-        key: String,
-        value: String,
+        key: &str,
+        value: &str,
     ) -> Result<(), Error>;
 
     fn dubbo_consumer_references_get(&self, service_name: &str) -> Result<Reference, Error>;
     fn dubbo_consumer_references_set(
         &self,
         service_name: &str,
-        key: String,
-        value: String,
+        key: &str,
+        value: &str,
     ) -> Result<(), Error>;
 }
 
 impl ConfigApi for ConfigWrapper {
-    fn dubbo_protocol_set(&self, protocol: &str, key: String, value: String) -> Result<(), Error> {
+    fn dubbo_protocol_set(&self, protocol: &str, key: &str, value: &str) -> Result<(), Error> {
         let mut guard = self.inner.lock().unwrap();
         if !guard.protocols.contains_key(protocol) {
             guard
@@ -71,12 +61,13 @@ impl ConfigApi for ConfigWrapper {
                 .insert(protocol.to_string(), Protocol::default());
         }
         let x = guard.protocols.get_mut(protocol).unwrap();
-        match key.as_str() {
+        let value = value.to_string();
+        match key {
             "ip" => x.ip = value,
             "port" => x.port = value,
             "name" => x.name = value,
             _ => {
-                HashMap::insert(&mut x.params, key, value);
+                HashMap::insert(&mut x.params, key.to_string(), value);
             }
         }
         Ok(())
@@ -100,12 +91,7 @@ impl ConfigApi for ConfigWrapper {
         Ok(guard.registries.get(registry_id).unwrap().clone())
     }
 
-    fn dubbo_registry_set(
-        &self,
-        registry_id: &str,
-        key: String,
-        value: String,
-    ) -> Result<(), Error> {
+    fn dubbo_registry_set(&self, registry_id: &str, key: &str, value: &str) -> Result<(), Error> {
         let mut guard = self.inner.lock().unwrap();
         if !guard.registries.contains_key(registry_id) {
             guard
@@ -113,7 +99,8 @@ impl ConfigApi for ConfigWrapper {
                 .insert(registry_id.to_string(), Registry::default());
         }
         let x = guard.registries.get_mut(registry_id).unwrap();
-        match key.as_str() {
+        let value = value.to_string();
+        match key {
             "protocol" => x.protocol = value,
             "registry_type" => x.registry_type = value,
             "address" => x.address = value,
@@ -121,7 +108,7 @@ impl ConfigApi for ConfigWrapper {
             "username" => x.username = value,
             "timeout" => x.timeout = value,
             _ => {
-                HashMap::insert(&mut x.params, key, value);
+                HashMap::insert(&mut x.params, key.to_string(), value);
             }
         }
         Ok(())
@@ -137,12 +124,7 @@ impl ConfigApi for ConfigWrapper {
         Ok(guard.services.get(service_name).unwrap().clone())
     }
 
-    fn dubbo_services_set(
-        &self,
-        service_name: &str,
-        key: String,
-        value: String,
-    ) -> Result<(), Error> {
+    fn dubbo_services_set(&self, service_name: &str, key: &str, value: &str) -> Result<(), Error> {
         let mut guard = self.inner.lock().unwrap();
         if !guard.services.contains_key(service_name) {
             guard
@@ -150,7 +132,8 @@ impl ConfigApi for ConfigWrapper {
                 .insert(service_name.to_string(), Service::default());
         }
         let x = guard.services.get_mut(service_name).unwrap();
-        match key.as_str() {
+        let value = value.to_string();
+        match key {
             "protocol" => x.protocol = value,
             "interface" => x.interface = value,
             "group" => x.group = value,
@@ -159,7 +142,7 @@ impl ConfigApi for ConfigWrapper {
             _ => {
                 return Err(anyhow!(ConfigError::UnsupportedKey(
                     "services".to_string(),
-                    key
+                    key.to_string()
                 )));
             }
         }
@@ -179,8 +162,8 @@ impl ConfigApi for ConfigWrapper {
     fn dubbo_provider_services_set(
         &self,
         service_name: &str,
-        key: String,
-        value: String,
+        key: &str,
+        value: &str,
     ) -> Result<(), Error> {
         let mut guard = self.inner.lock().unwrap();
         if !guard.provider.services.contains_key(service_name) {
@@ -189,7 +172,8 @@ impl ConfigApi for ConfigWrapper {
                 .insert(service_name.to_string(), Service::default());
         }
         let x = guard.provider.services.get_mut(service_name).unwrap();
-        match key.as_str() {
+        let value = value.to_string();
+        match key {
             "protocol" => x.protocol = value,
             "interface" => x.interface = value,
             "group" => x.group = value,
@@ -198,7 +182,7 @@ impl ConfigApi for ConfigWrapper {
             _ => {
                 return Err(anyhow!(ConfigError::UnsupportedKey(
                     "provider.services".to_string(),
-                    key
+                    key.to_string()
                 )));
             }
         }
@@ -218,8 +202,8 @@ impl ConfigApi for ConfigWrapper {
     fn dubbo_consumer_references_set(
         &self,
         service_name: &str,
-        key: String,
-        value: String,
+        key: &str,
+        value: &str,
     ) -> Result<(), Error> {
         let mut guard = self.inner.lock().unwrap();
         if !guard.consumer.references.contains_key(service_name) {
@@ -228,7 +212,8 @@ impl ConfigApi for ConfigWrapper {
                 .insert(service_name.to_string(), Service::default());
         }
         let x = guard.consumer.references.get_mut(service_name).unwrap();
-        match key.as_str() {
+        let value = value.to_string();
+        match key {
             "protocol" => x.protocol = value,
             "interface" => x.interface = value,
             "group" => x.group = value,
@@ -239,7 +224,7 @@ impl ConfigApi for ConfigWrapper {
             _ => {
                 return Err(anyhow!(ConfigError::UnsupportedKey(
                     "consumer.references".to_string(),
-                    key
+                    key.to_string()
                 )));
             }
         }

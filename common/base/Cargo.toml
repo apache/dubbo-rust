@@ -9,3 +9,4 @@ edition = "2021"
 urlencoding.workspace = true
 http = "0.2"
 tracing.workspace=true
+anyhow.workspace = true
