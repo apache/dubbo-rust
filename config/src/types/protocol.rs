@@ -21,15 +21,15 @@ use crate::types::default::localhost;
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-use base::types::alias::{ParamKey, Port, ProtocolKey};
+use base::types::alias::{ParamKey, Port, ProtocolId, ProtocolKey};
 
 use crate::types::ConfigValidator;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Protocol {
-    #[serde(default)]
-    pub ip: String,
     #[serde(default = "localhost")]
+    pub ip: String,
+    #[serde(default)]
     pub port: Port,
     #[serde(default)]
     pub name: ProtocolKey,
@@ -38,7 +38,7 @@ pub struct Protocol {
     pub params: HashMap<ParamKey, String>,
 }
 
-pub type ProtocolConfig = HashMap<ProtocolKey, Protocol>;
+pub type ProtocolConfig = HashMap<ProtocolId, Protocol>;
 
 impl ConfigValidator for Protocol {
     fn validate(&self) -> Result<(), Error> {

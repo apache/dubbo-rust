@@ -24,6 +24,7 @@ pub type ServiceName = String;
 pub type ServiceKey = String;
 pub type SerializationKey = String;
 //
+pub type ProtocolId = String;
 pub type ProtocolKey = String;
 pub type GroupId = String;
 pub type VersionNumber = String;

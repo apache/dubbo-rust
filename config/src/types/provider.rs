@@ -16,14 +16,15 @@
  */
 
 use crate::types::services::ServicesConfig;
+use base::types::alias::{ProtocolId, RegistryId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ProviderConfig {
     #[serde(default)]
-    pub registry_ids: Vec<String>,
+    pub registry_ids: Vec<RegistryId>,
     #[serde(default)]
-    pub protocol_ids: Vec<String>,
+    pub protocol_ids: Vec<ProtocolId>,
     #[serde(default)]
     pub services: ServicesConfig,
 }
