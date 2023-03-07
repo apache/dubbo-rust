@@ -52,10 +52,15 @@ mod tests_api {
         let config_wrapper = get_root_config();
         let old_config = config_wrapper.dubbo_protocol_get("dubbo")?;
         assert_eq!(old_config.port, "8888".to_string());
-        config_wrapper.dubbo_protocol_set("dubbo", "ip", "122.22.22.22")?;
-        config_wrapper.dubbo_protocol_set("dubbo", "port", "111")?;
-        config_wrapper.dubbo_protocol_set("dubbo", "name", "dubbo")?;
-        config_wrapper.dubbo_protocol_set("dubbo", "nam1e", "dubbo")?;
+        config_wrapper.dubbo_protocol_set(
+            "dubbo",
+            vec![
+                ("ip", "122.22.22.22"),
+                ("port", "111"),
+                ("name", "dubbo"),
+                ("nam1e", "dubbo"),
+            ],
+        )?;
         let new_config: Protocol = config_wrapper.dubbo_protocol_get("dubbo")?;
         assert_eq!(new_config.port, "111".to_string());
         assert_eq!(new_config.name, "dubbo".to_string());
