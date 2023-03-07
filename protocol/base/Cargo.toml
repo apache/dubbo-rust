@@ -1,5 +1,5 @@
 [package]
-name = "protocol"
+name = "protocol-base"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 dashmap.workspace = true
 base.workspace = true
+thiserror.workspace = true

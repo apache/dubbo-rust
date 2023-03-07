@@ -17,11 +17,11 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 
+use logger::tracing::debug;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-use tracing::debug;
 
 use base::Url;
 

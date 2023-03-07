@@ -12,23 +12,21 @@ repository = "https://github.com/apache/dubbo-rust.git"
 [dependencies]
 hyper = { version = "0.14.19", features = ["full"] }
 http = "0.2"
-tower-service = "0.3.1"
+tower-service.workspace = true
 http-body = "0.4.4"
-tower = { version = "0.4.12", features = ["timeout"] }
+tower = { workspace = true, features = ["timeout"] }
 futures-util = "0.3.23"
 futures-core = "0.3.23"
-tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
 prost = "0.10.4"
 async-trait = "0.1.56"
-tower-layer = "0.3"
-bytes = "1.0"
+tower-layer.workspace = true
+bytes.workspace = true
 pin-project.workspace = true
 rand = "0.8.5"
 serde_json.workspace = true
 serde = { workspace = true, features = ["derive"] }
-futures = "0.3"
-tracing = "0.1"
-tracing-subscriber = "0.3.15"
+futures.workspace = true
 axum = "0.5.9"
 async-stream = "0.3"
 flate2 = "1.0"
@@ -36,7 +34,8 @@ aws-smithy-http = "0.54.1"
 itertools.workspace = true
 urlencoding.workspace = true
 lazy_static.workspace = true
-base.workspace=true
+base.workspace = true
+logger.workspace = true
 
 dubbo-config = { path = "../config", version = "0.3.0" }
 

@@ -161,6 +161,10 @@ impl Url {
     pub fn protocol(&self) -> String {
         self.scheme.clone()
     }
+
+    pub fn get_ip_port(&self) -> String {
+        format!("{}:{}", self.ip, self.port)
+    }
 }
 
 impl Display for Url {
