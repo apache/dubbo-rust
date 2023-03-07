@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
+use anyhow::Error;
 use std::collections::HashMap;
 
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::types::ConfigValidator;
 use base::types::alias::{
     ClusterStrategy, FilterKey, GroupId, InterfaceName, ParamKey, ProtocolKey, RegistryId,
     ServiceName,
@@ -32,7 +34,7 @@ pub struct ConsumerConfig {
     #[serde(default)]
     pub filter: FilterKey,
     #[serde(default)]
-    pub protocol_ids: Vec<String>,
+    pub protocol_ids: String,
     #[serde(default)]
     pub references: ReferenceConfig,
 }
@@ -57,4 +59,10 @@ pub struct Reference {
     pub params: HashMap<ParamKey, String>,
     #[serde(default)]
     pub retries: String,
+}
+
+impl ConfigValidator for Reference {
+    fn validate(&self) -> Result<(), Error> {
+        todo!()
+    }
 }

@@ -14,12 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use anyhow::Error;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::types::ConfigValidator;
 use base::types::alias::{ParamKey, RegistryId, RegistryType};
-
 pub type RegistryConfig = HashMap<RegistryId, Registry>;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -38,4 +39,10 @@ pub struct Registry {
     pub params: HashMap<ParamKey, String>,
     #[serde(default)]
     pub registry_type: RegistryType,
+}
+
+impl ConfigValidator for Registry {
+    fn validate(&self) -> Result<(), Error> {
+        todo!()
+    }
 }

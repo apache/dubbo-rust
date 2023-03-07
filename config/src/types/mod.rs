@@ -22,6 +22,7 @@ use crate::types::provider::ProviderConfig;
 use crate::types::registry::RegistryConfig;
 use crate::types::services::ServicesConfig;
 use crate::util::yaml_file_parser;
+use anyhow::Error;
 use base::constants::DUBBO_KEY;
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use serde::Deserialize;
@@ -83,4 +84,8 @@ impl ConfigWrapper {
     pub fn new(inner: Arc<Mutex<RootConfig>>) -> Self {
         ConfigWrapper { inner }
     }
+}
+
+pub trait ConfigValidator {
+    fn validate(&self) -> Result<(), Error>;
 }

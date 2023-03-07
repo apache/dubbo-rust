@@ -17,8 +17,12 @@
 
 use std::collections::HashMap;
 
-use base::types::alias::{ParamKey, Port, ProtocolKey};
+use anyhow::Error;
 use serde::{Deserialize, Serialize};
+
+use base::types::alias::{ParamKey, Port, ProtocolKey};
+
+use crate::types::ConfigValidator;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Protocol {
@@ -34,3 +38,9 @@ pub struct Protocol {
 }
 
 pub type ProtocolConfig = HashMap<ProtocolKey, Protocol>;
+
+impl ConfigValidator for Protocol {
+    fn validate(&self) -> Result<(), Error> {
+        todo!()
+    }
+}

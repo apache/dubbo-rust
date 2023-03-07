@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+use crate::types::ConfigValidator;
+use anyhow::Error;
 use base::types::alias::{
     GroupId, InterfaceName, ProtocolKey, SerializationKey, ServiceName, Version,
 };
@@ -35,4 +37,10 @@ pub struct Service {
     pub interface: InterfaceName,
     #[serde(default)]
     pub serialization: SerializationKey,
+}
+
+impl ConfigValidator for Service {
+    fn validate(&self) -> Result<(), Error> {
+        todo!()
+    }
 }

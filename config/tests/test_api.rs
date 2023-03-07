@@ -25,6 +25,7 @@ mod tests_api {
     use config::api::ConfigApi;
     use config::get_root_config;
     use config::location::set_config_file_path;
+    use config::types::registry::Registry;
 
     static INIT: Once = Once::new();
 
@@ -64,5 +65,11 @@ mod tests_api {
         let new_config = config_wrapper.dubbo_protocol_get("dubbo").unwrap();
         assert_eq!(new_config.port, "111".to_string());
         assert_eq!(new_config.name, "dubbo".to_string());
+    }
+
+    #[test]
+    fn test_registry_config() {
+        let zk_config: Registry = get_root_config().dubbo_registry_get("demoZK").unwrap();
+        assert_eq!("zookeeper".to_string(), zk_config.protocol)
     }
 }
