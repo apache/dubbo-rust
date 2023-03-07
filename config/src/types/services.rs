@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
+use crate::types::default::*;
 use crate::types::ConfigValidator;
 use anyhow::Error;
 use base::types::alias::{
-    GroupId, InterfaceName, ProtocolKey, SerializationKey, ServiceName, Version,
+    GroupId, InterfaceName, ProtocolKey, SerializationKey, ServiceName, VersionNumber,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -27,9 +28,9 @@ pub type ServicesConfig = HashMap<ServiceName, Service>;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Service {
-    #[serde(default)]
-    pub version: Version,
-    #[serde(default)]
+    #[serde(default = "default_version_number")]
+    pub version: VersionNumber,
+    #[serde(default = "default_group_id")]
     pub group: GroupId,
     #[serde(default)]
     pub protocol: ProtocolKey,

@@ -17,6 +17,7 @@
 use anyhow::Error;
 use std::collections::HashMap;
 
+use crate::types::default::default_timeout;
 use serde::{Deserialize, Serialize};
 
 use crate::types::ConfigValidator;
@@ -27,7 +28,7 @@ pub type RegistryConfig = HashMap<RegistryId, Registry>;
 pub struct Registry {
     #[serde(default)]
     pub protocol: RegistryId,
-    #[serde(default)]
+    #[serde(default = "default_timeout")]
     pub timeout: String,
     #[serde(default)]
     pub address: String,

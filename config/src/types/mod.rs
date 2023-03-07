@@ -32,6 +32,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 pub mod consumer;
+pub mod default;
 pub mod protocol;
 pub mod provider;
 pub mod registry;

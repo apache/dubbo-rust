@@ -17,6 +17,7 @@
 
 use std::collections::HashMap;
 
+use crate::types::default::localhost;
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +29,7 @@ use crate::types::ConfigValidator;
 pub struct Protocol {
     #[serde(default)]
     pub ip: String,
-    #[serde(default)]
+    #[serde(default = "localhost")]
     pub port: Port,
     #[serde(default)]
     pub name: ProtocolKey,

@@ -21,6 +21,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::types::default::*;
 use crate::types::ConfigValidator;
 use base::types::alias::{
     ClusterStrategy, FilterKey, GroupId, InterfaceName, ParamKey, ProtocolKey, RegistryId,
@@ -47,7 +48,7 @@ pub struct Reference {
     pub url: String,
     #[serde(default)]
     pub protocol: ProtocolKey,
-    #[serde(default)]
+    #[serde(default = "default_group_id")]
     pub group: GroupId,
     #[serde(default)]
     pub interface: InterfaceName,
@@ -57,7 +58,7 @@ pub struct Reference {
     pub cluster: ClusterStrategy,
     #[serde(default)]
     pub params: HashMap<ParamKey, String>,
-    #[serde(default)]
+    #[serde(default = "default_retries")]
     pub retries: String,
 }
 

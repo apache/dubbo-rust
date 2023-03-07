@@ -14,24 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// type for registryName;can be customized;RegistryKey eg. zookeeper/nacos/consul
-pub type RegistryId = String;
-pub type RegistryKey = String;
-// service/application
-pub type RegistryType = String;
-// protocolKey defined in protocol layer, mean specified protocol
-pub type ServiceName = String;
-pub type ServiceKey = String;
-pub type SerializationKey = String;
-//
-pub type ProtocolKey = String;
-pub type GroupId = String;
-pub type VersionNumber = String;
 
-pub type InterfaceName = String;
+use base::types::alias::{GroupId, VersionNumber};
+use utils::host_util;
 
-pub type ClusterStrategy = String;
-pub type FilterKey = String;
-pub type ParamKey = String;
+pub fn default_group_id() -> GroupId {
+    "default".to_string()
+}
 
-pub type Port = String;
+pub fn default_version_number() -> VersionNumber {
+    "0.1.0".to_string()
+}
+
+pub fn default_retries() -> String {
+    "3".to_string()
+}
+
+pub fn localhost() -> String {
+    host_util::local_ip().to_string()
+}
+
+pub fn default_timeout() -> String {
+    "3000".to_string()
+}
