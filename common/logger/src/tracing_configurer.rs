@@ -21,16 +21,13 @@ use crate::level::LevelWrapper;
 use config::util::yaml_key_reader;
 use std::path::PathBuf;
 use tracing::debug;
-use tracing_subscriber::util;
 use utils::path_util;
 
 pub(crate) fn default() {
     let path_buf = PathBuf::new()
         .join(path_util::app_root_dir())
         .join("../../../dubbo.yaml");
-    let level: LevelWrapper = util::yaml_key_reader(path_buf, "logging.level")
-        .unwrap()
-        .into();
+    let level: LevelWrapper = yaml_key_reader(path_buf, "logging.level").unwrap().into();
     tracing_subscriber::fmt()
         .compact()
         .with_line_number(true)
