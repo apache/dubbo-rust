@@ -15,21 +15,23 @@
  * limitations under the License.
  */
 
-use crate::types::consumer::ConsumerConfig;
-use crate::types::protocol::ProtocolConfig;
-use crate::types::provider::ProviderConfig;
-use crate::types::registry::RegistryConfig;
-use crate::types::services::ServicesConfig;
-use crate::util::yaml_file_parser;
-use crate::{get_dubbo_config, resolve_config_location};
+use crate::{
+    get_dubbo_config, resolve_config_location,
+    types::{
+        consumer::ConsumerConfig, protocol::ProtocolConfig, provider::ProviderConfig,
+        registry::RegistryConfig, services::ServicesConfig,
+    },
+    util::yaml_file_parser,
+};
 use anyhow::Error;
 use base::constants::DUBBO_KEY;
 use getset::{CopyGetters, Getters, MutGetters, Setters};
-use serde::Deserialize;
-use serde::Serialize;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 pub mod consumer;
 pub mod default;

@@ -18,8 +18,7 @@
 // https://github.com/tokio-rs/tracing/issues/971
 
 use crate::level::LevelWrapper;
-use config::resolve_config_location;
-use config::util::yaml_key_reader;
+use config::{resolve_config_location, util::yaml_key_reader};
 use tracing::debug;
 
 pub(crate) fn default() {

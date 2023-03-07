@@ -18,11 +18,9 @@
 use anyhow::Error;
 use std::collections::HashMap;
 
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use crate::types::default::*;
-use crate::types::ConfigValidator;
+use crate::types::{default::*, ConfigValidator};
 use base::types::alias::{
     ClusterStrategy, FilterKey, GroupId, InterfaceName, ParamKey, ProtocolKey, RegistryId,
     ServiceName,

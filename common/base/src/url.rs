@@ -20,8 +20,10 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use crate::constants::{GROUP_KEY, INTERFACE_KEY, VERSION_KEY};
-use crate::types::alias::{ProtocolKey, ServiceKey, ServiceName};
+use crate::{
+    constants::{GROUP_KEY, INTERFACE_KEY, VERSION_KEY},
+    types::alias::{ProtocolKey, ServiceKey, ServiceName},
+};
 use http::Uri;
 
 #[derive(Debug, Clone, Default, PartialEq)]

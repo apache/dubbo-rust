@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-use base::constants::REGISTRY_TYPE_SERVICE;
-use base::types::alias::{GroupId, RegistryType, VersionNumber};
+use base::{
+    constants::REGISTRY_TYPE_SERVICE,
+    types::alias::{GroupId, RegistryType, VersionNumber},
+};
 use utils::host_util;
 
 pub fn default_group_id() -> GroupId {

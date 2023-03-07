@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use crate::types::default::*;
-use crate::types::ConfigValidator;
+use crate::types::{default::*, ConfigValidator};
 use anyhow::Error;
 use base::types::alias::{
     GroupId, InterfaceName, ProtocolId, SerializationKey, ServiceName, VersionNumber,

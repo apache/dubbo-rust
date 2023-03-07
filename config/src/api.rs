@@ -21,11 +21,10 @@ use crate::error::ConfigError;
 use anyhow::{anyhow, Error, Result};
 use base::types::alias::ServiceName;
 
-use crate::types::consumer::Reference;
-use crate::types::protocol::Protocol;
-use crate::types::registry::Registry;
-use crate::types::services::Service;
-use crate::ConfigWrapper;
+use crate::{
+    types::{consumer::Reference, protocol::Protocol, registry::Registry, services::Service},
+    ConfigWrapper,
+};
 
 // could be used for config_center
 

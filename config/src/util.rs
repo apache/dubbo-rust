@@ -14,8 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use std::any::{Any, TypeId};
-use std::{collections::HashMap, fs, path::PathBuf, sync::Mutex};
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    fs,
+    path::PathBuf,
+    sync::Mutex,
+};
 
 use anyhow::Error;
 use once_cell::sync::Lazy;

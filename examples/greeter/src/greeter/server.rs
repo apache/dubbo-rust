@@ -23,7 +23,6 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use dubbo::{codegen::*, Dubbo};
-use dubbo_config::RootConfig;
 use logger::{
     tracing::{info, span},
     Level,
@@ -51,14 +50,7 @@ async fn main() {
         name: "greeter".to_string(),
     });
     let zkr = ZookeeperRegistry::default();
-    let r = RootConfig::new();
-    let r = match r.load() {
-        Ok(config) => config,
-        Err(_err) => panic!("err: {:?}", _err), // response was droped
-    };
-    let mut f = Dubbo::new()
-        .with_config(r)
-        .add_registry("zookeeper", Box::new(zkr));
+    let mut f = Dubbo::new().add_registry("zookeeper", Box::new(zkr));
     f.start().await;
 }
 

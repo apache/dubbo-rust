@@ -17,8 +17,7 @@
 
 use base::constants::{DEFAULT_CONFIG_FILE, ENV_DUBBO_CONFIG_FILE, ENV_DUBBO_CONFIG_PATH};
 use std::path::PathBuf;
-use utils::env_util::get_env_value;
-use utils::path_util::app_root_dir;
+use utils::{env_util::get_env_value, path_util::app_root_dir};
 
 // resolve yaml config file
 pub fn resolve_config_location() -> PathBuf {

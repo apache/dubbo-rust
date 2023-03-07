@@ -18,16 +18,16 @@
 #[cfg(test)]
 mod tests_api {
     use anyhow::Error;
-    use std::env;
-    use std::sync::Once;
+    use std::{env, sync::Once};
 
     use ctor::ctor;
 
-    use config::api::ConfigApi;
-    use config::get_dubbo_config;
-    use config::location::set_config_file_path;
-    use config::types::protocol::Protocol;
-    use config::types::registry::Registry;
+    use config::{
+        api::ConfigApi,
+        get_dubbo_config,
+        location::set_config_file_path,
+        types::{protocol::Protocol, registry::Registry},
+    };
 
     static INIT: Once = Once::new();
 

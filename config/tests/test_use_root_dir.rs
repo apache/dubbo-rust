@@ -19,10 +19,11 @@
 mod tests_api {
     use anyhow::Error;
 
-    use config::api::ConfigApi;
-    use config::get_dubbo_config;
-    use config::types::protocol::Protocol;
-    use config::types::registry::Registry;
+    use config::{
+        api::ConfigApi,
+        get_dubbo_config,
+        types::{protocol::Protocol, registry::Registry},
+    };
 
     #[test]
     fn test_dubbo_protocol_set_overwrite_yaml_by_api() -> Result<(), Error> {
