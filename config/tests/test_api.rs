@@ -26,6 +26,7 @@ mod tests_api {
     use config::api::ConfigApi;
     use config::get_root_config;
     use config::location::set_config_file_path;
+    use config::types::protocol::Protocol;
     use config::types::registry::Registry;
 
     static INIT: Once = Once::new();
@@ -55,9 +56,13 @@ mod tests_api {
         config_wrapper.dubbo_protocol_set("dubbo", "port", "111")?;
         config_wrapper.dubbo_protocol_set("dubbo", "name", "dubbo")?;
         config_wrapper.dubbo_protocol_set("dubbo", "nam1e", "dubbo")?;
-        let new_config = config_wrapper.dubbo_protocol_get("dubbo")?;
+        let new_config: Protocol = config_wrapper.dubbo_protocol_get("dubbo")?;
         assert_eq!(new_config.port, "111".to_string());
         assert_eq!(new_config.name, "dubbo".to_string());
+        assert_eq!(
+            new_config.params.get("nam1e").unwrap().clone(),
+            "dubbo".to_string()
+        );
         Ok(())
     }
 
