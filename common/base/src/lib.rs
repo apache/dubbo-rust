@@ -20,6 +20,7 @@
 )]
 pub mod constants;
 pub mod node;
+pub mod types;
 pub mod url;
 
 pub use node::Node;

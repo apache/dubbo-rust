@@ -194,7 +194,7 @@ impl DubboServer {
 
 // impl BusinessConfig for DubboServer {
 //     fn init() -> Self {
-//         let conf = config::get_global_config();
+//         let conf = config::get_dubbo_config();
 //         DubboServer::new().with_accpet_http1(conf.bool("dubbo.server.accept_http2".to_string()))
 //     }
 

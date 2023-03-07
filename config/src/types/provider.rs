@@ -15,42 +15,16 @@
  * limitations under the License.
  */
 
+use crate::types::services::ServicesConfig;
+use base::types::alias::{ProtocolId, RegistryId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub struct ServiceConfig {
-    pub version: String,
-    pub group: String,
-    pub protocol: String,
-    pub interface: String,
-}
-
-impl ServiceConfig {
-    pub fn interface(self, interface: String) -> Self {
-        Self { interface, ..self }
-    }
-
-    pub fn version(self, version: String) -> Self {
-        Self { version, ..self }
-    }
-
-    pub fn group(self, group: String) -> Self {
-        Self { group, ..self }
-    }
-
-    pub fn protocol(self, protocol: String) -> Self {
-        Self { protocol, ..self }
-    }
-
-    // pub fn get_url(&self) -> Vec<Url> {
-    //     let mut urls = Vec::new();
-    //     for (_, conf) in self.protocol_configs.iter() {
-    //         urls.push(Url {
-    //             url: conf.to_owned().to_url(),
-    //             service_key: "".to_string(),
-    //         });
-    //     }
-
-    //     urls
-    // }
+pub struct ProviderConfig {
+    #[serde(default)]
+    pub registry_ids: Vec<RegistryId>,
+    #[serde(default)]
+    pub protocol_ids: Vec<ProtocolId>,
+    #[serde(default)]
+    pub services: ServicesConfig,
 }

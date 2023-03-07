@@ -14,22 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// type for registryName;can be customized;RegistryKey eg. zookeeper/nacos/consul
+pub type RegistryId = String;
+pub type RegistryKey = String;
+// service/application
+pub type RegistryType = String;
+// protocolKey defined in protocol layer, mean specified protocol
+pub type ServiceName = String;
+pub type ServiceKey = String;
+pub type SerializationKey = String;
+//
+pub type ProtocolId = String;
+pub type ProtocolKey = String;
+pub type GroupId = String;
+pub type VersionNumber = String;
 
-use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
+pub type InterfaceName = String;
 
-pub use crate::types::{ConfigWrapper, RootConfig};
-pub use location::resolve_config_location;
+pub type ClusterStrategy = String;
+pub type FilterKey = String;
+pub type ParamKey = String;
 
-pub mod api;
-pub mod error;
-pub mod location;
-pub mod types;
-pub mod util;
-
-pub(crate) static DUBBO_CONFIG: Lazy<ConfigWrapper> =
-    Lazy::new(|| ConfigWrapper::new(Arc::new(Mutex::new(RootConfig::default()))));
-
-pub fn get_dubbo_config() -> ConfigWrapper {
-    DUBBO_CONFIG.clone()
-}
+pub type Port = String;

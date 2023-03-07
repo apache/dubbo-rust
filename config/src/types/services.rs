@@ -15,43 +15,32 @@
  * limitations under the License.
  */
 
+use crate::types::{default::*, ConfigValidator};
+use anyhow::Error;
+use base::types::alias::{
+    GroupId, InterfaceName, ProtocolId, SerializationKey, ServiceName, VersionNumber,
+};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
-
-use super::service::ServiceConfig;
+pub type ServicesConfig = HashMap<ServiceName, Service>;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub struct ProviderConfig {
+pub struct Service {
+    #[serde(default = "default_version_number")]
+    pub version: VersionNumber,
+    #[serde(default = "default_group_id")]
+    pub group: GroupId,
     #[serde(default)]
-    pub registry_ids: Vec<String>,
+    pub protocol: ProtocolId,
     #[serde(default)]
-    pub protocol_ids: Vec<String>,
+    pub interface: InterfaceName,
     #[serde(default)]
-    pub services: HashMap<String, ServiceConfig>,
+    pub serialization: SerializationKey,
 }
 
-impl ProviderConfig {
-    pub fn new() -> Self {
-        ProviderConfig {
-            registry_ids: vec![],
-            protocol_ids: vec![],
-            services: HashMap::new(),
-        }
-    }
-
-    pub fn with_registry_ids(mut self, registry_ids: Vec<String>) -> Self {
-        self.registry_ids = registry_ids;
-        self
-    }
-
-    pub fn with_protocol_ids(mut self, protocol_ids: Vec<String>) -> Self {
-        self.protocol_ids = protocol_ids;
-        self
-    }
-
-    pub fn with_services(mut self, services: HashMap<String, ServiceConfig>) -> Self {
-        self.services = services;
-        self
+impl ConfigValidator for Service {
+    fn validate(&self) -> Result<(), Error> {
+        todo!()
     }
 }

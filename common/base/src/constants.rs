@@ -18,6 +18,9 @@ pub const REGISTRY_PROTOCOL: &str = "registry_protocol";
 pub const PROTOCOL: &str = "protocol";
 pub const REGISTRY: &str = "registry";
 
+pub const REGISTRY_TYPE_SERVICE: &str = "service";
+pub const REGISTRY_TYPE_APPLICATION: &str = "application";
+
 // URL key
 pub const DUBBO_KEY: &str = "dubbo";
 pub const PROVIDERS_KEY: &str = "providers";
@@ -29,3 +32,12 @@ pub const INTERFACE_KEY: &str = "interface";
 pub const ANYHOST_KEY: &str = "anyhost";
 pub const SIDE_KEY: &str = "side";
 pub const TIMESTAMP_KEY: &str = "timestamp";
+
+// file name
+pub const DEFAULT_CONFIG_FILE: &str = "dubbo.yaml";
+
+// env keys
+pub const ENV_DUBBO_CONFIG_PATH: &str = "DUBBO_CONFIG_PATH";
+pub const ENV_DUBBO_CONFIG_FILE: &str = "DUBBO_CONFIG_FILE";
+
+// config keys

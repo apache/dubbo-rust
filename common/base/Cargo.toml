@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 urlencoding.workspace = true
 http = "0.2"
-logger.workspace = true
+tracing.workspace=true
+anyhow.workspace = true

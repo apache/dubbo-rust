@@ -14,22 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use std::env;
 
-use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
+pub fn get_env_value(env_key: &str) -> Option<String> {
+    env::var(env_key).ok()
+}
 
-pub use crate::types::{ConfigWrapper, RootConfig};
-pub use location::resolve_config_location;
+pub fn get_env_value_for_i32(env_key: &str) -> Option<i32> {
+    get_env_value(env_key).map(|v| v.parse::<i32>().unwrap())
+}
 
-pub mod api;
-pub mod error;
-pub mod location;
-pub mod types;
-pub mod util;
+#[cfg(test)]
+mod tests {
+    use crate::env_util::{get_env_value, get_env_value_for_i32};
+    use std::env;
 
-pub(crate) static DUBBO_CONFIG: Lazy<ConfigWrapper> =
-    Lazy::new(|| ConfigWrapper::new(Arc::new(Mutex::new(RootConfig::default()))));
-
-pub fn get_dubbo_config() -> ConfigWrapper {
-    DUBBO_CONFIG.clone()
+    #[test]
+    fn test_get_env_value() {
+        env::set_var("TEST_ENV", "testxxx1");
+        env::set_var("TEST_ENV3", "999");
+        assert!(get_env_value("TEST_ENV").is_some());
+        assert!(get_env_value("TEST_ENV2").is_none());
+        assert_eq!(get_env_value_for_i32("TEST_ENV3"), Some(999_i32))
+    }
 }

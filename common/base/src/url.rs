@@ -20,7 +20,10 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use crate::constants::{GROUP_KEY, INTERFACE_KEY, VERSION_KEY};
+use crate::{
+    constants::{GROUP_KEY, INTERFACE_KEY, VERSION_KEY},
+    types::alias::{ProtocolKey, ServiceKey, ServiceName},
+};
 use http::Uri;
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -48,7 +51,7 @@ impl Url {
         let uri = url
             .parse::<http::Uri>()
             .map_err(|err| {
-                logger::tracing::error!("fail to parse url({}), err: {:?}", url, err);
+                tracing::error!("fail to parse url({}), err: {:?}", url, err);
             })
             .unwrap();
         let query = uri.path_and_query().unwrap().query();
@@ -70,11 +73,11 @@ impl Url {
         Some(url_inst)
     }
 
-    pub fn get_service_key(&self) -> String {
+    pub fn get_service_key(&self) -> ServiceKey {
         self.service_key.clone()
     }
 
-    pub fn get_service_name(&self) -> String {
+    pub fn get_service_name(&self) -> ServiceName {
         self.service_name.clone()
     }
 

@@ -15,21 +15,36 @@
  * limitations under the License.
  */
 
-use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
+use base::{
+    constants::REGISTRY_TYPE_SERVICE,
+    types::alias::{GroupId, RegistryType, VersionNumber},
+};
+use utils::host_util;
 
-pub use crate::types::{ConfigWrapper, RootConfig};
-pub use location::resolve_config_location;
+pub fn default_group_id() -> GroupId {
+    "default".to_string()
+}
 
-pub mod api;
-pub mod error;
-pub mod location;
-pub mod types;
-pub mod util;
+pub fn default_version_number() -> VersionNumber {
+    "0.1.0".to_string()
+}
 
-pub(crate) static DUBBO_CONFIG: Lazy<ConfigWrapper> =
-    Lazy::new(|| ConfigWrapper::new(Arc::new(Mutex::new(RootConfig::default()))));
+pub fn default_retries() -> String {
+    "3".to_string()
+}
 
-pub fn get_dubbo_config() -> ConfigWrapper {
-    DUBBO_CONFIG.clone()
+pub fn localhost() -> String {
+    host_util::local_ip().to_string()
+}
+
+pub fn default_timeout() -> String {
+    "3000".to_string()
+}
+
+pub fn default_port() -> String {
+    host_util::scan_free_port(28000).to_string()
+}
+
+pub fn default_registry_type() -> Vec<RegistryType> {
+    vec![REGISTRY_TYPE_SERVICE.to_string()]
 }

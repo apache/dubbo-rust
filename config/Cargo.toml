@@ -1,5 +1,5 @@
 [package]
-name = "dubbo-config"
+name = "config"
 version = "0.3.0"
 edition = "2021"
 license = "Apache-2.0"
@@ -15,4 +15,11 @@ serde_yaml.workspace = true
 lazy_static.workspace = true
 once_cell.workspace = true
 utils.workspace = true
-logger.workspace=true
+base.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+getset.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+[dev-dependencies]
+ctor.workspace = true

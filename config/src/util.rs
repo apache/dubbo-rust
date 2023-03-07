@@ -14,7 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use std::{collections::HashMap, fs, path::PathBuf, sync::Mutex};
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    fs,
+    path::PathBuf,
+    sync::Mutex,
+};
 
 use anyhow::Error;
 use once_cell::sync::Lazy;
@@ -61,14 +67,21 @@ pub fn yaml_key_reader(path: PathBuf, key: &str) -> Result<Option<String>, Error
     Ok(Some(value.as_str().unwrap().to_string()))
 }
 
+pub fn is_empty_value<T: Sized + Any + ToString>(value: T) -> bool {
+    if TypeId::of::<T>() == TypeId::of::<String>() {
+        let value_str = value.to_string();
+        value_str.is_empty() || value_str.to_string() == "null" || value_str.to_string() == "0"
+    } else {
+        false
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use utils::path_util::app_root_dir;
 
-    use crate::{
-        path_util::app_root_dir,
-        yaml_util::{yaml_file_parser, yaml_key_reader},
-    };
+    use crate::util::{is_empty_value, yaml_file_parser, yaml_key_reader};
 
     #[test]
     fn test_yaml_file_parser() {
@@ -76,7 +89,7 @@ mod tests {
             .join("common")
             .join("utils")
             .join("tests")
-            .join("application.yaml");
+            .join("../../dubbo.yaml");
         let config = yaml_file_parser::<HashMap<String, HashMap<String, String>>>(path).unwrap();
         println!("{:?}", config);
     }
@@ -87,10 +100,17 @@ mod tests {
             .join("common")
             .join("utils")
             .join("tests")
-            .join("application.yaml");
+            .join("../../dubbo.yaml");
         let config = yaml_key_reader(path.clone(), "logging.level").unwrap();
         println!("{:?}", config);
         let config = yaml_key_reader(path, "logging.file.path").unwrap();
         println!("{:?}", config);
+    }
+
+    #[test]
+    fn test_is_empty_value() {
+        assert!(is_empty_value("0".to_string()));
+        assert!(is_empty_value("".to_string()));
+        println!("&str is not empty{}", is_empty_value(0.0));
     }
 }

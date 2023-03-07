@@ -15,21 +15,17 @@
  * limitations under the License.
  */
 
-use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
-
-pub use crate::types::{ConfigWrapper, RootConfig};
-pub use location::resolve_config_location;
-
-pub mod api;
-pub mod error;
-pub mod location;
-pub mod types;
-pub mod util;
-
-pub(crate) static DUBBO_CONFIG: Lazy<ConfigWrapper> =
-    Lazy::new(|| ConfigWrapper::new(Arc::new(Mutex::new(RootConfig::default()))));
-
-pub fn get_dubbo_config() -> ConfigWrapper {
-    DUBBO_CONFIG.clone()
+use thiserror::Error;
+#[derive(Error, Debug)]
+pub enum ConfigError {
+    #[error("protocol {0} not found.")]
+    ProtocolNotFound(String),
+    #[error("registry {0} not found.")]
+    RegistryNotFound(String),
+    #[error("service {0} not found.")]
+    ServiceNotFound(String),
+    #[error("unsupported key {1} for {0}.")]
+    UnsupportedKey(String, String),
+    #[error("Service error")]
+    Unknown,
 }

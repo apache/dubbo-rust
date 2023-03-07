@@ -29,7 +29,6 @@ use crate::{
     },
     BoxBody,
 };
-use dubbo_config::BusinessConfig;
 
 pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";
 pub const GRPC_ENCODING: &str = "grpc-encoding";
@@ -279,15 +278,5 @@ where
             }
         };
         Ok(compression)
-    }
-}
-
-impl<T> BusinessConfig for TripleServer<T> {
-    fn init() -> Self {
-        todo!()
-    }
-
-    fn load() -> Result<(), std::convert::Infallible> {
-        todo!()
     }
 }

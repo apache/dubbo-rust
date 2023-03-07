@@ -20,8 +20,8 @@ futures-core = "0.3.23"
 tokio = { workspace = true, features = ["rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
 prost = "0.10.4"
 async-trait = "0.1.56"
-tower-layer.workspace = true
-bytes.workspace = true
+tower-layer = "0.3"
+bytes = "1.0"
 pin-project.workspace = true
 rand = "0.8.5"
 serde_json.workspace = true
@@ -35,9 +35,7 @@ itertools.workspace = true
 urlencoding.workspace = true
 lazy_static.workspace = true
 base.workspace = true
+config.workspace = true
 logger.workspace = true
-
-dubbo-config = { path = "../config", version = "0.3.0" }
-
 #对象存储
 state = { version = "0.5", features = ["tls"] }

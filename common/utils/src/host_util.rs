@@ -22,18 +22,18 @@ pub use port_selector::Port;
 
 // get local ip for linux/macos/windows
 #[allow(dead_code)]
-pub(crate) fn local_ip() -> IpAddr {
+pub fn local_ip() -> IpAddr {
     local_ip_address::local_ip().unwrap()
 }
 
 #[allow(dead_code)]
-pub(crate) fn is_free_port(port: Port) -> bool {
+pub fn is_free_port(port: Port) -> bool {
     is_free(port)
 }
 
 // scan from the give port
 #[allow(dead_code)]
-pub(crate) fn scan_free_port(port: Port) -> Port {
+pub fn scan_free_port(port: Port) -> Port {
     for selected_port in port..65535 {
         if is_free_port(selected_port) {
             return selected_port;

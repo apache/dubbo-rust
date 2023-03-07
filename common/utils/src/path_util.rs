@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn test_app_root_dir() {
-        let dir = app_root_dir().join("application.yaml");
+        let dir = app_root_dir().join("../../../dubbo.yaml");
         println!("dir: {}", dir.display());
     }
 }

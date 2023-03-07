@@ -14,22 +14,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
-
-pub use crate::types::{ConfigWrapper, RootConfig};
-pub use location::resolve_config_location;
-
-pub mod api;
+pub mod alias;
 pub mod error;
-pub mod location;
-pub mod types;
-pub mod util;
-
-pub(crate) static DUBBO_CONFIG: Lazy<ConfigWrapper> =
-    Lazy::new(|| ConfigWrapper::new(Arc::new(Mutex::new(RootConfig::default()))));
-
-pub fn get_dubbo_config() -> ConfigWrapper {
-    DUBBO_CONFIG.clone()
-}
