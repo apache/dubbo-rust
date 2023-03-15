@@ -16,10 +16,11 @@
  */
 
 use aws_smithy_http::body::SdkBody;
+use base::Url;
 use std::fmt::{Debug, Formatter};
 use tower_service::Service;
 
-use crate::{common::url::Url, protocol::Invoker, triple::client::builder::ClientBoxService};
+use crate::{protocol::Invoker, triple::client::builder::ClientBoxService};
 
 pub struct TripleInvoker {
     url: Url,

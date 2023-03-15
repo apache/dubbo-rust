@@ -22,11 +22,13 @@ pub mod protos {
 
 use std::env;
 
-use dubbo::{codegen::*, common::url::Url};
-use dubbo_registry_nacos::nacos_registry::NacosRegistry;
-use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
+use dubbo::codegen::*;
+
+use base::Url;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
+use registry_nacos::NacosRegistry;
+use registry_zookeeper::ZookeeperRegistry;
 
 #[tokio::main]
 async fn main() {

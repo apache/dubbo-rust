@@ -20,6 +20,7 @@ use std::{pin::Pin, task::Poll};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures_util::{future, ready, Stream};
 use http_body::Body;
+use logger::tracing;
 
 use super::compression::{decompress, CompressionEncoding};
 use crate::{

@@ -15,11 +15,14 @@
  * limitations under the License.
  */
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
+use std::sync::Arc;
+
+use crate::Url;
+
+pub trait Node {
+    fn get_url(&self) -> Arc<Url>;
+    fn is_available(&self) -> bool;
+    fn destroy(&self);
+
+    fn is_destroyed(&self) -> bool;
 }

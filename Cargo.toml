@@ -2,7 +2,8 @@
 members = [
   "common/logger",
   "common/utils",
-  "xds",
+  "common/extention",
+  "common/base",
   "registry/zookeeper",
   "registry/nacos",
   "metadata",
@@ -11,7 +12,14 @@ members = [
   "examples/echo",
   "examples/greeter",
   "dubbo-build",
-  "remoting/net"
+  "remoting/net",
+  "remoting/http",
+  "remoting/zookeeper",
+  "remoting/base",
+  "remoting/xds",
+  "protocol/dubbo2",
+  "protocol/base",
+  "protocol/triple"
 ]
 
 
@@ -19,6 +27,8 @@ members = [
 pin-project = "1"
 tokio = "1.0"
 tower = "0.4"
+tower-service = "0.3.1"
+tower-layer = "0.3"
 tokio-stream = "0.1"
 tokio-util = "0.7"
 socket2 = "0.4"
@@ -31,11 +41,22 @@ serde_json = "1"
 urlencoding = "2.1.2"
 logger = {path="./common/logger"}
 utils = {path="./common/utils"}
+base = {path="./common/base"}
+remoting-net = {path="./remoting/net"}
+remoting-base = {path="./remoting/base"}
+protocol-base = {path= "protocol/base" }
+protocol-dubbo2 = {path="./protocol/dubbo2"}
+protocol-triple = {path="./protocol/triple"}
+registry-zookeeper = {path="./registry/zookeeper"}
+registry-nacos = {path="./registry/nacos"}
 anyhow = "1.0.66"
+thiserror = "1.0.30"
 dubbo = { path = "./dubbo/" }
 bb8 = "0.8.0" # A connecton pool based on tokio
 serde_yaml = "0.9.4" # yaml file parser
 once_cell = "1.16.0"
 itertools = "0.10.1"
+bytes = "1.0"
+
 
 

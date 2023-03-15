@@ -1,5 +1,5 @@
 [package]
-name = "dubbo-registry-zookeeper"
+name = "registry-zookeeper"
 version = "0.3.0"
 edition = "2021"
 license = "Apache-2.0"
@@ -15,3 +15,4 @@ serde_json.workspace = true
 serde = { workspace = true, features = ["derive"] }
 urlencoding.workspace = true
 logger.workspace = true
+base.workspace = true

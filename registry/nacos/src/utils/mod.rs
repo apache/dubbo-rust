@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use dubbo::common::url::Url;
+use base::Url;
 use nacos_sdk::api::props::ClientProps;
 
 const APP_NAME_KEY: &str = "AppName";

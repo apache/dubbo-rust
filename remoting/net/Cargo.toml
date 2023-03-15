@@ -1,5 +1,5 @@
 [package]
-name = "net"
+name = "remoting-net"
 version = "0.1.0"
 edition = "2021"
 

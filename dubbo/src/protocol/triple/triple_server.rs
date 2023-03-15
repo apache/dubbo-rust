@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-use crate::{common::url::Url, triple::server::builder::ServerBuilder};
+use crate::triple::server::builder::ServerBuilder;
+use base::Url;
 
 #[derive(Default, Clone)]
 pub struct TripleServer {
