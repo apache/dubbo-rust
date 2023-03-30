@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use logger::tracing;
+use dubbo_logger::tracing;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{

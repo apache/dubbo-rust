@@ -16,7 +16,7 @@
 */
 
 use anyhow::{Error, Result};
-use base::Url;
+use dubbo_base::Url;
 use std::sync::Arc;
 
 pub struct BoxedServer(Arc<dyn Server>);

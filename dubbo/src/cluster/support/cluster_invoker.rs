@@ -18,7 +18,7 @@
 use aws_smithy_http::body::SdkBody;
 use std::{str::FromStr, sync::Arc};
 
-use base::Url;
+use dubbo_base::Url;
 use http::{uri::PathAndQuery, Request};
 
 use crate::{

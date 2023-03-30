@@ -18,10 +18,10 @@
 use std::{collections::HashMap, env, path::PathBuf};
 
 use crate::{protocol::Protocol, registry::RegistryConfig};
-use logger::tracing;
+use dubbo_logger::tracing;
+use dubbo_utils::yaml_util::yaml_file_parser;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use utils::yaml_util::yaml_file_parser;
 
 use super::{protocol::ProtocolConfig, provider::ProviderConfig, service::ServiceConfig};
 
@@ -79,7 +79,7 @@ impl RootConfig {
                     err,
                     DUBBO_CONFIG_PATH
                 );
-                utils::path_util::app_root_dir()
+                dubbo_utils::path_util::app_root_dir()
                     .join(DUBBO_CONFIG_PATH)
                     .to_str()
                     .unwrap()

@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 remoting-net.workspace = true
 protocol-base.workspace = true
-base.workspace = true
+dubbo-base.workspace = true

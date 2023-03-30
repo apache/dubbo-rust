@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use base::{Node, Url};
+use dubbo_base::{Node, Url};
 
 use protocol_base::{
     invocation::BoxInvocation,

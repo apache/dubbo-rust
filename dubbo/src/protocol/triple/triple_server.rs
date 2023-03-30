@@ -16,7 +16,7 @@
  */
 
 use crate::triple::server::builder::ServerBuilder;
-use base::Url;
+use dubbo_base::Url;
 
 #[derive(Default, Clone)]
 pub struct TripleServer {

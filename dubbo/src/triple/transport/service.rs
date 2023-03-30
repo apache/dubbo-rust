@@ -17,10 +17,10 @@
 
 use std::net::SocketAddr;
 
+use dubbo_logger::tracing;
 use futures_core::Future;
 use http::{Request, Response};
 use hyper::body::Body;
-use logger::tracing;
 use tokio::time::Duration;
 use tower_service::Service;
 

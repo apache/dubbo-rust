@@ -19,8 +19,8 @@ use std::{
     task::{Context, Poll},
 };
 
+use dubbo_logger::tracing;
 use futures::Stream;
-use logger::tracing;
 use pin_project::pin_project;
 use tokio::net::TcpListener;
 #[cfg(target_family = "unix")]

@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 bytes.workspace = true
-base.workspace = true
+dubbo-base.workspace = true
 thiserror.workspace = true
 dashmap.workspace = true
 protocol-base.workspace = true

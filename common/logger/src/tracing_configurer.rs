@@ -18,9 +18,9 @@
 // https://github.com/tokio-rs/tracing/issues/971
 
 use crate::level::LevelWrapper;
+use dubbo_utils::{path_util, yaml_util};
 use std::path::PathBuf;
 use tracing::debug;
-use utils::{path_util, yaml_util};
 
 pub(crate) fn default() {
     let path_buf = PathBuf::new()

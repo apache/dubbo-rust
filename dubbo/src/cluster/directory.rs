@@ -26,8 +26,8 @@ use crate::{
     invocation::{Invocation, RpcInvocation},
     registry::{memory_registry::MemoryNotifyListener, BoxRegistry, RegistryWrapper},
 };
-use base::Url;
-use logger::tracing;
+use dubbo_base::Url;
+use dubbo_logger::tracing;
 
 /// Directory.
 ///

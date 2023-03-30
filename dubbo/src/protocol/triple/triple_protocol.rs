@@ -18,7 +18,7 @@
 use std::{boxed::Box, collections::HashMap};
 
 use async_trait::async_trait;
-use base::Url;
+use dubbo_base::Url;
 
 use super::{
     triple_exporter::TripleExporter, triple_invoker::TripleInvoker, triple_server::TripleServer,

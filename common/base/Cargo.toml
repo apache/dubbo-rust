@@ -1,5 +1,5 @@
 [package]
-name = "base"
+name = "dubbo-base"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 urlencoding.workspace = true
 http = "0.2"
-logger.workspace = true
+dubbo-logger.workspace = true
