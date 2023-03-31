@@ -17,7 +17,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use logger::tracing;
+use dubbo_logger::tracing;
 use serde_json::Value;
 
 use crate::{

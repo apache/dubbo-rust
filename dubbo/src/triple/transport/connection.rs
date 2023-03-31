@@ -17,8 +17,8 @@
 
 use std::task::Poll;
 
+use dubbo_logger::tracing::debug;
 use hyper::client::{conn::Builder, service::Connect};
-use logger::tracing::debug;
 use tower_service::Service;
 
 use crate::{boxed, triple::transport::connector::get_connector};

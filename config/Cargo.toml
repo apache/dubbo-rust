@@ -14,5 +14,5 @@ serde = { workspace = true, features = ["derive"] }
 serde_yaml.workspace = true
 lazy_static.workspace = true
 once_cell.workspace = true
-utils.workspace = true
-logger.workspace=true
+dubbo-utils.workspace = true
+dubbo-logger.workspace=true

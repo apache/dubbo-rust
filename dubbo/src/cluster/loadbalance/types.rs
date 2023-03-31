@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use base::Url;
+use dubbo_base::Url;
 use std::{fmt::Debug, sync::Arc};
 
 use crate::codegen::RpcInvocation;

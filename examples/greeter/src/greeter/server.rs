@@ -24,7 +24,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use dubbo::{codegen::*, Dubbo};
 use dubbo_config::RootConfig;
-use logger::{
+use dubbo_logger::{
     tracing::{info, span},
     Level,
 };
@@ -44,7 +44,7 @@ type ResponseStream =
 
 #[tokio::main]
 async fn main() {
-    logger::init();
+    dubbo_logger::init();
     let span = span!(Level::DEBUG, "greeter.server");
     let _enter = span.enter();
     register_server(GreeterServerImpl {

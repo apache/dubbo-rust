@@ -16,7 +16,7 @@
  */
 
 use aws_smithy_http::body::SdkBody;
-use base::Url;
+use dubbo_base::Url;
 use std::fmt::{Debug, Formatter};
 use tower_service::Service;
 

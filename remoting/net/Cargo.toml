@@ -17,5 +17,5 @@ async-trait.workspace = true
 dashmap.workspace = true
 lazy_static.workspace = true
 futures.workspace = true
-logger.workspace = true
+dubbo-logger.workspace = true
 bb8.workspace = true

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use base::Url;
+use dubbo_base::Url;
 use std::{
     sync::{
         atomic::{AtomicBool, AtomicI32, Ordering},
