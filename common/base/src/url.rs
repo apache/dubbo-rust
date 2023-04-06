@@ -155,7 +155,7 @@ impl Url {
 
     // short_url is used for tcp listening
     pub fn short_url(&self) -> String {
-        format!("{}://{}:{}", self.scheme, self.ip, self.port)
+        format!("{}://{}:{}/{}", self.scheme, self.ip, self.port, self.service_name)
     }
 
     pub fn protocol(&self) -> String {
