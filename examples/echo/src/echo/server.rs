@@ -46,6 +46,7 @@ impl Filter for FakeFilter {
 
 #[tokio::main]
 async fn main() {
+    dubbo_logger::init();
     register_server(EchoServerImpl {
         name: "echo".to_string(),
     });
@@ -103,25 +104,8 @@ impl Echo for EchoServerImpl {
         }))
     }
 
-    async fn client_streaming_echo(
-        &self,
-        req: Request<Decoding<EchoRequest>>,
-    ) -> Result<Response<EchoResponse>, dubbo::status::Status> {
-        let mut s = req.into_inner();
-        loop {
-            let result = s.next().await;
-            match result {
-                Some(Ok(val)) => println!("result: {:?}", val),
-                Some(Err(val)) => println!("err: {:?}", val),
-                None => break,
-            }
-        }
-        Ok(Response::new(EchoResponse {
-            message: "hello client streaming".to_string(),
-        }))
-    }
-
     type ServerStreamingEchoStream = ResponseStream;
+
     async fn server_streaming_echo(
         &self,
         req: Request<EchoRequest>,
@@ -142,6 +126,23 @@ impl Echo for EchoServerImpl {
         let resp = futures_util::stream::iter(data);
 
         Ok(Response::new(Box::pin(resp)))
+    }
+    async fn client_streaming_echo(
+        &self,
+        req: Request<Decoding<EchoRequest>>,
+    ) -> Result<Response<EchoResponse>, dubbo::status::Status> {
+        let mut s = req.into_inner();
+        loop {
+            let result = s.next().await;
+            match result {
+                Some(Ok(val)) => println!("result: {:?}", val),
+                Some(Err(val)) => println!("err: {:?}", val),
+                None => break,
+            }
+        }
+        Ok(Response::new(EchoResponse {
+            message: "hello client streaming".to_string(),
+        }))
     }
 
     type BidirectionalStreamingEchoStream = ResponseStream;

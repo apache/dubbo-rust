@@ -1,0 +1,11 @@
+[package]
+name = "protocol-triple"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+remoting-net.workspace = true
+protocol-base.workspace = true
+dubbo-base.workspace = true

@@ -21,6 +21,7 @@ use std::{
     thread,
 };
 
+use dubbo_logger::tracing;
 use serde_json::Value;
 use state::Container;
 

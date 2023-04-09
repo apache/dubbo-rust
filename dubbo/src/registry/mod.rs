@@ -16,21 +16,29 @@
  */
 
 #![allow(unused_variables, dead_code, missing_docs)]
+pub mod integration;
 pub mod memory_registry;
 pub mod protocol;
+pub mod types;
 
-use std::fmt::Debug;
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
 
-use crate::common::url::Url;
+use dubbo_base::Url;
 
+pub type RegistryNotifyListener = Arc<dyn NotifyListener + Send + Sync + 'static>;
 pub trait Registry {
-    type NotifyListener;
-
     fn register(&mut self, url: Url) -> Result<(), crate::StdError>;
     fn unregister(&mut self, url: Url) -> Result<(), crate::StdError>;
 
-    fn subscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), crate::StdError>;
-    fn unsubscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), crate::StdError>;
+    fn subscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), crate::StdError>;
+    fn unsubscribe(
+        &self,
+        url: Url,
+        listener: RegistryNotifyListener,
+    ) -> Result<(), crate::StdError>;
 }
 
 pub trait NotifyListener {
@@ -38,18 +46,24 @@ pub trait NotifyListener {
     fn notify_all(&self, event: ServiceEvent);
 }
 
+#[derive(Debug)]
 pub struct ServiceEvent {
     pub key: String,
     pub action: String,
     pub service: Vec<Url>,
 }
 
-pub type BoxRegistry =
-    Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener> + Send + Sync>;
+pub type BoxRegistry = Box<dyn Registry + Send + Sync>;
+
+impl Debug for BoxRegistry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("BoxRegistry")
+    }
+}
 
 #[derive(Default)]
 pub struct RegistryWrapper {
-    pub registry: Option<Box<dyn Registry<NotifyListener = memory_registry::MemoryNotifyListener>>>,
+    pub registry: Option<Box<dyn Registry>>,
 }
 
 impl Clone for RegistryWrapper {

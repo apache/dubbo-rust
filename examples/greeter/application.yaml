@@ -1,0 +1,19 @@
+logging:
+  level: INFO
+dubbo:
+  protocols:
+    triple:
+      ip: 0.0.0.0
+      port: '8888'
+      name: tri
+  registries:
+    demoZK:
+      protocol: zookeeper
+      address: 10.0.6.6:2181
+  provider:
+    services:
+      GreeterProvider:
+        version: 1.0.0
+        group: test
+        protocol: triple
+        interface: org.apache.dubbo.sample.tri.Greeter

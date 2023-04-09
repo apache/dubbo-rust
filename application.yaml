@@ -1,0 +1,24 @@
+logging:
+  level: debug
+dubbo:
+  protocols:
+    triple:
+      ip: 0.0.0.0
+      port: '8888'
+      name: tri
+  registries:
+    demoZK:
+      protocol: zookeeper
+      address: 0.0.0.0:2181
+  provider:
+    services:
+      GreeterProvider:
+        version: 1.0.0
+        group: test
+        protocol: triple
+        interface: org.apache.dubbo.sample.tri.Greeter
+  consumer:
+    references:
+      GreeterClientImpl:
+        url: tri://localhost:20000
+        protocol: tri

@@ -1,0 +1,21 @@
+[package]
+name = "remoting-net"
+version = "0.1.0"
+edition = "2021"
+
+[[bench]]
+name = "transport_benchmark"
+harness=false
+
+[dependencies]
+pin-project.workspace = true
+tokio = { workspace = true, features = ["net", "time", "sync", "io-util", "test-util", "macros"] }
+tokio-stream = { workspace = true, features = ["net"] }
+tower.workspace = true
+socket2.workspace = true
+async-trait.workspace = true
+dashmap.workspace = true
+lazy_static.workspace = true
+futures.workspace = true
+dubbo-logger.workspace = true
+bb8.workspace = true

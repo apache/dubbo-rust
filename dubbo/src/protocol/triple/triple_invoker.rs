@@ -15,17 +15,12 @@
  * limitations under the License.
  */
 
-use std::str::FromStr;
-
 use aws_smithy_http::body::SdkBody;
+use dubbo_base::Url;
+use std::fmt::{Debug, Formatter};
 use tower_service::Service;
 
-use crate::{
-    common::url::Url,
-    protocol::Invoker,
-    triple::{client::builder::ClientBoxService, transport::connection::Connection},
-    utils::boxed::BoxService,
-};
+use crate::{protocol::Invoker, triple::client::builder::ClientBoxService};
 
 pub struct TripleInvoker {
     url: Url,
@@ -33,13 +28,18 @@ pub struct TripleInvoker {
 }
 
 impl TripleInvoker {
-    pub fn new(url: Url) -> TripleInvoker {
-        let uri = http::Uri::from_str(&url.to_url()).unwrap();
-        let conn = Connection::new().with_host(uri);
-        Self {
-            url,
-            conn: BoxService::new(conn),
-        }
+    // pub fn new(url: Url) -> TripleInvoker {
+    //     let uri = http::Uri::from_str(&url.to_url()).unwrap();
+    //     Self {
+    //         url,
+    //         conn: ClientBuilder::from_uri(&uri).build()connect(),
+    //     }
+    // }
+}
+
+impl Debug for TripleInvoker {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(format!("{:?}", self.url).as_str())
     }
 }
 

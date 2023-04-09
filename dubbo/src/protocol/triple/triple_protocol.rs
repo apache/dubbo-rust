@@ -18,14 +18,12 @@
 use std::{boxed::Box, collections::HashMap};
 
 use async_trait::async_trait;
+use dubbo_base::Url;
 
 use super::{
     triple_exporter::TripleExporter, triple_invoker::TripleInvoker, triple_server::TripleServer,
 };
-use crate::{
-    common::url::Url,
-    protocol::{BoxExporter, Protocol},
-};
+use crate::protocol::{BoxExporter, Protocol};
 
 #[derive(Clone)]
 pub struct TripleProtocol {
@@ -47,7 +45,7 @@ impl TripleProtocol {
 
     pub fn get_server(&self, url: Url) -> Option<TripleServer> {
         self.servers
-            .get(&url.service_key.join(","))
+            .get(&url.service_key)
             .map(|data| data.to_owned())
     }
 }
@@ -61,10 +59,10 @@ impl Protocol for TripleProtocol {
     }
 
     async fn export(mut self, url: Url) -> BoxExporter {
+        // service_key is same to key of TRIPLE_SERVICES
         let server = TripleServer::new();
-        self.servers
-            .insert(url.service_key.join(","), server.clone());
-        server.serve(url).await;
+        self.servers.insert(url.service_key.clone(), server.clone());
+        server.serve(url.short_url().as_str().into()).await;
 
         Box::new(TripleExporter::new())
     }
