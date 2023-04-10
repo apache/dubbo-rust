@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn test_load() {
-        logger::init();
+        dubbo_logger::init();
         let r = RootConfig::new();
         let r = r.load().unwrap();
         println!("{:#?}", r);
