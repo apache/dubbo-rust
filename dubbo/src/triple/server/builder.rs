@@ -28,7 +28,7 @@ use hyper::body::Body;
 use tower_service::Service;
 use tokio_rustls::rustls::{Certificate, PrivateKey};
 
-use crate::{common::url::Url, triple::transport::DubboServer};
+use crate::triple::transport::DubboServer;
 use crate::{utils, BoxBody};
 
 #[derive(Clone, Default, Debug)]
