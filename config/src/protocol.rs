@@ -73,11 +73,11 @@ impl ProtocolRetrieve for ProtocolConfig {
     fn get_protocol_or_default(&self, protocol_key: &str) -> Protocol {
         let result = self.get_protocol(protocol_key);
         if let Some(..) = result {
-            result.unwrap().clone()
+            result.unwrap()
         } else {
             let result = self.get_protocol(protocol_key);
-            if result.is_none() {
-                panic!("default triple protocol dose not defined.")
+            if let Some(..) = result {
+                panic!("default triple base dose not defined.")
             } else {
                 result.unwrap()
             }

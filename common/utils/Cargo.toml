@@ -1,0 +1,15 @@
+[package]
+name = "dubbo-utils"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_yaml.workspace = true
+serde = { workspace = true, features = ["derive"] }
+project-root = "0.2.2"
+anyhow.workspace=true
+once_cell.workspace = true
+local-ip-address = "0.5.1"
+port-selector = "0.1.6"

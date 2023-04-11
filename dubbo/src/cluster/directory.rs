@@ -23,10 +23,11 @@ use std::{
 };
 
 use crate::{
-    common::url::Url,
     invocation::{Invocation, RpcInvocation},
     registry::{memory_registry::MemoryNotifyListener, BoxRegistry, RegistryWrapper},
 };
+use dubbo_base::Url;
+use dubbo_logger::tracing;
 
 /// Directory.
 ///
@@ -136,9 +137,9 @@ impl Directory for RegistryDirectory {
             .expect("msg")
             .subscribe(
                 url,
-                MemoryNotifyListener {
+                Arc::new(MemoryNotifyListener {
                     service_instances: Arc::clone(&self.service_instances),
-                },
+                }),
             )
             .expect("subscribe");
 

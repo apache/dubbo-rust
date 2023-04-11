@@ -20,14 +20,16 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use dubbo_base::Url;
+use dubbo_logger::tracing::info;
 use itertools::Itertools;
-use tracing::info;
 
 use crate::{
-    common::url::Url,
-    registry::{memory_registry::MemoryNotifyListener, BoxRegistry, Registry},
+    registry::{BoxRegistry, Registry},
     StdError,
 };
+
+use super::RegistryNotifyListener;
 
 pub type SafeRegistry = Arc<Mutex<BoxRegistry>>;
 pub type Registries = Arc<Mutex<HashMap<String, SafeRegistry>>>;
@@ -66,8 +68,6 @@ impl RegistriesOperation for Registries {
 }
 
 impl Registry for SafeRegistry {
-    type NotifyListener = MemoryNotifyListener;
-
     fn register(&mut self, url: Url) -> Result<(), StdError> {
         info!("register {}.", url);
         self.lock().unwrap().register(url).expect("registry err.");
@@ -79,12 +79,12 @@ impl Registry for SafeRegistry {
         Ok(())
     }
 
-    fn subscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), StdError> {
+    fn subscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), StdError> {
         self.lock().unwrap().register(url).expect("registry err.");
         Ok(())
     }
 
-    fn unsubscribe(&self, url: Url, listener: Self::NotifyListener) -> Result<(), StdError> {
+    fn unsubscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), StdError> {
         self.lock().unwrap().register(url).expect("registry err.");
         Ok(())
     }

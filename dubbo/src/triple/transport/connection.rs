@@ -17,9 +17,9 @@
 
 use std::task::Poll;
 
+use dubbo_logger::tracing::debug;
 use hyper::client::{conn::Builder, service::Connect};
 use tower_service::Service;
-use tracing::debug;
 
 use crate::{boxed, triple::transport::connector::get_connector};
 
@@ -85,7 +85,7 @@ where
         let mut connector = Connect::new(get_connector(self.connector), builder);
         let uri = self.host.clone();
         let fut = async move {
-            debug!("send rpc call to {}", uri);
+            debug!("send base call to {}", uri);
             let mut con = connector.call(uri).await.unwrap();
 
             con.call(req)

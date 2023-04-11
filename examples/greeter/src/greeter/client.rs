@@ -20,40 +20,38 @@ pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
 }
 
+use std::env;
+
 use dubbo::codegen::*;
-use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
+
+use dubbo_base::Url;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
-use tracing::Level;
-use tracing_subscriber::FmtSubscriber;
+use registry_nacos::NacosRegistry;
+use registry_zookeeper::ZookeeperRegistry;
 
 #[tokio::main]
 async fn main() {
-    // a builder for `FmtSubscriber`.
-    let subscriber = FmtSubscriber::builder()
-        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
-        // will be written to stdout.
-        .with_max_level(Level::INFO)
-        // completes the builder.
-        .finish();
+    dubbo_logger::init();
 
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    let mut builder = ClientBuilder::new();
 
-    // let mut cli = GreeterClient::new(ClientBuilder::from_static(&"http://127.0.0.1:8888"));
+    if let Ok(zk_servers) = env::var("ZOOKEEPER_SERVERS") {
+        let zkr = ZookeeperRegistry::new(&zk_servers);
+        let directory = RegistryDirectory::new(Box::new(zkr));
+        builder = builder.with_directory(Box::new(directory));
+    } else if let Ok(nacos_url_str) = env::var("NACOS_URL") {
+        // NACOS_URL=nacos://mse-96efa264-p.nacos-ans.mse.aliyuncs.com
+        let nacos_url = Url::from_url(&nacos_url_str).unwrap();
+        let registry = NacosRegistry::new(nacos_url);
+        let directory = RegistryDirectory::new(Box::new(registry));
+        builder = builder.with_directory(Box::new(directory));
+    } else {
+        builder = builder.with_host("http://127.0.0.1:8888");
+    }
 
-    // Here is example for zk
-    // let zk_connect_string = match env::var("ZOOKEEPER_SERVERS") {
-    //     Ok(val) => val,
-    //     Err(_) => "localhost:2181".to_string(),
-    // };
-    // let zkr = ZookeeperRegistry::new(&zk_connect_string);
-    // let directory = RegistryDirectory::new(Box::new(zkr));
-    // cli = cli.with_directory(Box::new(directory));
+    let mut cli = GreeterClient::new(builder);
 
-    let zkr = ZookeeperRegistry::default();
-    let directory = RegistryDirectory::new(Box::new(zkr));
-    let mut cli = GreeterClient::new(ClientBuilder::new().with_registry_directory(directory));
-    // using loop for loadbalance test
     println!("# unary call");
     let resp = cli
         .greet(Request::new(GreeterRequest {

@@ -21,15 +21,18 @@ use async_trait::async_trait;
 use futures_util::{Stream, StreamExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::info;
 
 use dubbo::{codegen::*, Dubbo};
 use dubbo_config::RootConfig;
-use dubbo_registry_zookeeper::zookeeper_registry::ZookeeperRegistry;
+use dubbo_logger::{
+    tracing::{info, span},
+    Level,
+};
 use protos::{
     greeter_server::{register_server, Greeter},
     GreeterReply, GreeterRequest,
 };
+use registry_zookeeper::ZookeeperRegistry;
 
 pub mod protos {
     #![allow(non_camel_case_types)]
@@ -41,7 +44,7 @@ type ResponseStream =
 
 #[tokio::main]
 async fn main() {
-    use tracing::{span, Level};
+    dubbo_logger::init();
     let span = span!(Level::DEBUG, "greeter.server");
     let _enter = span.enter();
     register_server(GreeterServerImpl {

@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
+use dubbo_base::Url;
 use std::{fmt::Debug, sync::Arc};
 
-use crate::{codegen::RpcInvocation, common::url::Url};
+use crate::codegen::RpcInvocation;
 
 pub type BoxLoadBalance = Box<dyn LoadBalance + Send + Sync>;
 

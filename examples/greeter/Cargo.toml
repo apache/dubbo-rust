@@ -1,9 +1,15 @@
 [package]
 name = "example-greeter"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
+license = "Apache-2.0"
+description = "dubbo-rust-examples-greeter"
+repository = "https://github.com/apache/dubbo-rust.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[package.metadata.release]
+release = false
 
 [[bin]]
 name = "greeter-server"
@@ -16,17 +22,18 @@ path = "src/greeter/client.rs"
 [dependencies]
 http = "0.2"
 http-body = "0.4.4"
-futures-util = {version = "0.3", default-features = false}
-tokio = { version = "1.0", features = [ "rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
-prost-derive = {version = "0.10", optional = true}
+futures-util = { version = "0.3", default-features = false }
+tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
+prost-derive = { version = "0.10", optional = true }
 prost = "0.10.4"
 async-trait = "0.1.56"
 tokio-stream = "0.1"
-tracing = "0.1"
-tracing-subscriber = "0.2.0"
-dubbo = {path = "../../dubbo", version = "0.2.0"}
-dubbo-config = {path = "../../config", version = "0.2.0"}
-dubbo-registry-zookeeper = {path = "../../registry-zookeeper", version = "0.2.0"}
+dubbo-logger = { path = "../../common/logger" }
+dubbo = { path = "../../dubbo", version = "0.3.0" }
+dubbo-config = { path = "../../config", version = "0.3.0" }
+registry-zookeeper.workspace = true
+registry-nacos.workspace = true
+dubbo-base.workspace = true
 
 [build-dependencies]
-dubbo-build = {path = "../../dubbo-build", version = "0.2.0"}
+dubbo-build = { path = "../../dubbo-build", version = "0.3.0" }

@@ -18,6 +18,7 @@
 use aws_smithy_http::body::SdkBody;
 use std::{str::FromStr, sync::Arc};
 
+use dubbo_base::Url;
 use http::{uri::PathAndQuery, Request};
 
 use crate::{
@@ -26,7 +27,6 @@ use crate::{
         support::DEFAULT_LOADBALANCE,
     },
     codegen::{Directory, RegistryDirectory, TripleClient},
-    common::url::Url,
     invocation::RpcInvocation,
 };
 

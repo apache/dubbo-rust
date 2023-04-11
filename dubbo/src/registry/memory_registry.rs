@@ -17,15 +17,15 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 
+use dubbo_logger::tracing::debug;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-use tracing::debug;
 
-use crate::common::url::Url;
+use dubbo_base::Url;
 
-use super::{NotifyListener, Registry};
+use super::{NotifyListener, Registry, RegistryNotifyListener};
 
 // 从url中获取服务注册的元数据
 /// rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)
@@ -47,8 +47,6 @@ impl MemoryRegistry {
 }
 
 impl Registry for MemoryRegistry {
-    type NotifyListener = MemoryNotifyListener;
-
     fn register(&mut self, mut url: Url) -> Result<(), crate::StdError> {
         // define provider label: ${registry.group}/${service_name}/provider
         let registry_group = match url.get_param(REGISTRY_GROUP_KEY) {
@@ -71,7 +69,7 @@ impl Registry for MemoryRegistry {
         Ok(())
     }
 
-    fn unregister(&mut self, url: crate::common::url::Url) -> Result<(), crate::StdError> {
+    fn unregister(&mut self, url: dubbo_base::Url) -> Result<(), crate::StdError> {
         let registry_group = match url.get_param(REGISTRY_GROUP_KEY) {
             Some(key) => key,
             None => "dubbo".to_string(),
@@ -90,16 +88,16 @@ impl Registry for MemoryRegistry {
 
     fn subscribe(
         &self,
-        url: crate::common::url::Url,
-        listener: Self::NotifyListener,
+        url: dubbo_base::Url,
+        listener: RegistryNotifyListener,
     ) -> Result<(), crate::StdError> {
         todo!()
     }
 
     fn unsubscribe(
         &self,
-        url: crate::common::url::Url,
-        listener: Self::NotifyListener,
+        url: dubbo_base::Url,
+        listener: RegistryNotifyListener,
     ) -> Result<(), crate::StdError> {
         todo!()
     }

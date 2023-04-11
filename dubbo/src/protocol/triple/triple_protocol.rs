@@ -18,14 +18,12 @@
 use std::{boxed::Box, collections::HashMap};
 
 use async_trait::async_trait;
+use dubbo_base::Url;
 
 use super::{
     triple_exporter::TripleExporter, triple_invoker::TripleInvoker, triple_server::TripleServer,
 };
-use crate::{
-    common::url::Url,
-    protocol::{BoxExporter, Protocol},
-};
+use crate::protocol::{BoxExporter, Protocol};
 
 #[derive(Clone)]
 pub struct TripleProtocol {

@@ -17,19 +17,26 @@
 
 use std::{
     net::{SocketAddr, ToSocketAddrs},
+    path::Path,
     str::FromStr,
 };
 
+use dubbo_base::Url;
+use dubbo_logger::tracing;
 use http::{Request, Response, Uri};
 use hyper::body::Body;
 use tower_service::Service;
+use tokio_rustls::rustls::{Certificate, PrivateKey};
 
-use crate::{common::url::Url, triple::transport::DubboServer, BoxBody};
+use crate::{common::url::Url, triple::transport::DubboServer};
+use crate::{utils, BoxBody};
 
 #[derive(Clone, Default, Debug)]
 pub struct ServerBuilder {
     pub listener: String,
     pub addr: Option<SocketAddr>,
+    pub certs: Vec<Certificate>,
+    pub keys: Vec<PrivateKey>,
     pub service_names: Vec<String>,
     server: DubboServer,
 }
@@ -41,6 +48,26 @@ impl ServerBuilder {
 
     pub fn with_listener(self, listener: String) -> ServerBuilder {
         Self { listener, ..self }
+    }
+
+    pub fn with_tls(self, certs: &str, keys: &str) -> ServerBuilder {
+        Self {
+            certs: match utils::tls::load_certs(Path::new(certs)) {
+                Ok(v) => v,
+                Err(err) => {
+                    tracing::error!("error loading tls certs {:?}", err);
+                    Vec::new()
+                }
+            },
+            keys: match utils::tls::load_keys(Path::new(keys)) {
+                Ok(v) => v,
+                Err(err) => {
+                    tracing::error!("error loading tls keys {:?}", err);
+                    Vec::new()
+                }
+            },
+            ..self
+        }
     }
 
     pub fn with_addr(self, addr: &'static str) -> ServerBuilder {
@@ -59,6 +86,13 @@ impl ServerBuilder {
 
     pub fn build(self) -> Self {
         let mut server = self.server.with_listener(self.listener.clone());
+
+        {
+            if self.certs.len() != 0 && self.keys.len() != 0 {
+                server = server.with_tls(self.certs.clone(), self.keys.clone());
+            }
+        }
+
         {
             let lock = crate::protocol::triple::TRIPLE_SERVICES.read().unwrap();
             for name in self.service_names.iter() {
@@ -71,6 +105,8 @@ impl ServerBuilder {
                 server = server.add_service(name.clone(), svc.clone());
             }
         }
+
+        {}
         Self { server, ..self }
     }
 
@@ -112,6 +148,8 @@ impl From<Url> for ServerBuilder {
             addr: authority.to_string().to_socket_addrs().unwrap().next(),
             service_names: vec![u.service_name],
             server: DubboServer::default(),
+            certs: Vec::new(),
+            keys: Vec::new(),
         }
     }
 }
