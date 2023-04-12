@@ -25,11 +25,10 @@ use dubbo_base::Url;
 use dubbo_logger::tracing;
 use http::{Request, Response, Uri};
 use hyper::body::Body;
-use tower_service::Service;
 use tokio_rustls::rustls::{Certificate, PrivateKey};
+use tower_service::Service;
 
-use crate::triple::transport::DubboServer;
-use crate::{utils, BoxBody};
+use crate::{triple::transport::DubboServer, utils, BoxBody};
 
 #[derive(Clone, Default, Debug)]
 pub struct ServerBuilder {
