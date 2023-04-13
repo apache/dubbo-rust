@@ -63,6 +63,7 @@ pub fn yaml_key_reader(path: PathBuf, key: &str) -> Result<Option<String>, Error
 
 #[cfg(test)]
 mod tests {
+    use serde_yaml::Value;
     use std::collections::HashMap;
 
     use crate::{
@@ -77,7 +78,7 @@ mod tests {
             .join("utils")
             .join("tests")
             .join("application.yaml");
-        let config = yaml_file_parser::<HashMap<String, HashMap<String, String>>>(path).unwrap();
+        let config = yaml_file_parser::<HashMap<String, Value>>(path).unwrap();
         println!("{:?}", config);
     }
 

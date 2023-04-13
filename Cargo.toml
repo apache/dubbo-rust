@@ -39,9 +39,9 @@ futures = "0.3"
 serde = "1"
 serde_json = "1"
 urlencoding = "2.1.2"
-logger = {path="./common/logger"}
-utils = {path="./common/utils"}
-base = {path="./common/base"}
+dubbo-logger = {path="./common/logger"}
+dubbo-utils = {path="./common/utils"}
+dubbo-base = {path="./common/base"}
 remoting-net = {path="./remoting/net"}
 remoting-base = {path="./remoting/base"}
 protocol-base = {path= "protocol/base" }

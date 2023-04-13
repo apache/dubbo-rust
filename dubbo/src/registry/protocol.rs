@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-use base::Url;
-use logger::tracing;
+use dubbo_base::Url;
+use dubbo_logger::tracing;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},

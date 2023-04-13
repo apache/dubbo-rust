@@ -15,26 +15,22 @@
  * limitations under the License.
  */
 
-// https://github.com/tokio-rs/tracing/issues/971
+use rustls_pemfile::{certs, rsa_private_keys};
+use std::{
+    fs::File,
+    io::{self, BufReader},
+    path::Path,
+};
+use tokio_rustls::rustls::{Certificate, PrivateKey};
 
-use crate::level::LevelWrapper;
-use dubbo_utils::{path_util, yaml_util};
-use std::path::PathBuf;
-use tracing::debug;
+pub fn load_certs(path: &Path) -> io::Result<Vec<Certificate>> {
+    certs(&mut BufReader::new(File::open(path)?))
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid cert"))
+        .map(|mut certs| certs.drain(..).map(Certificate).collect())
+}
 
-pub(crate) fn default() {
-    let path_buf = PathBuf::new()
-        .join(path_util::app_root_dir())
-        .join("application.yaml");
-    let level: LevelWrapper = yaml_util::yaml_key_reader(path_buf, "logging.level")
-        .unwrap()
-        .into();
-    tracing_subscriber::fmt()
-        .compact()
-        .with_line_number(true)
-        .with_max_level(level.inner)
-        // sets this to be the default, global collector for this application.
-        .try_init()
-        .expect("init err.");
-    debug!("Tracing configured.")
+pub fn load_keys(path: &Path) -> io::Result<Vec<PrivateKey>> {
+    rsa_private_keys(&mut BufReader::new(File::open(path)?))
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid key"))
+        .map(|mut keys| keys.drain(..).map(PrivateKey).collect())
 }

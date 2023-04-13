@@ -16,7 +16,7 @@
  */
 mod utils;
 
-use base::Url;
+use dubbo_base::Url;
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
@@ -24,7 +24,7 @@ use std::{
 
 use anyhow::anyhow;
 use dubbo::registry::{NotifyListener, Registry, RegistryNotifyListener, ServiceEvent};
-use logger::tracing::{error, info, warn};
+use dubbo_logger::tracing::{error, info, warn};
 use nacos_sdk::api::naming::{NamingService, NamingServiceBuilder, ServiceInstance};
 
 use crate::utils::{build_nacos_client_props, is_concrete_str, is_wildcard_str, match_range};

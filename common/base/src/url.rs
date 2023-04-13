@@ -48,7 +48,7 @@ impl Url {
         let uri = url
             .parse::<http::Uri>()
             .map_err(|err| {
-                logger::tracing::error!("fail to parse url({}), err: {:?}", url, err);
+                dubbo_logger::tracing::error!("fail to parse url({}), err: {:?}", url, err);
             })
             .unwrap();
         let query = uri.path_and_query().unwrap().query();
@@ -155,7 +155,10 @@ impl Url {
 
     // short_url is used for tcp listening
     pub fn short_url(&self) -> String {
-        format!("{}://{}:{}", self.scheme, self.ip, self.port)
+        format!(
+            "{}://{}:{}/{}",
+            self.scheme, self.ip, self.port, self.service_name
+        )
     }
 
     pub fn protocol(&self) -> String {

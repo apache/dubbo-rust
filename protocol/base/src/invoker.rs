@@ -18,7 +18,7 @@ use crate::{
     invocation::BoxInvocation,
     output::{BoxOutput, RPCOutput},
 };
-use base::{Node, Url};
+use dubbo_base::{Node, Url};
 use std::{
     fmt::{Display, Formatter},
     sync::{

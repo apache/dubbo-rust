@@ -20,9 +20,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use base::Url;
+use dubbo_base::Url;
+use dubbo_logger::tracing::info;
 use itertools::Itertools;
-use logger::tracing::info;
 
 use crate::{
     registry::{BoxRegistry, Registry},

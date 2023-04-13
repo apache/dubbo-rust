@@ -19,8 +19,8 @@ use std::{
     task::{Context, Poll},
 };
 
+use dubbo_logger::tracing;
 use futures::Stream;
-use logger::tracing;
 use pin_project::pin_project;
 use tokio::net::TcpListener;
 #[cfg(target_family = "unix")]
@@ -112,7 +112,7 @@ impl Stream for DefaultIncoming {
 
 #[cfg(test)]
 mod tests {
-    use logger::tracing::debug;
+    use dubbo_logger::tracing::debug;
     use tokio::{io::AsyncReadExt, net::TcpListener};
     use tokio_stream::wrappers::TcpListenerStream;
 

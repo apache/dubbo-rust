@@ -24,11 +24,11 @@ use std::{
     time::Duration,
 };
 
-use base::{
+use dubbo_base::{
     constants::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY},
     Url,
 };
-use logger::tracing::{debug, error, info};
+use dubbo_logger::tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};

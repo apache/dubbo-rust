@@ -17,13 +17,13 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 
-use logger::tracing::debug;
+use dubbo_logger::tracing::debug;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
 
-use base::Url;
+use dubbo_base::Url;
 
 use super::{NotifyListener, Registry, RegistryNotifyListener};
 
@@ -69,7 +69,7 @@ impl Registry for MemoryRegistry {
         Ok(())
     }
 
-    fn unregister(&mut self, url: base::Url) -> Result<(), crate::StdError> {
+    fn unregister(&mut self, url: dubbo_base::Url) -> Result<(), crate::StdError> {
         let registry_group = match url.get_param(REGISTRY_GROUP_KEY) {
             Some(key) => key,
             None => "dubbo".to_string(),
@@ -88,7 +88,7 @@ impl Registry for MemoryRegistry {
 
     fn subscribe(
         &self,
-        url: base::Url,
+        url: dubbo_base::Url,
         listener: RegistryNotifyListener,
     ) -> Result<(), crate::StdError> {
         todo!()
@@ -96,7 +96,7 @@ impl Registry for MemoryRegistry {
 
     fn unsubscribe(
         &self,
-        url: base::Url,
+        url: dubbo_base::Url,
         listener: RegistryNotifyListener,
     ) -> Result<(), crate::StdError> {
         todo!()

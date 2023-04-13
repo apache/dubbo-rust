@@ -17,3 +17,4 @@
 
 pub mod boxed;
 pub mod boxed_clone;
+pub mod tls;
