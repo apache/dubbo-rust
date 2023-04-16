@@ -21,7 +21,7 @@ pub mod incoming;
 mod pool;
 mod probe;
 
-use std::{fmt, net::Ipv6Addr};
+use std::{borrow::Cow, fmt, net::Ipv6Addr, path::Path};
 
 pub use incoming::{DefaultIncoming, MakeIncoming};
 
