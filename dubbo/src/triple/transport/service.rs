@@ -15,23 +15,22 @@
  * limitations under the License.
  */
 
-use std::io;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{io, net::SocketAddr, sync::Arc};
 
 use dubbo_logger::tracing;
 use futures_core::Future;
 use http::{Request, Response};
 use hyper::body::Body;
 use tokio::time::Duration;
+use tokio_rustls::{
+    rustls,
+    rustls::{Certificate, PrivateKey},
+    TlsAcceptor,
+};
 use tower_service::Service;
-use tokio_rustls::rustls::{Certificate, PrivateKey};
-use tokio_rustls::{rustls, TlsAcceptor};
 
-use super::listener::get_listener;
-use super::router::DubboRouter;
-use crate::triple::transport::io::BoxIO;
-use crate::BoxBody;
+use super::{listener::get_listener, router::DubboRouter};
+use crate::{triple::transport::io::BoxIO, BoxBody};
 
 #[derive(Default, Clone, Debug)]
 pub struct DubboServer {
