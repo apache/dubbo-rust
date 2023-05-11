@@ -34,6 +34,7 @@ axum = "0.5.9"
 async-stream = "0.3"
 flate2 = "1.0"
 aws-smithy-http = "0.54.1"
+dyn-clone = "1.0.11"
 itertools.workspace = true
 urlencoding.workspace = true
 lazy_static.workspace = true

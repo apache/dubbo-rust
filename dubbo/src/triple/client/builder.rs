@@ -19,7 +19,7 @@ use crate::{
     cluster::directory::StaticDirectory,
     codegen::{ClusterInvoker, Directory, RegistryDirectory},
     triple::compression::CompressionEncoding,
-    utils::boxed::BoxService,
+    utils::{boxed::BoxService, boxed_clone::BoxCloneService},
 };
 
 use aws_smithy_http::body::SdkBody;
@@ -27,7 +27,7 @@ use aws_smithy_http::body::SdkBody;
 use super::TripleClient;
 
 pub type ClientBoxService =
-    BoxService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
+    BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
 
 #[derive(Clone, Debug, Default)]
 pub struct ClientBuilder {

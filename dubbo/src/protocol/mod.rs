@@ -23,6 +23,7 @@ use std::{
 
 use async_trait::async_trait;
 use aws_smithy_http::body::SdkBody;
+use dyn_clone::DynClone;
 use tower_service::Service;
 
 use dubbo_base::Url;
@@ -43,7 +44,7 @@ pub trait Exporter {
     fn unexport(&self);
 }
 
-pub trait Invoker<ReqBody>: Debug {
+pub trait Invoker<ReqBody>: Debug + DynClone {
     type Response;
 
     type Error;
@@ -67,6 +68,13 @@ pub type BoxInvoker = Box<
         > + Send
         + Sync,
 >;
+
+dyn_clone::clone_trait_object!(Invoker<
+    http::Request<SdkBody>,
+    Response = http::Response<crate::BoxBody>,
+    Error = crate::Error,
+    Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
+>);
 
 pub struct WrapperInvoker<T>(T);
 
