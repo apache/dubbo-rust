@@ -69,12 +69,14 @@ pub type BoxInvoker = Box<
         + Sync,
 >;
 
-dyn_clone::clone_trait_object!(Invoker<
-    http::Request<SdkBody>,
-    Response = http::Response<crate::BoxBody>,
-    Error = crate::Error,
-    Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
->);
+dyn_clone::clone_trait_object!(
+    Invoker<
+        http::Request<SdkBody>,
+        Response = http::Response<crate::BoxBody>,
+        Error = crate::Error,
+        Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
+    >
+);
 
 pub struct WrapperInvoker<T>(T);
 

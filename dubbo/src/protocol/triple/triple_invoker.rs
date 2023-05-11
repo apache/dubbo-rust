@@ -17,12 +17,17 @@
 
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
-use std::fmt::{Debug, Formatter};
-use std::str::FromStr;
+use std::{
+    fmt::{Debug, Formatter},
+    str::FromStr,
+};
 use tower_service::Service;
 
-use crate::{protocol::Invoker, triple::client::builder::ClientBoxService, utils::boxed_clone::BoxCloneService};
-use crate::triple::transport::connection::Connection;
+use crate::{
+    protocol::Invoker,
+    triple::{client::builder::ClientBoxService, transport::connection::Connection},
+    utils::boxed_clone::BoxCloneService,
+};
 
 #[derive(Clone)]
 pub struct TripleInvoker {

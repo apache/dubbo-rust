@@ -15,13 +15,16 @@
  * limitations under the License.
  */
 
-use std::{sync::Arc, task::Poll, fmt::Debug, collections::HashMap};
+use std::{collections::HashMap, fmt::Debug, sync::Arc, task::Poll};
 
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
-use tower_service::Service;
 
-use crate::{empty_body, protocol::{BoxInvoker, Invoker}, invocation::RpcInvocation};
+use crate::{
+    empty_body,
+    invocation::RpcInvocation,
+    protocol::{BoxInvoker, Invoker},
+};
 
 pub mod directory;
 pub mod loadbalance;
@@ -38,7 +41,7 @@ pub trait Cluster {
     fn join(&self, dir: BoxDirectory) -> BoxInvoker;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MockCluster {}
 
 impl Cluster for MockCluster {
@@ -81,7 +84,9 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
         *clone_req.headers_mut().unwrap() = req.headers().clone();
         let r = clone_req.body(clone_body).unwrap();
         let invokers = self.dir.list(
-            RpcInvocation::default().with_service_unique_name("hello".to_string()).into()
+            RpcInvocation::default()
+                .with_service_unique_name("hello".to_string())
+                .into(),
         );
         for mut invoker in invokers {
             let fut = async move {
@@ -108,12 +113,15 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
 #[derive(Debug, Default)]
 pub struct MockDirectory {
     router_chain: RouterChain,
-    invokers: Vec<BoxInvoker>
+    invokers: Vec<BoxInvoker>,
 }
 
 impl MockDirectory {
     pub fn new(invokers: Vec<BoxInvoker>) -> MockDirectory {
-        Self { router_chain: RouterChain::default(), invokers }
+        Self {
+            router_chain: RouterChain::default(),
+            invokers,
+        }
     }
 }
 
@@ -134,7 +142,7 @@ impl Directory for MockDirectory {
 #[derive(Debug, Default)]
 pub struct RouterChain {
     router: HashMap<String, BoxRouter>,
-    invokers: Vec<BoxInvoker>
+    invokers: Vec<BoxInvoker>,
 }
 
 impl RouterChain {
@@ -144,9 +152,13 @@ impl RouterChain {
     }
 }
 
-
-pub trait Router: Debug{
-    fn route(&self, invokers: Vec<BoxInvoker>, url: Url, invo: Arc<RpcInvocation>) -> Vec<BoxInvoker>;
+pub trait Router: Debug {
+    fn route(
+        &self,
+        invokers: Vec<BoxInvoker>,
+        url: Url,
+        invo: Arc<RpcInvocation>,
+    ) -> Vec<BoxInvoker>;
 }
 
 pub type BoxRouter = Box<dyn Router + Sync + Send>;
@@ -155,7 +167,12 @@ pub type BoxRouter = Box<dyn Router + Sync + Send>;
 pub struct MockRouter {}
 
 impl Router for MockRouter {
-    fn route(&self, invokers: Vec<BoxInvoker>, url: Url, invo: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
+    fn route(
+        &self,
+        invokers: Vec<BoxInvoker>,
+        _url: Url,
+        _invo: Arc<RpcInvocation>,
+    ) -> Vec<BoxInvoker> {
         invokers
     }
 }
