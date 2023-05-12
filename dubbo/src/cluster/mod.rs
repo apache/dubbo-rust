@@ -24,6 +24,7 @@ use crate::{empty_body, protocol::BoxInvoker};
 
 pub mod directory;
 pub mod loadbalance;
+pub mod router;
 pub mod support;
 
 pub trait Directory {

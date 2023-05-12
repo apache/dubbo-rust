@@ -29,3 +29,5 @@ pub const INTERFACE_KEY: &str = "interface";
 pub const ANYHOST_KEY: &str = "anyhost";
 pub const SIDE_KEY: &str = "side";
 pub const TIMESTAMP_KEY: &str = "timestamp";
+pub const TAG_KEY: &str = "dubbo.tag";
+pub const FORCE_USE_TAG: &str = "dubbo.force.use";
