@@ -112,25 +112,25 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
 
 #[derive(Debug, Default)]
 pub struct MockDirectory {
-    router_chain: RouterChain,
+    // router_chain: RouterChain,
     invokers: Vec<BoxInvoker>,
 }
 
 impl MockDirectory {
     pub fn new(invokers: Vec<BoxInvoker>) -> MockDirectory {
         Self {
-            router_chain: RouterChain::default(),
+            // router_chain: RouterChain::default(),
             invokers,
         }
     }
 }
 
 impl Directory for MockDirectory {
-    fn list(&self, invo: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
+    fn list(&self, _invo: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
         // tracing::info!("MockDirectory: {}", meta);
-        let u = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter").unwrap();
+        let _u = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter").unwrap();
         // vec![Box::new(TripleInvoker::new(u))]
-        self.router_chain.route(u, invo);
+        // self.router_chain.route(u, invo);
         self.invokers.clone()
     }
 
