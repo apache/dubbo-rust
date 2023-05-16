@@ -16,18 +16,19 @@
  */
 
 use crate::{
-    cluster::directory::StaticDirectory,
-    codegen::{ClusterInvoker, Directory, RegistryDirectory},
+    cluster::{directory::StaticDirectory, Cluster, MockCluster, MockDirectory},
+    codegen::{ClusterInvoker, Directory, RegistryDirectory, TripleInvoker},
     triple::compression::CompressionEncoding,
-    utils::boxed::BoxService,
+    utils::boxed_clone::BoxCloneService,
 };
 
 use aws_smithy_http::body::SdkBody;
+use dubbo_base::Url;
 
 use super::TripleClient;
 
 pub type ClientBoxService =
-    BoxService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
+    BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
 
 #[derive(Clone, Debug, Default)]
 pub struct ClientBuilder {
@@ -35,6 +36,8 @@ pub struct ClientBuilder {
     pub connector: &'static str,
     directory: Option<Box<dyn Directory>>,
     cluster_invoker: Option<ClusterInvoker>,
+    pub direct: bool,
+    host: String,
 }
 
 impl ClientBuilder {
@@ -44,6 +47,8 @@ impl ClientBuilder {
             connector: "",
             directory: None,
             cluster_invoker: None,
+            direct: false,
+            host: "".to_string(),
         }
     }
 
@@ -53,15 +58,8 @@ impl ClientBuilder {
             connector: "",
             directory: Some(Box::new(StaticDirectory::new(&host))),
             cluster_invoker: None,
-        }
-    }
-
-    pub fn from_uri(uri: &http::Uri) -> ClientBuilder {
-        Self {
-            timeout: None,
-            connector: "",
-            directory: Some(Box::new(StaticDirectory::from_uri(&uri))),
-            cluster_invoker: None,
+            direct: true,
+            host: host.clone().to_string(),
         }
     }
 
@@ -104,11 +102,29 @@ impl ClientBuilder {
         }
     }
 
+    pub fn with_direct(self, direct: bool) -> Self {
+        Self { direct, ..self }
+    }
+
     pub fn build(self) -> TripleClient {
-        TripleClient {
+        let mut cli = TripleClient {
             send_compression_encoding: Some(CompressionEncoding::Gzip),
             directory: self.directory,
             cluster_invoker: self.cluster_invoker,
+            invoker: None,
+        };
+        if self.direct {
+            cli.invoker = Some(Box::new(TripleInvoker::new(
+                Url::from_url(&self.host).unwrap(),
+            )));
+            return cli;
         }
+
+        let cluster = MockCluster::default().join(Box::new(MockDirectory::new(vec![Box::new(
+            TripleInvoker::new(Url::from_url("http://127.0.0.1:8888").unwrap()),
+        )])));
+
+        cli.invoker = Some(cluster);
+        cli
     }
 }
