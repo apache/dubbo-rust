@@ -48,7 +48,7 @@ impl ClientBuilder {
             connector: "",
             directory: None,
             cluster_invoker: None,
-            direct: true,
+            direct: false,
             uri: None,
             host: "".to_string(),
         }
