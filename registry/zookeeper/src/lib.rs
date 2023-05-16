@@ -34,11 +34,10 @@ use serde::{Deserialize, Serialize};
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
 use dubbo::{
-    cluster::support::cluster_invoker::ClusterInvoker,
     codegen::BoxRegistry,
     registry::{
-        integration::ClusterRegistryIntegration, memory_registry::MemoryRegistry, NotifyListener,
-        Registry, RegistryNotifyListener, ServiceEvent,
+        memory_registry::MemoryRegistry, NotifyListener, Registry, RegistryNotifyListener,
+        ServiceEvent,
     },
     StdError,
 };
@@ -368,12 +367,6 @@ impl NotifyListener for ServiceInstancesChangedListener {
 
     fn notify_all(&self, event: ServiceEvent) {
         self.listener.notify(event);
-    }
-}
-
-impl ClusterRegistryIntegration for ZookeeperRegistry {
-    fn get_invoker(registry: BoxRegistry) -> Option<Arc<ClusterInvoker>> {
-        todo!()
     }
 }
 
