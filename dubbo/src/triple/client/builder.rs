@@ -38,7 +38,6 @@ pub struct ClientBuilder {
     cluster_invoker: Option<ClusterInvoker>,
     pub direct: bool,
     host: String,
-    uri: Option<http::Uri>,
 }
 
 impl ClientBuilder {
@@ -49,7 +48,6 @@ impl ClientBuilder {
             directory: None,
             cluster_invoker: None,
             direct: false,
-            uri: None,
             host: "".to_string(),
         }
     }
@@ -61,20 +59,7 @@ impl ClientBuilder {
             directory: Some(Box::new(StaticDirectory::new(&host))),
             cluster_invoker: None,
             direct: true,
-            uri: None,
             host: host.clone().to_string(),
-        }
-    }
-
-    pub fn from_uri(uri: &http::Uri) -> ClientBuilder {
-        Self {
-            timeout: None,
-            connector: "",
-            directory: Some(Box::new(StaticDirectory::from_uri(&uri))),
-            cluster_invoker: None,
-            direct: true,
-            uri: Some(uri.clone()),
-            host: "".to_string(),
         }
     }
 
