@@ -15,9 +15,12 @@
  * limitations under the License.
  */
 
+use std::sync::Arc;
+
 use crate::{
-    cluster::{directory::StaticDirectory, Cluster, MockCluster, MockDirectory},
-    codegen::{Directory, RegistryDirectory, TripleInvoker},
+    cluster::{directory::StaticDirectory, Cluster, Directory, MockCluster, MockDirectory},
+    codegen::{RegistryDirectory, RpcInvocation, TripleInvoker},
+    protocol::BoxInvoker,
     triple::compression::CompressionEncoding,
     utils::boxed_clone::BoxCloneService,
 };
@@ -77,7 +80,7 @@ impl ClientBuilder {
 
     pub fn with_registry_directory(self, registry: RegistryDirectory) -> Self {
         Self {
-            directory: None,
+            directory: Some(Box::new(registry)),
             ..self
         }
     }
@@ -100,24 +103,31 @@ impl ClientBuilder {
         Self { direct, ..self }
     }
 
-    pub fn build(self) -> TripleClient {
+    pub(crate) fn direct_build(self) -> TripleClient {
         let mut cli = TripleClient {
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            directory: self.directory,
+            builder: Some(self.clone()),
             invoker: None,
         };
+        cli.invoker = Some(Box::new(TripleInvoker::new(
+            Url::from_url(&self.host).unwrap(),
+        )));
+        return cli;
+    }
+
+    pub fn build(self, invocation: Arc<RpcInvocation>) -> Option<BoxInvoker> {
         if self.direct {
-            cli.invoker = Some(Box::new(TripleInvoker::new(
+            return Some(Box::new(TripleInvoker::new(
                 Url::from_url(&self.host).unwrap(),
             )));
-            return cli;
         }
+        let invokers = match self.directory {
+            Some(v) => v.list(invocation),
+            None => panic!("use direct connection"),
+        };
 
-        let cluster = MockCluster::default().join(Box::new(MockDirectory::new(vec![Box::new(
-            TripleInvoker::new(Url::from_url("http://127.0.0.1:8888").unwrap()),
-        )])));
+        let cluster = MockCluster::default().join(Box::new(MockDirectory::new(invokers)));
 
-        cli.invoker = Some(cluster);
-        cli
+        return Some(cluster);
     }
 }

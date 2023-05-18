@@ -15,17 +15,15 @@
  * limitations under the License.
  */
 
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
 use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
-use rand::prelude::SliceRandom;
-use tower_service::Service;
 
-use super::{super::transport::connection::Connection, builder::ClientBuilder};
-use crate::codegen::{Directory, RpcInvocation};
+use super::builder::ClientBuilder;
+use crate::codegen::RpcInvocation;
 
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
@@ -36,7 +34,7 @@ use crate::{
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
     pub(crate) send_compression_encoding: Option<CompressionEncoding>,
-    pub(crate) directory: Option<Box<dyn Directory>>,
+    pub(crate) builder: Option<ClientBuilder>,
     pub invoker: Option<BoxInvoker>,
 }
 
@@ -44,11 +42,15 @@ impl TripleClient {
     pub fn connect(host: String) -> Self {
         let builder = ClientBuilder::from_static(&host).with_direct(true);
 
-        builder.build()
+        builder.direct_build()
     }
 
     pub fn new(builder: ClientBuilder) -> Self {
-        builder.build()
+        TripleClient {
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
+            builder: Some(builder),
+            invoker: None,
+        }
     }
 
     pub fn map_request(
@@ -128,7 +130,7 @@ impl TripleClient {
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
-        _invocation: RpcInvocation,
+        invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
@@ -146,8 +148,16 @@ impl TripleClient {
         let bytes = hyper::body::to_bytes(body).await.unwrap();
         let sdk_body = SdkBody::from(bytes);
 
-        // let mut conn = Connection::new().with_host(http_uri);
-        let mut conn = self.invoker.clone().unwrap();
+        let mut conn = match self.invoker.clone() {
+            Some(v) => v,
+            None => self
+                .builder
+                .clone()
+                .unwrap()
+                .build(invocation.into())
+                .unwrap(),
+        };
+
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
         let req = self.map_request(http_uri.clone(), path, sdk_body);
 
@@ -206,7 +216,16 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
 
-        let mut conn = self.invoker.clone().unwrap();
+        let mut conn = match self.invoker.clone() {
+            Some(v) => v,
+            None => self
+                .builder
+                .clone()
+                .unwrap()
+                .build(invocation.into())
+                .unwrap(),
+        };
+
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
         let req = self.map_request(http_uri.clone(), path, sdk_body);
 
@@ -249,11 +268,20 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
 
-        let mut conn = self.invoker.clone().unwrap();
+        let mut conn = match self.invoker.clone() {
+            Some(v) => v,
+            None => self
+                .builder
+                .clone()
+                .unwrap()
+                .build(invocation.into())
+                .unwrap(),
+        };
+
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
         let req = self.map_request(http_uri.clone(), path, sdk_body);
 
-        let mut conn = Connection::new().with_host(http_uri);
+        // let mut conn = Connection::new().with_host(http_uri);
         let response = conn
             .call(req)
             .await
@@ -309,7 +337,15 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
 
-        let mut conn = self.invoker.clone().unwrap();
+        let mut conn = match self.invoker.clone() {
+            Some(v) => v,
+            None => self
+                .builder
+                .clone()
+                .unwrap()
+                .build(invocation.into())
+                .unwrap(),
+        };
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
         let req = self.map_request(http_uri.clone(), path, sdk_body);
 
