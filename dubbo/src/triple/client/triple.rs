@@ -130,7 +130,7 @@ impl TripleClient {
         req: Request<M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
-        _invocation: RpcInvocation,
+        invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
         C: Codec<Encode = M1, Decode = M2>,
