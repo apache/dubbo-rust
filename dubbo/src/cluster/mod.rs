@@ -19,6 +19,7 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc, task::Poll};
 
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
+use dyn_clone::DynClone;
 
 use crate::{
     empty_body,
@@ -28,12 +29,13 @@ use crate::{
 
 pub mod directory;
 pub mod loadbalance;
-// pub mod support;
 
-pub trait Directory: Debug {
+pub trait Directory: Debug + DynClone {
     fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<BoxInvoker>;
-    fn is_empty(&self) -> bool;
+    // fn is_empty(&self) -> bool;
 }
+
+dyn_clone::clone_trait_object!(Directory);
 
 type BoxDirectory = Box<dyn Directory + Send + Sync>;
 
@@ -110,7 +112,7 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MockDirectory {
     // router_chain: RouterChain,
     invokers: Vec<BoxInvoker>,
@@ -134,9 +136,9 @@ impl Directory for MockDirectory {
         self.invokers.clone()
     }
 
-    fn is_empty(&self) -> bool {
-        false
-    }
+    // fn is_empty(&self) -> bool {
+    //     false
+    // }
 }
 
 #[derive(Debug, Default)]
