@@ -34,7 +34,6 @@ use serde::{Deserialize, Serialize};
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
 use dubbo::{
-    codegen::BoxRegistry,
     registry::{
         memory_registry::MemoryRegistry, NotifyListener, Registry, RegistryNotifyListener,
         ServiceEvent,
