@@ -31,7 +31,7 @@ pub use super::{
     empty_body,
     invocation::{IntoStreamingRequest, Request, Response, RpcInvocation},
     protocol::{triple::triple_invoker::TripleInvoker, Invoker},
-    registry::{BoxRegistry, Registry, RegistryWrapper},
+    registry::{BoxRegistry, Registry},
     triple::{
         client::TripleClient,
         codec::{prost::ProstCodec, Codec},

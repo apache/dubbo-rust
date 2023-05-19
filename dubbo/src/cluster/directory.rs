@@ -26,7 +26,7 @@ use crate::{
     codegen::TripleInvoker,
     invocation::{Invocation, RpcInvocation},
     protocol::BoxInvoker,
-    registry::{memory_registry::MemoryNotifyListener, BoxRegistry, RegistryWrapper},
+    registry::{memory_registry::MemoryNotifyListener, BoxRegistry},
 };
 use dubbo_base::Url;
 use dubbo_logger::tracing;
@@ -75,16 +75,14 @@ impl Directory for StaticDirectory {
 
 #[derive(Debug, Clone)]
 pub struct RegistryDirectory {
-    registry: RegistryWrapper,
+    registry: Arc<BoxRegistry>,
     service_instances: Arc<RwLock<HashMap<String, Vec<Url>>>>,
 }
 
 impl RegistryDirectory {
     pub fn new(registry: BoxRegistry) -> RegistryDirectory {
         RegistryDirectory {
-            registry: RegistryWrapper {
-                registry: Some(registry),
-            },
+            registry: Arc::new(registry),
             service_instances: Arc::new(RwLock::new(HashMap::new())),
         }
     }
@@ -101,9 +99,6 @@ impl Directory for RegistryDirectory {
         .unwrap();
 
         self.registry
-            .registry
-            .as_ref()
-            .expect("msg")
             .subscribe(
                 url,
                 Arc::new(MemoryNotifyListener {
