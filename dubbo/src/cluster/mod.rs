@@ -78,7 +78,6 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
     }
 
     fn call(&mut self, req: http::Request<SdkBody>) -> Self::Future {
-        println!("req: {}", req.body().content_length().unwrap());
         let clone_body = req.body().try_clone().unwrap();
         let mut clone_req = http::Request::builder()
             .uri(req.uri().clone())
