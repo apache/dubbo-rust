@@ -30,9 +30,7 @@ async-trait = "0.1.56"
 tokio-stream = "0.1"
 dubbo-logger.workspace=true
 
-hyper = { version = "0.14.19", features = ["full"]}
-
-dubbo = {path = "../../dubbo", version = "0.3.0" }
+dubbo = {path = "../../dubbo"}
 dubbo-config = {path = "../../config", version = "0.3.0" }
 registry-zookeeper.workspace=true
 
