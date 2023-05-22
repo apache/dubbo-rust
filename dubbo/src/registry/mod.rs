@@ -60,20 +60,3 @@ impl Debug for BoxRegistry {
         f.write_str("BoxRegistry")
     }
 }
-
-#[derive(Default)]
-pub struct RegistryWrapper {
-    pub registry: Option<Box<dyn Registry>>,
-}
-
-impl Clone for RegistryWrapper {
-    fn clone(&self) -> Self {
-        Self { registry: None }
-    }
-}
-
-impl Debug for RegistryWrapper {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RegistryWrapper").finish()
-    }
-}

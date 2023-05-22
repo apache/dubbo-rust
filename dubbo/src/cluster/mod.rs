@@ -19,6 +19,7 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc, task::Poll};
 
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
+use dyn_clone::DynClone;
 
 use crate::{
     empty_body,
@@ -28,12 +29,13 @@ use crate::{
 
 pub mod directory;
 pub mod loadbalance;
-pub mod support;
 
-pub trait Directory: Debug {
+pub trait Directory: Debug + DynClone {
     fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<BoxInvoker>;
-    fn is_empty(&self) -> bool;
+    // fn is_empty(&self) -> bool;
 }
+
+dyn_clone::clone_trait_object!(Directory);
 
 type BoxDirectory = Box<dyn Directory + Send + Sync>;
 
@@ -76,13 +78,12 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
     }
 
     fn call(&mut self, req: http::Request<SdkBody>) -> Self::Future {
-        println!("req: {}", req.body().content_length().unwrap());
-        let clone_body = req.body().try_clone().unwrap();
-        let mut clone_req = http::Request::builder()
-            .uri(req.uri().clone())
-            .method(req.method().clone());
-        *clone_req.headers_mut().unwrap() = req.headers().clone();
-        let r = clone_req.body(clone_body).unwrap();
+        // let clone_body = req.body().try_clone().unwrap();
+        // let mut clone_req = http::Request::builder()
+        //     .uri(req.uri().clone())
+        //     .method(req.method().clone());
+        // *clone_req.headers_mut().unwrap() = req.headers().clone();
+        // let r = clone_req.body(clone_body).unwrap();
         let invokers = self.dir.list(
             RpcInvocation::default()
                 .with_service_unique_name("hello".to_string())
@@ -90,7 +91,7 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
         );
         for mut invoker in invokers {
             let fut = async move {
-                let res = invoker.call(r).await;
+                let res = invoker.call(req).await;
                 return res;
             };
             return Box::pin(fut);
@@ -110,7 +111,7 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MockDirectory {
     // router_chain: RouterChain,
     invokers: Vec<BoxInvoker>,
@@ -134,9 +135,9 @@ impl Directory for MockDirectory {
         self.invokers.clone()
     }
 
-    fn is_empty(&self) -> bool {
-        false
-    }
+    // fn is_empty(&self) -> bool {
+    //     false
+    // }
 }
 
 #[derive(Debug, Default)]
