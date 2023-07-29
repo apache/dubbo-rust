@@ -15,27 +15,24 @@
  * limitations under the License.
  */
 
-use std::{collections::HashMap, fmt::Debug, sync::Arc, task::Poll};
+use std::{fmt::Debug, sync::Arc, task::Poll};
 
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
-use dyn_clone::DynClone;
+use futures_util::TryFutureExt;
+use tower::ready_cache::ReadyCache;
 
 use crate::{
-    empty_body,
     invocation::RpcInvocation,
-    protocol::{BoxInvoker, Invoker},
+    protocol::{triple::triple_invoker::TripleInvoker, BoxInvoker, Invoker},
 };
 
 pub mod directory;
 pub mod loadbalance;
 
-pub trait Directory: Debug + DynClone {
+pub trait Directory: Debug {
     fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<BoxInvoker>;
-    // fn is_empty(&self) -> bool;
 }
-
-dyn_clone::clone_trait_object!(Directory);
 
 type BoxDirectory = Box<dyn Directory + Send + Sync>;
 
@@ -51,14 +48,20 @@ impl Cluster for MockCluster {
         Box::new(FailoverCluster::new(dir))
     }
 }
-#[derive(Clone, Debug)]
+
+// 在Cluster上进行缓存Service
+#[derive(Debug)]
 pub struct FailoverCluster {
     dir: Arc<BoxDirectory>,
+    caches: ReadyCache<usize, BoxInvoker, http::Request<SdkBody>>,
 }
 
 impl FailoverCluster {
     pub fn new(dir: BoxDirectory) -> FailoverCluster {
-        Self { dir: Arc::new(dir) }
+        Self {
+            dir: Arc::new(dir),
+            caches: ReadyCache::default(),
+        }
     }
 }
 
@@ -89,21 +92,29 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
                 .with_service_unique_name("hello".to_string())
                 .into(),
         );
-        for mut invoker in invokers {
-            let fut = async move {
-                let res = invoker.call(req).await;
-                return res;
-            };
-            return Box::pin(fut);
+        let mut i: usize = 0;
+        for invoker in invokers {
+            self.caches.push(i, invoker);
+            i += 1;
         }
-        Box::pin(async move {
-            Ok(http::Response::builder()
-                .status(200)
-                .header("grpc-status", "12")
-                .header("content-type", "application/grpc")
-                .body(empty_body())
-                .unwrap())
-        })
+
+        Box::pin(self.caches.call_ready_index(0, req).map_err(Into::into))
+
+        // let fut = async move {
+        //     let (_, invoker) = self.caches.get_ready_index_mut(i).unwrap();
+        //     let res = invoker.call(req).await;
+        //     return res;
+        // };
+        // return Box::pin(fut);
+
+        // Box::pin(async move {
+        //     Ok(http::Response::builder()
+        //         .status(200)
+        //         .header("grpc-status", "12")
+        //         .header("content-type", "application/grpc")
+        //         .body(empty_body())
+        //         .unwrap())
+        // })
     }
 
     fn get_url(&self) -> dubbo_base::Url {
@@ -111,17 +122,15 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub struct MockDirectory {
     // router_chain: RouterChain,
-    invokers: Vec<BoxInvoker>,
 }
 
 impl MockDirectory {
-    pub fn new(invokers: Vec<BoxInvoker>) -> MockDirectory {
+    pub fn new() -> MockDirectory {
         Self {
             // router_chain: RouterChain::default(),
-            invokers,
         }
     }
 }
@@ -129,51 +138,32 @@ impl MockDirectory {
 impl Directory for MockDirectory {
     fn list(&self, _invo: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
         // tracing::info!("MockDirectory: {}", meta);
-        let _u = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter").unwrap();
-        // vec![Box::new(TripleInvoker::new(u))]
+        let u = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter").unwrap();
+        vec![Box::new(TripleInvoker::new(u))]
         // self.router_chain.route(u, invo);
-        self.invokers.clone()
-    }
-
-    // fn is_empty(&self) -> bool {
-    //     false
-    // }
-}
-
-#[derive(Debug, Default)]
-pub struct RouterChain {
-    router: HashMap<String, BoxRouter>,
-    invokers: Vec<BoxInvoker>,
-}
-
-impl RouterChain {
-    pub fn route(&self, url: Url, invo: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
-        let r = self.router.get("mock").unwrap();
-        r.route(self.invokers.clone(), url, invo)
     }
 }
 
-pub trait Router: Debug {
-    fn route(
-        &self,
-        invokers: Vec<BoxInvoker>,
-        url: Url,
-        invo: Arc<RpcInvocation>,
-    ) -> Vec<BoxInvoker>;
-}
+// #[derive(Debug, Default)]
+// pub struct RouterChain {
+//     router: HashMap<String, BoxRouter>,
+//     invokers: Arc<Vec<BoxInvoker>>,
+// }
 
-pub type BoxRouter = Box<dyn Router + Sync + Send>;
+// impl RouterChain {
+//     pub fn route(&mut self, url: Url, invo: Arc<RpcInvocation>) -> Arc<Vec<BoxInvoker>> {
+//         let r = self.router.get("mock").unwrap();
+//         r.route(self.invokers.clone(), url, invo)
+//     }
+// }
 
-#[derive(Debug, Default)]
-pub struct MockRouter {}
+// pub trait Router: Debug {
+//     fn route(
+//         &self,
+//         invokers: Arc<Vec<BoxInvoker>>,
+//         url: Url,
+//         invo: Arc<RpcInvocation>,
+//     ) -> Arc<Vec<BoxInvoker>>;
+// }
 
-impl Router for MockRouter {
-    fn route(
-        &self,
-        invokers: Vec<BoxInvoker>,
-        _url: Url,
-        _invo: Arc<RpcInvocation>,
-    ) -> Vec<BoxInvoker> {
-        invokers
-    }
-}
+// pub type BoxRouter = Box<dyn Router + Sync + Send>;
