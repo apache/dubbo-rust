@@ -21,14 +21,11 @@ use crate::{
     cluster::{directory::StaticDirectory, Cluster, Directory, MockCluster, MockDirectory},
     codegen::{RegistryDirectory, RpcInvocation, TripleInvoker},
     protocol::BoxInvoker,
-    triple::compression::CompressionEncoding,
     utils::boxed_clone::BoxCloneService,
 };
 
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
-
-use super::TripleClient;
 
 pub type ClientBoxService =
     BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
@@ -37,7 +34,7 @@ pub type ClientBoxService =
 pub struct ClientBuilder {
     pub timeout: Option<u64>,
     pub connector: &'static str,
-    directory: Option<Box<dyn Directory>>,
+    directory: Option<Arc<Box<dyn Directory>>>,
     pub direct: bool,
     host: String,
 }
@@ -57,7 +54,7 @@ impl ClientBuilder {
         Self {
             timeout: None,
             connector: "",
-            directory: Some(Box::new(StaticDirectory::new(&host))),
+            directory: Some(Arc::new(Box::new(StaticDirectory::new(&host)))),
             direct: true,
             host: host.clone().to_string(),
         }
@@ -73,21 +70,21 @@ impl ClientBuilder {
     /// host: http://0.0.0.0:8888
     pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
         Self {
-            directory: Some(directory),
+            directory: Some(Arc::new(directory)),
             ..self
         }
     }
 
     pub fn with_registry_directory(self, registry: RegistryDirectory) -> Self {
         Self {
-            directory: Some(Box::new(registry)),
+            directory: Some(Arc::new(Box::new(registry))),
             ..self
         }
     }
 
     pub fn with_host(self, host: &'static str) -> Self {
         Self {
-            directory: Some(Box::new(StaticDirectory::new(&host))),
+            directory: Some(Arc::new(Box::new(StaticDirectory::new(&host)))),
             ..self
         }
     }
@@ -103,30 +100,14 @@ impl ClientBuilder {
         Self { direct, ..self }
     }
 
-    pub(crate) fn direct_build(self) -> TripleClient {
-        let mut cli = TripleClient {
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-            builder: Some(self.clone()),
-            invoker: None,
-        };
-        cli.invoker = Some(Box::new(TripleInvoker::new(
-            Url::from_url(&self.host).unwrap(),
-        )));
-        return cli;
-    }
-
-    pub fn build(self, invocation: Arc<RpcInvocation>) -> Option<BoxInvoker> {
+    pub fn build(self, _invocation: Arc<RpcInvocation>) -> Option<BoxInvoker> {
         if self.direct {
             return Some(Box::new(TripleInvoker::new(
                 Url::from_url(&self.host).unwrap(),
             )));
         }
-        let invokers = match self.directory {
-            Some(v) => v.list(invocation),
-            None => panic!("use direct connection"),
-        };
 
-        let cluster = MockCluster::default().join(Box::new(MockDirectory::new(invokers)));
+        let cluster = MockCluster::default().join(Box::new(MockDirectory::new()));
 
         return Some(cluster);
     }
