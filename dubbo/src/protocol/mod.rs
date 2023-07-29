@@ -17,7 +17,6 @@
 
 use std::{
     fmt::Debug,
-    future::Future,
     task::{Context, Poll},
 };
 
@@ -43,18 +42,8 @@ pub trait Exporter {
     fn unexport(&self);
 }
 
-pub trait Invoker<ReqBody>: Debug {
-    type Response;
-
-    type Error;
-
-    type Future: Future<Output = Result<Self::Response, Self::Error>>;
-
+pub trait Invoker<ReqBody>: Debug + Service<ReqBody> {
     fn get_url(&self) -> Url;
-
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>>;
-
-    fn call(&mut self, req: ReqBody) -> Self::Future;
 }
 
 pub type BoxExporter = Box<dyn Exporter + Send + Sync>;
@@ -67,22 +56,6 @@ pub type BoxInvoker = Box<
         > + Send
         + Sync,
 >;
-
-impl Service<http::Request<SdkBody>> for BoxInvoker {
-    type Response = http::Response<crate::BoxBody>;
-
-    type Error = crate::Error;
-
-    type Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>;
-
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.poll_ready(cx)
-    }
-
-    fn call(&mut self, req: http::Request<SdkBody>) -> Self::Future {
-        self.call(req)
-    }
-}
 
 pub struct WrapperInvoker<T>(T);
 

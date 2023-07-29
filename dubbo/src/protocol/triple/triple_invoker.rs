@@ -51,16 +51,12 @@ impl Debug for TripleInvoker {
     }
 }
 
-impl Invoker<http::Request<SdkBody>> for TripleInvoker {
+impl Service<http::Request<SdkBody>> for TripleInvoker {
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
 
     type Future = crate::BoxFuture<Self::Response, Self::Error>;
-
-    fn get_url(&self) -> Url {
-        self.url.clone()
-    }
 
     fn call(&mut self, req: http::Request<SdkBody>) -> Self::Future {
         self.conn.call(req)
@@ -71,5 +67,11 @@ impl Invoker<http::Request<SdkBody>> for TripleInvoker {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
         self.conn.poll_ready(cx)
+    }
+}
+
+impl Invoker<http::Request<SdkBody>> for TripleInvoker {
+    fn get_url(&self) -> Url {
+        self.url.clone()
     }
 }

@@ -21,6 +21,7 @@ use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
 use futures_util::TryFutureExt;
 use tower::ready_cache::ReadyCache;
+use tower_service::Service;
 
 use crate::{
     invocation::RpcInvocation,
@@ -65,7 +66,7 @@ impl FailoverCluster {
     }
 }
 
-impl Invoker<http::Request<SdkBody>> for FailoverCluster {
+impl Service<http::Request<SdkBody>> for FailoverCluster {
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
@@ -99,24 +100,10 @@ impl Invoker<http::Request<SdkBody>> for FailoverCluster {
         }
 
         Box::pin(self.caches.call_ready_index(0, req).map_err(Into::into))
-
-        // let fut = async move {
-        //     let (_, invoker) = self.caches.get_ready_index_mut(i).unwrap();
-        //     let res = invoker.call(req).await;
-        //     return res;
-        // };
-        // return Box::pin(fut);
-
-        // Box::pin(async move {
-        //     Ok(http::Response::builder()
-        //         .status(200)
-        //         .header("grpc-status", "12")
-        //         .header("content-type", "application/grpc")
-        //         .body(empty_body())
-        //         .unwrap())
-        // })
     }
+}
 
+impl Invoker<http::Request<SdkBody>> for FailoverCluster {
     fn get_url(&self) -> dubbo_base::Url {
         Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter").unwrap()
     }
