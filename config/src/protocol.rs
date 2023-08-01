@@ -77,10 +77,26 @@ impl ProtocolRetrieve for ProtocolConfig {
         } else {
             let result = self.get_protocol(protocol_key);
             if let Some(..) = result {
-                panic!("default triple base dose not defined.")
-            } else {
                 result.unwrap()
+            } else {
+                panic!("default triple base dose not defined.")
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::{ProtocolConfig, ProtocolRetrieve};
+
+    #[test]
+    #[should_panic(expected = "default triple base dose not defined")]
+    pub fn test_get_invalid_protocol() {
+        let config = ProtocolConfig::default();
+
+        let _ = config.get_protocol_or_default("");
+
+        ()
     }
 }

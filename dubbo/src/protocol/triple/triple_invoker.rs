@@ -17,24 +17,32 @@
 
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    str::FromStr,
+};
 use tower_service::Service;
 
-use crate::{protocol::Invoker, triple::client::builder::ClientBoxService};
+use crate::{
+    protocol::Invoker,
+    triple::{client::builder::ClientBoxService, transport::connection::Connection},
+    utils::boxed_clone::BoxCloneService,
+};
 
+#[derive(Clone)]
 pub struct TripleInvoker {
     url: Url,
     conn: ClientBoxService,
 }
 
 impl TripleInvoker {
-    // pub fn new(url: Url) -> TripleInvoker {
-    //     let uri = http::Uri::from_str(&url.to_url()).unwrap();
-    //     Self {
-    //         url,
-    //         conn: ClientBuilder::from_uri(&uri).build()connect(),
-    //     }
-    // }
+    pub fn new(url: Url) -> TripleInvoker {
+        let uri = http::Uri::from_str(&url.to_url()).unwrap();
+        Self {
+            url,
+            conn: BoxCloneService::new(Connection::new().with_host(uri)),
+        }
+    }
 }
 
 impl Debug for TripleInvoker {
@@ -43,16 +51,12 @@ impl Debug for TripleInvoker {
     }
 }
 
-impl Invoker<http::Request<SdkBody>> for TripleInvoker {
+impl Service<http::Request<SdkBody>> for TripleInvoker {
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
 
     type Future = crate::BoxFuture<Self::Response, Self::Error>;
-
-    fn get_url(&self) -> Url {
-        self.url.clone()
-    }
 
     fn call(&mut self, req: http::Request<SdkBody>) -> Self::Future {
         self.conn.call(req)
@@ -63,5 +67,11 @@ impl Invoker<http::Request<SdkBody>> for TripleInvoker {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
         self.conn.poll_ready(cx)
+    }
+}
+
+impl Invoker<http::Request<SdkBody>> for TripleInvoker {
+    fn get_url(&self) -> Url {
+        self.url.clone()
     }
 }

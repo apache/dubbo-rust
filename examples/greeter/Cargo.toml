@@ -29,7 +29,7 @@ prost = "0.10.4"
 async-trait = "0.1.56"
 tokio-stream = "0.1"
 dubbo-logger = { path = "../../common/logger" }
-dubbo = { path = "../../dubbo", version = "0.3.0" }
+dubbo = { path = "../../dubbo"}
 dubbo-config = { path = "../../config", version = "0.3.0" }
 registry-zookeeper.workspace = true
 registry-nacos.workspace = true

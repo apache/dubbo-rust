@@ -23,39 +23,21 @@ use std::{
 };
 
 use crate::{
+    codegen::TripleInvoker,
     invocation::{Invocation, RpcInvocation},
-    registry::{memory_registry::MemoryNotifyListener, BoxRegistry, RegistryWrapper},
+    protocol::BoxInvoker,
+    registry::{memory_registry::MemoryNotifyListener, BoxRegistry},
 };
 use dubbo_base::Url;
 use dubbo_logger::tracing;
 
+use crate::cluster::Directory;
+
 /// Directory.
 ///
 /// [Directory Service](http://en.wikipedia.org/wiki/Directory_service)
-pub trait Directory: Debug + DirectoryClone {
-    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<Url>;
-}
 
-pub trait DirectoryClone {
-    fn clone_box(&self) -> Box<dyn Directory>;
-}
-
-impl<T> DirectoryClone for T
-where
-    T: 'static + Directory + Clone,
-{
-    fn clone_box(&self) -> Box<dyn Directory> {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for Box<dyn Directory> {
-    fn clone(&self) -> Box<dyn Directory> {
-        self.clone_box()
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StaticDirectory {
     uri: http::Uri,
 }
@@ -78,7 +60,7 @@ impl StaticDirectory {
 }
 
 impl Directory for StaticDirectory {
-    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<Url> {
+    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
         let url = Url::from_url(&format!(
             "tri://{}:{}/{}",
             self.uri.host().unwrap(),
@@ -86,43 +68,28 @@ impl Directory for StaticDirectory {
             invocation.get_target_service_unique_name(),
         ))
         .unwrap();
-        vec![url]
+        let invoker = Box::new(TripleInvoker::new(url));
+        vec![invoker]
     }
 }
 
-impl DirectoryClone for StaticDirectory {
-    fn clone_box(&self) -> Box<dyn Directory> {
-        Box::new(StaticDirectory {
-            uri: self.uri.clone(),
-        })
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RegistryDirectory {
-    registry: RegistryWrapper,
+    registry: Arc<BoxRegistry>,
     service_instances: Arc<RwLock<HashMap<String, Vec<Url>>>>,
 }
 
 impl RegistryDirectory {
     pub fn new(registry: BoxRegistry) -> RegistryDirectory {
         RegistryDirectory {
-            registry: RegistryWrapper {
-                registry: Some(registry),
-            },
+            registry: Arc::new(registry),
             service_instances: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
 
-impl DirectoryClone for RegistryDirectory {
-    fn clone_box(&self) -> Box<dyn Directory> {
-        todo!()
-    }
-}
-
 impl Directory for RegistryDirectory {
-    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<Url> {
+    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
         let service_name = invocation.get_target_service_unique_name();
 
         let url = Url::from_url(&format!(
@@ -132,9 +99,6 @@ impl Directory for RegistryDirectory {
         .unwrap();
 
         self.registry
-            .registry
-            .as_ref()
-            .expect("msg")
             .subscribe(
                 url,
                 Arc::new(MemoryNotifyListener {
@@ -149,6 +113,11 @@ impl Directory for RegistryDirectory {
             .expect("service_instances.read");
         let binding = Vec::new();
         let url_vec = map.get(&service_name).unwrap_or(&binding);
-        url_vec.to_vec()
+        // url_vec.to_vec()
+        let mut invokers: Vec<BoxInvoker> = vec![];
+        for item in url_vec.iter() {
+            invokers.push(Box::new(TripleInvoker::new(item.clone())));
+        }
+        invokers
     }
 }
