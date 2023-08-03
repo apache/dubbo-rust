@@ -30,6 +30,8 @@ use crate::{
     BoxBody,
 };
 use dubbo_config::BusinessConfig;
+use crate::triple::decode_json::DecodingJSON;
+use crate::triple::encode_json::encode_server_json;
 
 pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";
 pub const GRPC_ENCODING: &str = "grpc-encoding";
@@ -254,6 +256,42 @@ where
                 .headers
                 .insert(GRPC_ENCODING, encoding.into_header_value());
         }
+        parts.status = http::StatusCode::OK;
+        http::Response::from_parts(parts, BoxBody::new(resp_body))
+    }
+
+    pub async fn unary_for_curl<S, B>(
+        &mut self,
+        mut service: S,
+        req: http::Request<B>,
+    ) -> http::Response<BoxBody>
+        where
+            S: UnarySvc<T::Decode, Response=T::Encode>,
+            B: Body + Send + 'static,
+            B::Error: Into<crate::Error> + Send,
+    {
+        let req_stream = req.map(|body| DecodingJSON::new(body, self.codec.decoder()));
+        let (parts, mut body) = Request::from_http(req_stream).into_parts();
+        let msg = body.try_next().await.unwrap().ok_or_else(|| {
+            crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
+        });
+        let msg = match msg {
+            Ok(v) => v,
+            Err(err) => return err.to_http(),
+        };
+        let resp = service.call(Request::from_parts(parts, msg)).await;
+        let (mut parts, resp_body) = match resp {
+            Ok(v) => v.into_http().into_parts(),
+            Err(err) => return err.to_http(),
+        };
+        let resp_body = encode_server_json(
+            self.codec.encoder(),
+            stream::once(future::ready(resp_body)).map(Ok).into_stream(),
+        );
+        parts.headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("application/json"),
+        );
         parts.status = http::StatusCode::OK;
         http::Response::from_parts(parts, BoxBody::new(resp_body))
     }

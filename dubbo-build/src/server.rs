@@ -330,7 +330,7 @@ fn generate_unary<T: Method>(
     method_ident: Ident,
     server_trait: Ident,
 ) -> TokenStream {
-    let codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
+    // let codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
 
     let service_ident = quote::format_ident!("{}Server", method.identifier());
 
@@ -355,16 +355,28 @@ fn generate_unary<T: Method>(
             }
         }
 
-        let fut = async move {
-            let mut server = TripleServer::new(
-                #codec_name::<#response, #request>::default()
-            );
-
-            let res = server.unary(#service_ident { inner }, req).await;
-            Ok(res)
-        };
-
-        Box::pin(fut)
+        let content_type= req.headers().get("content-type").unwrap().to_str().unwrap();
+        if content_type == "application/json" {
+            let codec = dubbo::codegen::SerdeCodec::<
+            #response, #request
+            >::default();
+            let fut = async move {
+                let mut server = TripleServer::new(codec);
+                let res = server.unary_for_curl(#service_ident { inner }, req).await;
+                Ok(res)
+            };
+            Box::pin(fut)
+        } else {
+            let codec = dubbo::codegen::ProstCodec::<
+            #response, #request
+            >::default();
+            let fut = async move {
+                let mut server = TripleServer::new(codec);
+                let res = server.unary(#service_ident { inner }, req).await;
+                Ok(res)
+            };
+            Box::pin(fut)
+        }
     }
 }
 
