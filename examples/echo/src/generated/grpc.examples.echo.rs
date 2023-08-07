@@ -290,8 +290,7 @@ pub mod echo_server {
                         fn call(
                             &mut self,
                             request: Request<Decoding<super::EchoRequest>>,
-                        ) -> Self::Future {prost-serde = "0.3.0"
-prost-serde-derive = "0.1.2"
+                        ) -> Self::Future {
                             let inner = self.inner.0.clone();
                             let fut = async move {
                                 inner.client_streaming_echo(request).await
