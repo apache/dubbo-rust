@@ -336,6 +336,7 @@ fn generate_unary<T: Method>(
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
 
+
     quote! {
         #[allow(non_camel_case_types)]
         struct #service_ident<T: #server_trait > {
@@ -354,29 +355,12 @@ fn generate_unary<T: Method>(
                 Box::pin(fut)
             }
         }
-
-        let content_type= req.headers().get("content-type").unwrap().to_str().unwrap();
-        if content_type == "application/json" {
-            let codec = dubbo::codegen::SerdeCodec::<
-            #response, #request
-            >::default();
-            let fut = async move {
-                let mut server = TripleServer::new(codec);
-                let res = server.unary_for_curl(#service_ident { inner }, req).await;
-                Ok(res)
-            };
-            Box::pin(fut)
-        } else {
-            let codec = dubbo::codegen::ProstCodec::<
-            #response, #request
-            >::default();
-            let fut = async move {
-                let mut server = TripleServer::new(codec);
-                let res = server.unary(#service_ident { inner }, req).await;
-                Ok(res)
-            };
-            Box::pin(fut)
-        }
+        let fut = async move {
+            let mut server = TripleServer::<#request,#response>::new();
+            let res = server.unary(#service_ident { inner }, req).await;
+            Ok(res)
+        };
+        Box::pin(fut)
     }
 }
 
@@ -387,7 +371,7 @@ fn generate_server_streaming<T: Method>(
     method_ident: Ident,
     server_trait: Ident,
 ) -> TokenStream {
-    let codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
+    let _codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
 
     let service_ident = quote::format_ident!("{}Server", method.identifier());
 
@@ -414,12 +398,8 @@ fn generate_server_streaming<T: Method>(
                 Box::pin(fut)
             }
         }
-
         let fut = async move {
-            let mut server = TripleServer::new(
-                #codec_name::<#response, #request>::default()
-            );
-
+            let mut server = TripleServer::<#request,#response>::new();
             let res = server.server_streaming(#service_ident { inner }, req).await;
             Ok(res)
         };
@@ -438,7 +418,7 @@ fn generate_client_streaming<T: Method>(
     let service_ident = quote::format_ident!("{}Server", method.identifier());
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
-    let codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
+    let _codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
 
     quote! {
         #[allow(non_camel_case_types)]
@@ -462,10 +442,7 @@ fn generate_client_streaming<T: Method>(
         }
 
         let fut = async move {
-            let mut server = TripleServer::new(
-                #codec_name::<#response, #request>::default()
-            );
-
+            let mut server = TripleServer::<#request,#response>::new();
             let res = server.client_streaming(#service_ident { inner }, req).await;
             Ok(res)
         };
@@ -481,7 +458,7 @@ fn generate_streaming<T: Method>(
     method_ident: Ident,
     server_trait: Ident,
 ) -> TokenStream {
-    let codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
+    let _codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
 
     let service_ident = quote::format_ident!("{}Server", method.identifier());
 
@@ -511,10 +488,7 @@ fn generate_streaming<T: Method>(
         }
 
         let fut = async move {
-            let mut server = TripleServer::new(
-                #codec_name::<#response, #request>::default()
-            );
-
+            let mut server = TripleServer::<#request,#response>::new();
             let res = server.bidi_streaming(#service_ident { inner }, req).await;
             Ok(res)
         };

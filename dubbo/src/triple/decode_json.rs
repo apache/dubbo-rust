@@ -126,7 +126,6 @@ impl<T> Stream for DecodingJSON<T> {
             }
         }
 
-
         Poll::Ready(None)
     }
 

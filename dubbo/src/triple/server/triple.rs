@@ -17,6 +17,8 @@
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http_body::Body;
+use prost::Message;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     invocation::Request,
@@ -30,39 +32,44 @@ use crate::{
     BoxBody,
 };
 use dubbo_config::BusinessConfig;
+use crate::codegen::{ProstCodec, SerdeCodec};
 use crate::triple::decode_json::DecodingJSON;
 use crate::triple::encode_json::encode_server_json;
 
 pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";
 pub const GRPC_ENCODING: &str = "grpc-encoding";
 
-pub struct TripleServer<T> {
-    codec: T,
+pub struct TripleServer<T, V>
+{
+    prost_codec: ProstCodec<V, T>,
+    serde_codec: SerdeCodec<V, T>,
     compression: Option<CompressionEncoding>,
 }
 
-impl<T> TripleServer<T> {
-    pub fn new(codec: T) -> Self {
+impl<T, V> TripleServer<T, V> {
+    pub fn new() -> Self {
         Self {
-            codec,
+            prost_codec: ProstCodec::default(),
+            serde_codec: SerdeCodec::default(),
             compression: None,
         }
     }
 }
 
-impl<T> TripleServer<T>
-where
-    T: Codec,
+impl<T, V> TripleServer<T, V>
+    where
+        T: Message + for<'a> Deserialize<'a> + Default + 'static,
+        V: Message + Serialize + Default + 'static
 {
     pub async fn client_streaming<S, B>(
         &mut self,
         mut service: S,
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
-    where
-        S: ClientStreamingSvc<T::Decode, Response = T::Encode>,
-        B: Body + Send + 'static,
-        B::Error: Into<crate::Error> + Send,
+        where
+            S: ClientStreamingSvc<T, Response=V>,
+            B: Body + Send + 'static,
+            B::Error: Into<crate::Error> + Send,
     {
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
         if self.compression.is_none() || accept_encoding.is_none() {
@@ -75,7 +82,7 @@ where
             Err(status) => return status.to_http(),
         };
 
-        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
+        let req_stream = req.map(|body| Decoding::new(body, self.prost_codec.decoder(), compression));
 
         let resp = service.call(Request::from_http(req_stream)).await;
 
@@ -85,7 +92,7 @@ where
         };
 
         let resp_body = encode_server(
-            self.codec.encoder(),
+            self.prost_codec.encoder(),
             stream::once(future::ready(resp_body)).map(Ok).into_stream(),
             accept_encoding,
         );
@@ -108,11 +115,11 @@ where
         mut service: S,
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
-    where
-        S: StreamingSvc<T::Decode, Response = T::Encode>,
-        S::ResponseStream: Send + 'static,
-        B: Body + Send + 'static,
-        B::Error: Into<crate::Error> + Send,
+        where
+            S: StreamingSvc<T, Response=V>,
+            S::ResponseStream: Send + 'static,
+            B: Body + Send + 'static,
+            B::Error: Into<crate::Error> + Send,
     {
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
@@ -127,7 +134,7 @@ where
             Err(status) => return status.to_http(),
         };
 
-        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
+        let req_stream = req.map(|body| Decoding::new(body, self.prost_codec.decoder(), compression));
 
         let resp = service.call(Request::from_http(req_stream)).await;
 
@@ -135,7 +142,7 @@ where
             Ok(v) => v.into_http().into_parts(),
             Err(err) => return err.to_http(),
         };
-        let resp_body = encode_server(self.codec.encoder(), resp_body, compression);
+        let resp_body = encode_server(self.prost_codec.encoder(), resp_body, compression);
 
         parts.headers.insert(
             http::header::CONTENT_TYPE,
@@ -155,11 +162,11 @@ where
         mut service: S,
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
-    where
-        S: ServerStreamingSvc<T::Decode, Response = T::Encode>,
-        S::ResponseStream: Send + 'static,
-        B: Body + Send + 'static,
-        B::Error: Into<crate::Error> + Send,
+        where
+            S: ServerStreamingSvc<T, Response=V>,
+            S::ResponseStream: Send + 'static,
+            B: Body + Send + 'static,
+            B::Error: Into<crate::Error> + Send,
     {
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
@@ -174,7 +181,7 @@ where
             Err(status) => return status.to_http(),
         };
 
-        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
+        let req_stream = req.map(|body| Decoding::new(body, self.prost_codec.decoder(), compression));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
         let msg = body.try_next().await.unwrap().ok_or_else(|| {
             crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
@@ -190,7 +197,7 @@ where
             Ok(v) => v.into_http().into_parts(),
             Err(err) => return err.to_http(),
         };
-        let resp_body = encode_server(self.codec.encoder(), resp_body, compression);
+        let resp_body = encode_server(self.prost_codec.encoder(), resp_body, compression);
 
         parts.headers.insert(
             http::header::CONTENT_TYPE,
@@ -210,90 +217,81 @@ where
         mut service: S,
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
-    where
-        S: UnarySvc<T::Decode, Response = T::Encode>,
-        B: Body + Send + 'static,
-        B::Error: Into<crate::Error> + Send,
-    {
-        let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
-        if self.compression.is_none() || accept_encoding.is_none() {
-            accept_encoding = None;
-        }
-
-        let compression = match self.get_encoding_from_req(req.headers()) {
-            Ok(val) => val,
-            Err(status) => return status.to_http(),
-        };
-
-        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
-        let (parts, mut body) = Request::from_http(req_stream).into_parts();
-        let msg = body.try_next().await.unwrap().ok_or_else(|| {
-            crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
-        });
-        let msg = match msg {
-            Ok(v) => v,
-            Err(err) => return err.to_http(),
-        };
-
-        let resp = service.call(Request::from_parts(parts, msg)).await;
-
-        let (mut parts, resp_body) = match resp {
-            Ok(v) => v.into_http().into_parts(),
-            Err(err) => return err.to_http(),
-        };
-        let resp_body = encode_server(
-            self.codec.encoder(),
-            stream::once(future::ready(resp_body)).map(Ok).into_stream(),
-            accept_encoding,
-        );
-
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/grpc"),
-        );
-        if let Some(encoding) = accept_encoding {
-            parts
-                .headers
-                .insert(GRPC_ENCODING, encoding.into_header_value());
-        }
-        parts.status = http::StatusCode::OK;
-        http::Response::from_parts(parts, BoxBody::new(resp_body))
-    }
-
-    pub async fn unary_for_curl<S, B>(
-        &mut self,
-        mut service: S,
-        req: http::Request<B>,
-    ) -> http::Response<BoxBody>
         where
-            S: UnarySvc<T::Decode, Response=T::Encode>,
+            S: UnarySvc<T, Response=V>,
             B: Body + Send + 'static,
             B::Error: Into<crate::Error> + Send,
     {
-        let req_stream = req.map(|body| DecodingJSON::new(body, self.codec.decoder()));
-        let (parts, mut body) = Request::from_http(req_stream).into_parts();
-        let msg = body.try_next().await.unwrap().ok_or_else(|| {
-            crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
-        });
-        let msg = match msg {
-            Ok(v) => v,
-            Err(err) => return err.to_http(),
-        };
-        let resp = service.call(Request::from_parts(parts, msg)).await;
-        let (mut parts, resp_body) = match resp {
-            Ok(v) => v.into_http().into_parts(),
-            Err(err) => return err.to_http(),
-        };
-        let resp_body = encode_server_json(
-            self.codec.encoder(),
-            stream::once(future::ready(resp_body)).map(Ok).into_stream(),
-        );
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/json"),
-        );
-        parts.status = http::StatusCode::OK;
-        http::Response::from_parts(parts, BoxBody::new(resp_body))
+        if req.headers().get("content-type").unwrap() == "application/json" {
+            let req_stream = req.map(|body| DecodingJSON::new(body, self.serde_codec.decoder()));
+            let (parts, mut body) = Request::from_http(req_stream).into_parts();
+            let msg = body.try_next().await.unwrap().ok_or_else(|| {
+                crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
+            });
+            let msg = match msg {
+                Ok(v) => v,
+                Err(err) => return err.to_http(),
+            };
+            let resp = service.call(Request::from_parts(parts, msg)).await;
+            let (mut parts, resp_body) = match resp {
+                Ok(v) => v.into_http().into_parts(),
+                Err(err) => return err.to_http(),
+            };
+
+            let resp_body = encode_server_json(
+                self.serde_codec.encoder(),
+                stream::once(future::ready(resp_body)).map(Ok).into_stream(),
+            );
+            parts.headers.insert(
+                http::header::CONTENT_TYPE,
+                http::HeaderValue::from_static("application/json"),
+            );
+            parts.status = http::StatusCode::OK;
+            http::Response::from_parts(parts, BoxBody::new(resp_body))
+        } else {
+            let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+            if self.compression.is_none() || accept_encoding.is_none() {
+                accept_encoding = None;
+            }
+
+            let compression = match self.get_encoding_from_req(req.headers()) {
+                Ok(val) => val,
+                Err(status) => return status.to_http(),
+            };
+            let req_stream = req.map(|body| Decoding::new(body, self.prost_codec.decoder(), compression));
+            let (parts, mut body) = Request::from_http(req_stream).into_parts();
+            let msg = body.try_next().await.unwrap().ok_or_else(|| {
+                crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
+            });
+            let msg = match msg {
+                Ok(v) => v,
+                Err(err) => return err.to_http(),
+            };
+
+            let resp = service.call(Request::from_parts(parts, msg)).await;
+
+            let (mut parts, resp_body) = match resp {
+                Ok(v) => v.into_http().into_parts(),
+                Err(err) => return err.to_http(),
+            };
+            let resp_body = encode_server(
+                self.prost_codec.encoder(),
+                stream::once(future::ready(resp_body)).map(Ok).into_stream(),
+                accept_encoding,
+            );
+
+            parts.headers.insert(
+                http::header::CONTENT_TYPE,
+                http::HeaderValue::from_static("application/grpc"),
+            );
+            if let Some(encoding) = accept_encoding {
+                parts
+                    .headers
+                    .insert(GRPC_ENCODING, encoding.into_header_value());
+            }
+            parts.status = http::StatusCode::OK;
+            http::Response::from_parts(parts, BoxBody::new(resp_body))
+        }
     }
 
     fn get_encoding_from_req(
@@ -320,7 +318,7 @@ where
     }
 }
 
-impl<T> BusinessConfig for TripleServer<T> {
+impl<T, V> BusinessConfig for TripleServer<T, V> {
     fn init() -> Self {
         todo!()
     }

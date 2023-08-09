@@ -205,37 +205,15 @@ pub mod echo_server {
                             Box::pin(fut)
                         }
                     }
-                    let content_type = req
-                        .headers()
-                        .get("content-type")
-                        .unwrap()
-                        .to_str()
-                        .unwrap();
-                    if content_type == "application/json" {
-                        let codec = dubbo::codegen::SerdeCodec::<
-                            super::EchoResponse,
+                    let fut = async move {
+                        let mut server = TripleServer::<
                             super::EchoRequest,
-                        >::default();
-                        let fut = async move {
-                            let mut server = TripleServer::new(codec);
-                            let res = server
-                                .unary_for_curl(UnaryEchoServer { inner }, req)
-                                .await;
-                            Ok(res)
-                        };
-                        Box::pin(fut)
-                    } else {
-                        let codec = dubbo::codegen::ProstCodec::<
                             super::EchoResponse,
-                            super::EchoRequest,
-                        >::default();
-                        let fut = async move {
-                            let mut server = TripleServer::new(codec);
-                            let res = server.unary(UnaryEchoServer { inner }, req).await;
-                            Ok(res)
-                        };
-                        Box::pin(fut)
-                    }
+                        >::new();
+                        let res = server.unary(UnaryEchoServer { inner }, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
                 }
                 "/grpc.examples.echo.Echo/ServerStreamingEcho" => {
                     #[allow(non_camel_case_types)]
@@ -262,12 +240,10 @@ pub mod echo_server {
                         }
                     }
                     let fut = async move {
-                        let mut server = TripleServer::new(
-                            dubbo::codegen::ProstCodec::<
-                                super::EchoResponse,
-                                super::EchoRequest,
-                            >::default(),
-                        );
+                        let mut server = TripleServer::<
+                            super::EchoRequest,
+                            super::EchoResponse,
+                        >::new();
                         let res = server
                             .server_streaming(ServerStreamingEchoServer { inner }, req)
                             .await;
@@ -299,12 +275,10 @@ pub mod echo_server {
                         }
                     }
                     let fut = async move {
-                        let mut server = TripleServer::new(
-                            dubbo::codegen::ProstCodec::<
-                                super::EchoResponse,
-                                super::EchoRequest,
-                            >::default(),
-                        );
+                        let mut server = TripleServer::<
+                            super::EchoRequest,
+                            super::EchoResponse,
+                        >::new();
                         let res = server
                             .client_streaming(ClientStreamingEchoServer { inner }, req)
                             .await;
@@ -337,12 +311,10 @@ pub mod echo_server {
                         }
                     }
                     let fut = async move {
-                        let mut server = TripleServer::new(
-                            dubbo::codegen::ProstCodec::<
-                                super::EchoResponse,
-                                super::EchoRequest,
-                            >::default(),
-                        );
+                        let mut server = TripleServer::<
+                            super::EchoRequest,
+                            super::EchoResponse,
+                        >::new();
                         let res = server
                             .bidi_streaming(
                                 BidirectionalStreamingEchoServer {
