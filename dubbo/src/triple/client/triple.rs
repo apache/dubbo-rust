@@ -122,12 +122,12 @@ impl TripleClient {
             if let Some(_encoding) = self.send_compression_encoding {
                 req.headers_mut()
                     .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+                req.headers_mut().insert(
+                    "grpc-accept-encoding",
+                    http::HeaderValue::from_static("gzip"),
+                );
             }
         }
-        req.headers_mut().insert(
-            "grpc-accept-encoding",
-            http::HeaderValue::from_static("gzip"),
-        );
 
         // const (
         //     TripleContentType    = "application/grpc+proto"

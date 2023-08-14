@@ -16,11 +16,8 @@
  */
 
 use dubbo::codegen::*;
-use example_echo::generated::generated::{echo_client::EchoClient, EchoRequest, EchoResponse};
+use example_echo::generated::generated::{echo_client::EchoClient, EchoRequest};
 use futures_util::StreamExt;
-use prost::bytes::BytesMut;
-use dubbo::triple::codec::{Decoder, EncodeBuf, Encoder};
-use dubbo::triple::consts::BUFFER_SIZE;
 
 pub struct FakeFilter {}
 
@@ -31,17 +28,6 @@ impl Filter for FakeFilter {
     }
 }
 
-#[test]
-fn test_x(){
-    let message=EchoRequest{
-        message: "hello!".to_string(),
-    };
-    let mut codec =SerdeCodec::<EchoRequest,EchoResponse>::default();
-    let mut byte_buf=BytesMut::with_capacity(BUFFER_SIZE);
-    let mut buf =EncodeBuf::new(&mut byte_buf);
-    let _res=codec.encoder().encode(message, &mut buf);
-    println!("{:?}", buf);
-}
 
 #[tokio::main]
 async fn main() {
