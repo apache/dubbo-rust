@@ -33,26 +33,28 @@ type BoxBody = http_body::combinators::UnsyncBoxBody<Bytes, crate::status::Statu
 pub struct Decoding<T> {
     state: State,
     body: BoxBody,
-    decoder: Box<dyn Decoder<Item = T, Error = crate::status::Status> + Send + 'static>,
+    decoder: Box<dyn Decoder<Item=T, Error=crate::status::Status> + Send + 'static>,
     buf: BytesMut,
     trailers: Option<Metadata>,
     compress: Option<CompressionEncoding>,
     decompress_buf: BytesMut,
+    is_json: bool,
 }
 
 #[derive(PartialEq)]
 enum State {
     ReadHeader,
+    ReadJSON,
     ReadBody { len: usize, is_compressed: bool },
     Error,
 }
 
 impl<T> Decoding<T> {
-    pub fn new<B, D>(body: B, decoder: D, compress: Option<CompressionEncoding>) -> Self
-    where
-        B: Body + Send + 'static,
-        B::Error: Into<crate::Error>,
-        D: Decoder<Item = T, Error = crate::status::Status> + Send + 'static,
+    pub fn new<B, D>(body: B, decoder: D, compress: Option<CompressionEncoding>, is_json: bool) -> Self
+        where
+            B: Body + Send + 'static,
+            B::Error: Into<crate::Error>,
+            D: Decoder<Item=T, Error=crate::status::Status> + Send + 'static,
     {
         Self {
             state: State::ReadHeader,
@@ -70,6 +72,7 @@ impl<T> Decoding<T> {
             trailers: None,
             compress,
             decompress_buf: BytesMut::new(),
+            is_json,
         }
     }
 
@@ -91,7 +94,48 @@ impl<T> Decoding<T> {
         trailer.map(|data| data.map(Metadata::from_headers))
     }
 
-    pub fn decode_chunk(&mut self) -> Result<Option<T>, crate::status::Status> {
+    pub fn decode_json(&mut self) -> Result<Option<T>, crate::status::Status> {
+        if self.state == State::ReadHeader {
+            self.state = State::ReadJSON;
+            return Ok(None);
+        }
+        if let State::ReadJSON = self.state {
+            if self.buf.is_empty() {
+                return Ok(None);
+            }
+            match self.compress {
+                None => { self.decompress_buf = self.buf.clone() }
+                Some(compress) => {
+                    let len = self.buf.len();
+                    if let Err(err) = decompress(
+                        compress,
+                        &mut self.buf,
+                        &mut self.decompress_buf,
+                        len,
+                    ) {
+                        return Err(crate::status::Status::new(
+                            crate::status::Code::Internal,
+                            err.to_string(),
+                        ));
+                    }
+                }
+            }
+            let len=self.decompress_buf.len();
+            let decoding_result = self.decoder.decode(&mut DecodeBuf::new(&mut self.decompress_buf, len));
+
+            return match decoding_result {
+                Ok(Some(r)) => {
+                    self.state = State::ReadHeader;
+                    Ok(Some(r))
+                }
+                Ok(None) => Ok(None),
+                Err(err) => Err(err),
+            };
+        }
+        Ok(None)
+    }
+
+    pub fn decode_proto(&mut self) -> Result<Option<T>, crate::status::Status> {
         if self.state == State::ReadHeader {
             // buffer is full
             if self.buf.remaining() < super::consts::HEADER_SIZE {
@@ -166,6 +210,14 @@ impl<T> Decoding<T> {
 
         Ok(None)
     }
+
+    pub fn decode_chunk(&mut self) -> Result<Option<T>, crate::status::Status> {
+        if self.is_json {
+            self.decode_json()
+        } else {
+            self.decode_proto()
+        }
+    }
 }
 
 impl<T> Stream for Decoding<T> {
@@ -220,3 +272,4 @@ impl<T> Stream for Decoding<T> {
         (0, None)
     }
 }
+

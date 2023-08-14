@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
+use std::marker::PhantomData;
 use futures_util::{future, stream, StreamExt, TryStreamExt};
+use http::HeaderValue;
 use http_body::Body;
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -33,7 +35,6 @@ use crate::{
 };
 use dubbo_config::BusinessConfig;
 use crate::codegen::{ProstCodec, SerdeCodec};
-use crate::triple::decode_json::DecodingJSON;
 use crate::triple::encode_json::encode_server_json;
 
 pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";
@@ -41,17 +42,15 @@ pub const GRPC_ENCODING: &str = "grpc-encoding";
 
 pub struct TripleServer<T, V>
 {
-    prost_codec: ProstCodec<V, T>,
-    serde_codec: SerdeCodec<V, T>,
+    _pd: PhantomData<(T, V)>,
     compression: Option<CompressionEncoding>,
 }
 
 impl<T, V> TripleServer<T, V> {
     pub fn new() -> Self {
         Self {
-            prost_codec: ProstCodec::default(),
-            serde_codec: SerdeCodec::default(),
-            compression: None,
+            _pd: PhantomData,
+            compression: Some(CompressionEncoding::Gzip),
         }
     }
 }
@@ -71,43 +70,86 @@ impl<T, V> TripleServer<T, V>
             B: Body + Send + 'static,
             B::Error: Into<crate::Error> + Send,
     {
-        let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
-        if self.compression.is_none() || accept_encoding.is_none() {
-            accept_encoding = None;
+        let is_json = req.headers().get("content-type").unwrap() == "application/grpc+json";
+        if is_json {
+            let mut codec = SerdeCodec::<V, T>::default();
+            let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+            if self.compression.is_none() || accept_encoding.is_none() {
+                accept_encoding = None;
+            }
+
+            // Get grpc_encoding from http_header, decompress message.
+            let compression = match self.get_encoding_from_req(req.headers()) {
+                Ok(val) => val,
+                Err(status) => return status.to_http(),
+            };
+
+            let req_stream = req.map(|body| Decoding::new(body, codec.decoder(), compression, true));
+
+            let resp = service.call(Request::from_http(req_stream)).await;
+
+            let (mut parts, resp_body) = match resp {
+                Ok(v) => v.into_http().into_parts(),
+                Err(err) => return err.to_http(),
+            };
+
+            let resp_body = encode_server_json(
+                codec.encoder(),
+                stream::once(future::ready(resp_body)).map(Ok).into_stream(),
+                accept_encoding,
+            );
+
+            parts.headers.insert(
+                http::header::CONTENT_TYPE,
+                http::HeaderValue::from_static("application/grpc+json"),
+            );
+            if let Some(encoding) = accept_encoding {
+                parts
+                    .headers
+                    .insert(GRPC_ENCODING, encoding.into_header_value());
+            }
+            parts.status = http::StatusCode::OK;
+            http::Response::from_parts(parts, BoxBody::new(resp_body))
+        } else {
+            let mut codec = ProstCodec::<V, T>::default();
+            let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+            if self.compression.is_none() || accept_encoding.is_none() {
+                accept_encoding = None;
+            }
+
+            // Get grpc_encoding from http_header, decompress message.
+            let compression = match self.get_encoding_from_req(req.headers()) {
+                Ok(val) => val,
+                Err(status) => return status.to_http(),
+            };
+
+            let req_stream = req.map(|body| Decoding::new(body, codec.decoder(), compression, false));
+
+            let resp = service.call(Request::from_http(req_stream)).await;
+
+            let (mut parts, resp_body) = match resp {
+                Ok(v) => v.into_http().into_parts(),
+                Err(err) => return err.to_http(),
+            };
+
+            let resp_body = encode_server(
+                codec.encoder(),
+                stream::once(future::ready(resp_body)).map(Ok).into_stream(),
+                accept_encoding,
+            );
+
+            parts.headers.insert(
+                http::header::CONTENT_TYPE,
+                http::HeaderValue::from_static("application/grpc+proto"),
+            );
+            if let Some(encoding) = accept_encoding {
+                parts
+                    .headers
+                    .insert(GRPC_ENCODING, encoding.into_header_value());
+            }
+            parts.status = http::StatusCode::OK;
+            http::Response::from_parts(parts, BoxBody::new(resp_body))
         }
-
-        // Get grpc_encoding from http_header, decompress message.
-        let compression = match self.get_encoding_from_req(req.headers()) {
-            Ok(val) => val,
-            Err(status) => return status.to_http(),
-        };
-
-        let req_stream = req.map(|body| Decoding::new(body, self.prost_codec.decoder(), compression));
-
-        let resp = service.call(Request::from_http(req_stream)).await;
-
-        let (mut parts, resp_body) = match resp {
-            Ok(v) => v.into_http().into_parts(),
-            Err(err) => return err.to_http(),
-        };
-
-        let resp_body = encode_server(
-            self.prost_codec.encoder(),
-            stream::once(future::ready(resp_body)).map(Ok).into_stream(),
-            accept_encoding,
-        );
-
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/grpc"),
-        );
-        if let Some(encoding) = accept_encoding {
-            parts
-                .headers
-                .insert(GRPC_ENCODING, encoding.into_header_value());
-        }
-        parts.status = http::StatusCode::OK;
-        http::Response::from_parts(parts, BoxBody::new(resp_body))
     }
 
     pub async fn bidi_streaming<S, B>(
@@ -121,40 +163,80 @@ impl<T, V> TripleServer<T, V>
             B: Body + Send + 'static,
             B::Error: Into<crate::Error> + Send,
     {
-        // Firstly, get grpc_accept_encoding from http_header, get compression
-        // Secondly, if server enable compression and compression is valid, this method should compress response
-        let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
-        if self.compression.is_none() || accept_encoding.is_none() {
-            accept_encoding = None;
+        let is_json = req.headers().get("content-type").unwrap() == "application/grpc+json";
+        if is_json {
+            let mut codec = SerdeCodec::<V, T>::default();
+            // Firstly, get grpc_accept_encoding from http_header, get compression
+            // Secondly, if server enable compression and compression is valid, this method should compress response
+            let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+            if self.compression.is_none() || accept_encoding.is_none() {
+                accept_encoding = None;
+            }
+
+            // Get grpc_encoding from http_header, decompress message.
+            let compression = match self.get_encoding_from_req(req.headers()) {
+                Ok(val) => val,
+                Err(status) => return status.to_http(),
+            };
+
+            let req_stream = req.map(|body| Decoding::new(body, codec.decoder(), compression, is_json));
+
+            let resp = service.call(Request::from_http(req_stream)).await;
+
+            let (mut parts, resp_body) = match resp {
+                Ok(v) => v.into_http().into_parts(),
+                Err(err) => return err.to_http(),
+            };
+            let resp_body = encode_server_json(codec.encoder(), resp_body, compression);
+
+            parts.headers.insert(
+                http::header::CONTENT_TYPE,
+                http::HeaderValue::from_static("application/grpc+json"),
+            );
+            if let Some(encoding) = accept_encoding {
+                parts
+                    .headers
+                    .insert(GRPC_ENCODING, encoding.into_header_value());
+            }
+            parts.status = http::StatusCode::OK;
+            http::Response::from_parts(parts, BoxBody::new(resp_body))
+        } else {
+            let mut codec = ProstCodec::<V, T>::default();
+            // Firstly, get grpc_accept_encoding from http_header, get compression
+            // Secondly, if server enable compression and compression is valid, this method should compress response
+            let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+            if self.compression.is_none() || accept_encoding.is_none() {
+                accept_encoding = None;
+            }
+
+            // Get grpc_encoding from http_header, decompress message.
+            let compression = match self.get_encoding_from_req(req.headers()) {
+                Ok(val) => val,
+                Err(status) => return status.to_http(),
+            };
+
+            let req_stream = req.map(|body| Decoding::new(body, codec.decoder(), compression, false));
+
+            let resp = service.call(Request::from_http(req_stream)).await;
+
+            let (mut parts, resp_body) = match resp {
+                Ok(v) => v.into_http().into_parts(),
+                Err(err) => return err.to_http(),
+            };
+            let resp_body = encode_server(codec.encoder(), resp_body, compression);
+
+            parts.headers.insert(
+                http::header::CONTENT_TYPE,
+                http::HeaderValue::from_static("application/grpc+proto"),
+            );
+            if let Some(encoding) = accept_encoding {
+                parts
+                    .headers
+                    .insert(GRPC_ENCODING, encoding.into_header_value());
+            }
+            parts.status = http::StatusCode::OK;
+            http::Response::from_parts(parts, BoxBody::new(resp_body))
         }
-
-        // Get grpc_encoding from http_header, decompress message.
-        let compression = match self.get_encoding_from_req(req.headers()) {
-            Ok(val) => val,
-            Err(status) => return status.to_http(),
-        };
-
-        let req_stream = req.map(|body| Decoding::new(body, self.prost_codec.decoder(), compression));
-
-        let resp = service.call(Request::from_http(req_stream)).await;
-
-        let (mut parts, resp_body) = match resp {
-            Ok(v) => v.into_http().into_parts(),
-            Err(err) => return err.to_http(),
-        };
-        let resp_body = encode_server(self.prost_codec.encoder(), resp_body, compression);
-
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/grpc"),
-        );
-        if let Some(encoding) = accept_encoding {
-            parts
-                .headers
-                .insert(GRPC_ENCODING, encoding.into_header_value());
-        }
-        parts.status = http::StatusCode::OK;
-        http::Response::from_parts(parts, BoxBody::new(resp_body))
     }
 
     pub async fn server_streaming<S, B>(
@@ -168,48 +250,94 @@ impl<T, V> TripleServer<T, V>
             B: Body + Send + 'static,
             B::Error: Into<crate::Error> + Send,
     {
-        // Firstly, get grpc_accept_encoding from http_header, get compression
-        // Secondly, if server enable compression and compression is valid, this method should compress response
-        let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
-        if self.compression.is_none() || accept_encoding.is_none() {
-            accept_encoding = None;
+        let is_json = req.headers().get("content-type").unwrap() == "application/grpc+json";
+        if is_json {
+            let mut codec = SerdeCodec::<V, T>::default();
+            // Firstly, get grpc_accept_encoding from http_header, get compression
+            // Secondly, if server enable compression and compression is valid, this method should compress response
+            let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+            if self.compression.is_none() || accept_encoding.is_none() {
+                accept_encoding = None;
+            }
+
+            // Get grpc_encoding from http_header, decompress message.
+            let compression = match self.get_encoding_from_req(req.headers()) {
+                Ok(val) => val,
+                Err(status) => return status.to_http(),
+            };
+            let req_stream = req.map(|body| Decoding::new(body, codec.decoder(), compression, true));
+            let (parts, mut body) = Request::from_http(req_stream).into_parts();
+            let msg = body.try_next().await.unwrap().ok_or_else(|| {
+                crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
+            });
+            let msg = match msg {
+                Ok(v) => v,
+                Err(err) => return err.to_http(),
+            };
+
+            let resp = service.call(Request::from_parts(parts, msg)).await;
+
+            let (mut parts, resp_body) = match resp {
+                Ok(v) => v.into_http().into_parts(),
+                Err(err) => return err.to_http(),
+            };
+            let resp_body = encode_server_json(codec.encoder(), resp_body, compression);
+
+            parts.headers.insert(
+                http::header::CONTENT_TYPE,
+                http::HeaderValue::from_static("application/grpc+json"),
+            );
+            if let Some(encoding) = accept_encoding {
+                parts
+                    .headers
+                    .insert(GRPC_ENCODING, encoding.into_header_value());
+            }
+            parts.status = http::StatusCode::OK;
+            http::Response::from_parts(parts, BoxBody::new(resp_body))
+        } else {
+            let mut codec = ProstCodec::<V, T>::default();
+            // Firstly, get grpc_accept_encoding from http_header, get compression
+            // Secondly, if server enable compression and compression is valid, this method should compress response
+            let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+            if self.compression.is_none() || accept_encoding.is_none() {
+                accept_encoding = None;
+            }
+
+            // Get grpc_encoding from http_header, decompress message.
+            let compression = match self.get_encoding_from_req(req.headers()) {
+                Ok(val) => val,
+                Err(status) => return status.to_http(),
+            };
+            let req_stream = req.map(|body| Decoding::new(body, codec.decoder(), compression, false));
+            let (parts, mut body) = Request::from_http(req_stream).into_parts();
+            let msg = body.try_next().await.unwrap().ok_or_else(|| {
+                crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
+            });
+            let msg = match msg {
+                Ok(v) => v,
+                Err(err) => return err.to_http(),
+            };
+
+            let resp = service.call(Request::from_parts(parts, msg)).await;
+
+            let (mut parts, resp_body) = match resp {
+                Ok(v) => v.into_http().into_parts(),
+                Err(err) => return err.to_http(),
+            };
+            let resp_body = encode_server(codec.encoder(), resp_body, compression);
+
+            parts.headers.insert(
+                http::header::CONTENT_TYPE,
+                http::HeaderValue::from_static("application/grpc+proto"),
+            );
+            if let Some(encoding) = accept_encoding {
+                parts
+                    .headers
+                    .insert(GRPC_ENCODING, encoding.into_header_value());
+            }
+            parts.status = http::StatusCode::OK;
+            http::Response::from_parts(parts, BoxBody::new(resp_body))
         }
-
-        // Get grpc_encoding from http_header, decompress message.
-        let compression = match self.get_encoding_from_req(req.headers()) {
-            Ok(val) => val,
-            Err(status) => return status.to_http(),
-        };
-
-        let req_stream = req.map(|body| Decoding::new(body, self.prost_codec.decoder(), compression));
-        let (parts, mut body) = Request::from_http(req_stream).into_parts();
-        let msg = body.try_next().await.unwrap().ok_or_else(|| {
-            crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
-        });
-        let msg = match msg {
-            Ok(v) => v,
-            Err(err) => return err.to_http(),
-        };
-
-        let resp = service.call(Request::from_parts(parts, msg)).await;
-
-        let (mut parts, resp_body) = match resp {
-            Ok(v) => v.into_http().into_parts(),
-            Err(err) => return err.to_http(),
-        };
-        let resp_body = encode_server(self.prost_codec.encoder(), resp_body, compression);
-
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/grpc"),
-        );
-        if let Some(encoding) = accept_encoding {
-            parts
-                .headers
-                .insert(GRPC_ENCODING, encoding.into_header_value());
-        }
-        parts.status = http::StatusCode::OK;
-        http::Response::from_parts(parts, BoxBody::new(resp_body))
     }
 
     pub async fn unary<S, B>(
@@ -222,8 +350,20 @@ impl<T, V> TripleServer<T, V>
             B: Body + Send + 'static,
             B::Error: Into<crate::Error> + Send,
     {
-        if req.headers().get("content-type").unwrap() == "application/json" {
-            let req_stream = req.map(|body| DecodingJSON::new(body, self.serde_codec.decoder()));
+        let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
+        if self.compression.is_none() || accept_encoding.is_none() {
+            accept_encoding = None;
+        }
+
+        let compression = match self.get_encoding_from_req(req.headers()) {
+            Ok(val) => val,
+            Err(status) => return status.to_http(),
+        };
+        let content_type = req.headers().get("content-type").cloned().unwrap_or(HeaderValue::from_str("application/json").unwrap());
+        let is_json = content_type == "application/json" || content_type == "application/grpc+json";
+        if is_json {
+            let mut codec = SerdeCodec::<V, T>::default();
+            let req_stream = req.map(|body| Decoding::new(body, codec.decoder(), compression, is_json));
             let (parts, mut body) = Request::from_http(req_stream).into_parts();
             let msg = body.try_next().await.unwrap().ok_or_else(|| {
                 crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
@@ -232,33 +372,33 @@ impl<T, V> TripleServer<T, V>
                 Ok(v) => v,
                 Err(err) => return err.to_http(),
             };
+
             let resp = service.call(Request::from_parts(parts, msg)).await;
+
             let (mut parts, resp_body) = match resp {
                 Ok(v) => v.into_http().into_parts(),
                 Err(err) => return err.to_http(),
             };
-
             let resp_body = encode_server_json(
-                self.serde_codec.encoder(),
+                codec.encoder(),
                 stream::once(future::ready(resp_body)).map(Ok).into_stream(),
+                accept_encoding,
             );
+
             parts.headers.insert(
                 http::header::CONTENT_TYPE,
-                http::HeaderValue::from_static("application/json"),
+                content_type,
             );
+            if let Some(encoding) = accept_encoding {
+                parts
+                    .headers
+                    .insert(GRPC_ENCODING, encoding.into_header_value());
+            }
             parts.status = http::StatusCode::OK;
             http::Response::from_parts(parts, BoxBody::new(resp_body))
-        } else {
-            let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
-            if self.compression.is_none() || accept_encoding.is_none() {
-                accept_encoding = None;
-            }
-
-            let compression = match self.get_encoding_from_req(req.headers()) {
-                Ok(val) => val,
-                Err(status) => return status.to_http(),
-            };
-            let req_stream = req.map(|body| Decoding::new(body, self.prost_codec.decoder(), compression));
+        }else {
+            let mut codec = ProstCodec::<V, T>::default();
+            let req_stream = req.map(|body| Decoding::new(body, codec.decoder(), compression, is_json));
             let (parts, mut body) = Request::from_http(req_stream).into_parts();
             let msg = body.try_next().await.unwrap().ok_or_else(|| {
                 crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
@@ -275,14 +415,14 @@ impl<T, V> TripleServer<T, V>
                 Err(err) => return err.to_http(),
             };
             let resp_body = encode_server(
-                self.prost_codec.encoder(),
+                codec.encoder(),
                 stream::once(future::ready(resp_body)).map(Ok).into_stream(),
                 accept_encoding,
             );
 
             parts.headers.insert(
                 http::header::CONTENT_TYPE,
-                http::HeaderValue::from_static("application/grpc"),
+                http::HeaderValue::from_static("application/grpc+proto"),
             );
             if let Some(encoding) = accept_encoding {
                 parts

@@ -21,15 +21,22 @@ use futures_util::{future, stream, StreamExt, TryStreamExt};
 
 use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
+use prost::Message;
+use serde::{Deserialize, Serialize};
+use dubbo_config::consumer::{ ConsumerConfig};
 
 use super::builder::ClientBuilder;
-use crate::codegen::RpcInvocation;
+use crate::codegen::{RpcInvocation, SerdeCodec};
 
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
     protocol::BoxInvoker,
-    triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
+    triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding},
 };
+use crate::invocation::Invocation;
+use crate::triple::encode::encode;
+use crate::triple::encode_json::encode_json;
+
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
@@ -58,6 +65,8 @@ impl TripleClient {
         uri: http::Uri,
         path: http::uri::PathAndQuery,
         body: SdkBody,
+        is_json: bool,
+        compression: bool,
     ) -> http::Request<SdkBody> {
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(path);
@@ -83,10 +92,18 @@ impl TripleClient {
             "authority",
             HeaderValue::from_str(uri.authority().unwrap().as_str()).unwrap(),
         );
-        req.headers_mut().insert(
-            "content-type",
-            HeaderValue::from_static("application/grpc+proto"),
-        );
+        if is_json {
+            req.headers_mut().insert(
+                "content-type",
+                HeaderValue::from_static("application/grpc+json"),
+            );
+        } else {
+            req.headers_mut().insert(
+                "content-type",
+                HeaderValue::from_static("application/grpc+proto"),
+            );
+        }
+
         req.headers_mut()
             .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
         req.headers_mut()
@@ -101,9 +118,11 @@ impl TripleClient {
             "tri-unit-info",
             HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
-        if let Some(_encoding) = self.send_compression_encoding {
-            req.headers_mut()
-                .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+        if compression {
+            if let Some(_encoding) = self.send_compression_encoding {
+                req.headers_mut()
+                    .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+            }
         }
         req.headers_mut().insert(
             "grpc-accept-encoding",
@@ -132,186 +151,375 @@ impl TripleClient {
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
-    where
-        C: Codec<Encode = M1, Decode = M2>,
-        M1: Send + Sync + 'static,
-        M2: Send + Sync + 'static,
+        where
+            C: Codec<Encode=M1, Decode=M2>,
+            M1: Message + Send + Sync + 'static + Serialize,
+            M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let req = req.map(|m| stream::once(future::ready(m)));
-        let body_stream = encode(
-            codec.encoder(),
-            req.into_inner().map(Ok),
-            self.send_compression_encoding,
-        )
-        .into_stream();
-        let body = hyper::Body::wrap_stream(body_stream);
-        let bytes = hyper::body::to_bytes(body).await.unwrap();
-        let sdk_body = SdkBody::from(bytes);
-
-        let mut conn = match self.invoker.clone() {
-            Some(v) => v,
-            None => self
-                .builder
-                .clone()
-                .unwrap()
-                .build(invocation.into())
-                .unwrap(),
+        let config = ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
+        let (coding, is_compression) = match config {
+            None => { (false, true) }
+            Some(config) => { (config.coding.clone() == "json".to_string(), config.compress) }
         };
+        let compression = match is_compression {
+            true => { self.send_compression_encoding }
+            false => { None }
+        };
+        if coding {
+            let mut codec = SerdeCodec::<M1, M2>::default();
+            let req = req.map(|m| stream::once(future::ready(m)));
+            let body_stream = encode_json(
+                codec.encoder(),
+                req.into_inner().map(Ok),
+                compression,
+            )
+                .into_stream();
+            let body = hyper::Body::wrap_stream(body_stream);
+            let bytes = hyper::body::to_bytes(body).await.unwrap();
+            let sdk_body = SdkBody::from(bytes);
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+            let mut conn = match self.invoker.clone() {
+                Some(v) => v,
+                None => self
+                    .builder
+                    .clone()
+                    .unwrap()
+                    .build(invocation.into())
+                    .unwrap(),
+            };
 
-        let response = conn
-            .call(req)
-            .await
-            .map_err(|err| crate::status::Status::from_error(err.into()));
+            let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
+            let req = self.map_request(http_uri.clone(), path, sdk_body, coding, is_compression);
 
-        match response {
-            Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
-                });
-                let (mut parts, body) = Response::from_http(resp).into_parts();
+            let response = conn
+                .call(req)
+                .await
+                .map_err(|err| crate::status::Status::from_error(err.into()));
 
-                futures_util::pin_mut!(body);
 
-                let message = body.try_next().await?.ok_or_else(|| {
-                    crate::status::Status::new(
-                        crate::status::Code::Internal,
-                        "Missing response message.".to_string(),
-                    )
-                })?;
+            match response {
+                Ok(v) => {
+                    let resp = v.map(|body| {
+                        Decoding::new(body, codec.decoder(), compression, true)
+                    });
+                    let (mut parts, body) = Response::from_http(resp).into_parts();
 
-                if let Some(trailers) = body.trailer().await? {
-                    let mut h = parts.into_headers();
-                    h.extend(trailers.into_headers());
-                    parts = Metadata::from_headers(h);
+                    futures_util::pin_mut!(body);
+
+                    let message = body.try_next().await?.ok_or_else(|| {
+                        crate::status::Status::new(
+                            crate::status::Code::Internal,
+                            "Missing response message.".to_string(),
+                        )
+                    })?;
+
+                    if let Some(trailers) = body.trailer().await? {
+                        let mut h = parts.into_headers();
+                        h.extend(trailers.into_headers());
+                        parts = Metadata::from_headers(h);
+                    }
+
+                    Ok(Response::from_parts(parts, message))
                 }
-
-                Ok(Response::from_parts(parts, message))
+                Err(err) => Err(err),
             }
-            Err(err) => Err(err),
+        } else {
+            let req = req.map(|m| stream::once(future::ready(m)));
+            let body_stream = encode(
+                codec.encoder(),
+                req.into_inner().map(Ok),
+                compression,
+            )
+                .into_stream();
+            let body = hyper::Body::wrap_stream(body_stream);
+            let bytes = hyper::body::to_bytes(body).await.unwrap();
+            let sdk_body = SdkBody::from(bytes);
+
+            let mut conn = match self.invoker.clone() {
+                Some(v) => v,
+                None => self
+                    .builder
+                    .clone()
+                    .unwrap()
+                    .build(invocation.into())
+                    .unwrap(),
+            };
+
+            let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
+            let req = self.map_request(http_uri.clone(), path, sdk_body, coding, is_compression);
+
+            let response = conn
+                .call(req)
+                .await
+                .map_err(|err| crate::status::Status::from_error(err.into()));
+
+
+            match response {
+                Ok(v) => {
+                    let resp = v.map(|body| {
+                        Decoding::new(body, codec.decoder(), compression, false)
+                    });
+                    let (mut parts, body) = Response::from_http(resp).into_parts();
+
+                    futures_util::pin_mut!(body);
+
+                    let message = body.try_next().await?.ok_or_else(|| {
+                        crate::status::Status::new(
+                            crate::status::Code::Internal,
+                            "Missing response message.".to_string(),
+                        )
+                    })?;
+
+                    if let Some(trailers) = body.trailer().await? {
+                        let mut h = parts.into_headers();
+                        h.extend(trailers.into_headers());
+                        parts = Metadata::from_headers(h);
+                    }
+
+                    Ok(Response::from_parts(parts, message))
+                }
+                Err(err) => Err(err),
+            }
         }
     }
 
     pub async fn bidi_streaming<C, M1, M2>(
         &mut self,
-        req: impl IntoStreamingRequest<Message = M1>,
+        req: impl IntoStreamingRequest<Message=M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
-    where
-        C: Codec<Encode = M1, Decode = M2>,
-        M1: Send + Sync + 'static,
-        M2: Send + Sync + 'static,
+        where
+            C: Codec<Encode=M1, Decode=M2>,
+            M1: Message + Send + Sync + 'static + Serialize,
+            M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let req = req.into_streaming_request();
-        let en = encode(
-            codec.encoder(),
-            req.into_inner().map(Ok),
-            self.send_compression_encoding,
-        )
-        .into_stream();
-        let body = hyper::Body::wrap_stream(en);
-        let sdk_body = SdkBody::from(body);
-
-        let mut conn = match self.invoker.clone() {
-            Some(v) => v,
-            None => self
-                .builder
-                .clone()
-                .unwrap()
-                .build(invocation.into())
-                .unwrap(),
+        let config = ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
+        let (coding, is_compression) = match config {
+            None => { (false, true) }
+            Some(config) => { (config.coding.clone() == "json".to_string(), config.compress) }
         };
+        let compression = match is_compression {
+            true => { self.send_compression_encoding }
+            false => { None }
+        };
+        if coding {
+            let mut codec = SerdeCodec::<M1, M2>::default();
+            let req = req.into_streaming_request();
+            let en = encode_json(
+                codec.encoder(),
+                req.into_inner().map(Ok),
+                compression,
+            )
+                .into_stream();
+            let body = hyper::Body::wrap_stream(en);
+            let sdk_body = SdkBody::from(body);
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+            let mut conn = match self.invoker.clone() {
+                Some(v) => v,
+                None => self
+                    .builder
+                    .clone()
+                    .unwrap()
+                    .build(invocation.into())
+                    .unwrap(),
+            };
 
-        let response = conn
-            .call(req)
-            .await
-            .map_err(|err| crate::status::Status::from_error(err.into()));
+            let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
+            let req = self.map_request(http_uri.clone(), path, sdk_body, coding, is_compression);
 
-        match response {
-            Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
-                });
+            let response = conn
+                .call(req)
+                .await
+                .map_err(|err| crate::status::Status::from_error(err.into()));
 
-                Ok(Response::from_http(resp))
+            match response {
+                Ok(v) => {
+                    let resp = v.map(|body| {
+                        Decoding::new(body, codec.decoder(), compression, true)
+                    });
+
+                    Ok(Response::from_http(resp))
+                }
+                Err(err) => Err(err),
             }
-            Err(err) => Err(err),
+        } else {
+            let req = req.into_streaming_request();
+            let en = encode(
+                codec.encoder(),
+                req.into_inner().map(Ok),
+                compression,
+            )
+                .into_stream();
+            let body = hyper::Body::wrap_stream(en);
+            let sdk_body = SdkBody::from(body);
+
+            let mut conn = match self.invoker.clone() {
+                Some(v) => v,
+                None => self
+                    .builder
+                    .clone()
+                    .unwrap()
+                    .build(invocation.into())
+                    .unwrap(),
+            };
+
+            let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
+            let req = self.map_request(http_uri.clone(), path, sdk_body, coding, is_compression);
+
+            let response = conn
+                .call(req)
+                .await
+                .map_err(|err| crate::status::Status::from_error(err.into()));
+
+            match response {
+                Ok(v) => {
+                    let resp = v.map(|body| {
+                        Decoding::new(body, codec.decoder(), compression, false)
+                    });
+
+                    Ok(Response::from_http(resp))
+                }
+                Err(err) => Err(err),
+            }
         }
     }
 
     pub async fn client_streaming<C, M1, M2>(
         &mut self,
-        req: impl IntoStreamingRequest<Message = M1>,
+        req: impl IntoStreamingRequest<Message=M1>,
         mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
-    where
-        C: Codec<Encode = M1, Decode = M2>,
-        M1: Send + Sync + 'static,
-        M2: Send + Sync + 'static,
+        where
+            C: Codec<Encode=M1, Decode=M2>,
+            M1: Message + Send + Sync + 'static + Serialize,
+            M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let req = req.into_streaming_request();
-        let en = encode(
-            codec.encoder(),
-            req.into_inner().map(Ok),
-            self.send_compression_encoding,
-        )
-        .into_stream();
-        let body = hyper::Body::wrap_stream(en);
-        let sdk_body = SdkBody::from(body);
-
-        let mut conn = match self.invoker.clone() {
-            Some(v) => v,
-            None => self
-                .builder
-                .clone()
-                .unwrap()
-                .build(invocation.into())
-                .unwrap(),
+        let config = ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
+        let (coding, is_compression) = match config {
+            None => { (false, true) }
+            Some(config) => { (config.coding.clone() == "json".to_string(), config.compress) }
         };
+        let compression = match is_compression {
+            true => { self.send_compression_encoding }
+            false => { None }
+        };
+        if coding {
+            let mut codec = SerdeCodec::<M1, M2>::default();
+            let req = req.into_streaming_request();
+            let en = encode_json(
+                codec.encoder(),
+                req.into_inner().map(Ok),
+                compression,
+            )
+                .into_stream();
+            let body = hyper::Body::wrap_stream(en);
+            let sdk_body = SdkBody::from(body);
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+            let mut conn = match self.invoker.clone() {
+                Some(v) => v,
+                None => self
+                    .builder
+                    .clone()
+                    .unwrap()
+                    .build(invocation.into())
+                    .unwrap(),
+            };
 
-        // let mut conn = Connection::new().with_host(http_uri);
-        let response = conn
-            .call(req)
-            .await
-            .map_err(|err| crate::status::Status::from_error(err.into()));
+            let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
+            let req = self.map_request(http_uri.clone(), path, sdk_body, coding, is_compression);
 
-        match response {
-            Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
-                });
-                let (mut parts, body) = Response::from_http(resp).into_parts();
+            // let mut conn = Connection::new().with_host(http_uri);
+            let response = conn
+                .call(req)
+                .await
+                .map_err(|err| crate::status::Status::from_error(err.into()));
 
-                futures_util::pin_mut!(body);
+            match response {
+                Ok(v) => {
+                    let resp = v.map(|body| {
+                        Decoding::new(body, codec.decoder(), compression, true)
+                    });
+                    let (mut parts, body) = Response::from_http(resp).into_parts();
 
-                let message = body.try_next().await?.ok_or_else(|| {
-                    crate::status::Status::new(
-                        crate::status::Code::Internal,
-                        "Missing response message.".to_string(),
-                    )
-                })?;
+                    futures_util::pin_mut!(body);
 
-                if let Some(trailers) = body.trailer().await? {
-                    let mut h = parts.into_headers();
-                    h.extend(trailers.into_headers());
-                    parts = Metadata::from_headers(h);
+                    let message = body.try_next().await?.ok_or_else(|| {
+                        crate::status::Status::new(
+                            crate::status::Code::Internal,
+                            "Missing response message.".to_string(),
+                        )
+                    })?;
+
+                    if let Some(trailers) = body.trailer().await? {
+                        let mut h = parts.into_headers();
+                        h.extend(trailers.into_headers());
+                        parts = Metadata::from_headers(h);
+                    }
+
+                    Ok(Response::from_parts(parts, message))
                 }
-
-                Ok(Response::from_parts(parts, message))
+                Err(err) => Err(err),
             }
-            Err(err) => Err(err),
+        } else {
+            let req = req.into_streaming_request();
+            let en = encode(
+                codec.encoder(),
+                req.into_inner().map(Ok),
+                compression,
+            )
+                .into_stream();
+            let body = hyper::Body::wrap_stream(en);
+            let sdk_body = SdkBody::from(body);
+
+            let mut conn = match self.invoker.clone() {
+                Some(v) => v,
+                None => self
+                    .builder
+                    .clone()
+                    .unwrap()
+                    .build(invocation.into())
+                    .unwrap(),
+            };
+
+            let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
+            let req = self.map_request(http_uri.clone(), path, sdk_body, coding, is_compression);
+
+            // let mut conn = Connection::new().with_host(http_uri);
+            let response = conn
+                .call(req)
+                .await
+                .map_err(|err| crate::status::Status::from_error(err.into()));
+
+            match response {
+                Ok(v) => {
+                    let resp = v.map(|body| {
+                        Decoding::new(body, codec.decoder(), compression, false)
+                    });
+                    let (mut parts, body) = Response::from_http(resp).into_parts();
+
+                    futures_util::pin_mut!(body);
+
+                    let message = body.try_next().await?.ok_or_else(|| {
+                        crate::status::Status::new(
+                            crate::status::Code::Internal,
+                            "Missing response message.".to_string(),
+                        )
+                    })?;
+
+                    if let Some(trailers) = body.trailer().await? {
+                        let mut h = parts.into_headers();
+                        h.extend(trailers.into_headers());
+                        parts = Metadata::from_headers(h);
+                    }
+
+                    Ok(Response::from_parts(parts, message))
+                }
+                Err(err) => Err(err),
+            }
         }
     }
 
@@ -322,47 +530,97 @@ impl TripleClient {
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
-    where
-        C: Codec<Encode = M1, Decode = M2>,
-        M1: Send + Sync + 'static,
-        M2: Send + Sync + 'static,
+        where
+            C: Codec<Encode=M1, Decode=M2>,
+            M1: Message + Send + Sync + 'static + Serialize,
+            M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let req = req.map(|m| stream::once(future::ready(m)));
-        let en = encode(
-            codec.encoder(),
-            req.into_inner().map(Ok),
-            self.send_compression_encoding,
-        )
-        .into_stream();
-        let body = hyper::Body::wrap_stream(en);
-        let sdk_body = SdkBody::from(body);
-
-        let mut conn = match self.invoker.clone() {
-            Some(v) => v,
-            None => self
-                .builder
-                .clone()
-                .unwrap()
-                .build(invocation.into())
-                .unwrap(),
+        let config = ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
+        let (coding, is_compression) = match config {
+            None => { (false, true) }
+            Some(config) => { (config.coding.clone() == "json".to_string(), config.compress) }
         };
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let compression = match is_compression {
+            true => { self.send_compression_encoding }
+            false => { None }
+        };
+        if coding {
+            let mut codec = SerdeCodec::<M1, M2>::default();
+            let req = req.map(|m| stream::once(future::ready(m)));
+            let en = encode_json(
+                codec.encoder(),
+                req.into_inner().map(Ok),
+                compression,
+            )
+                .into_stream();
+            let body = hyper::Body::wrap_stream(en);
+            let sdk_body = SdkBody::from(body);
 
-        let response = conn
-            .call(req)
-            .await
-            .map_err(|err| crate::status::Status::from_error(err.into()));
+            let mut conn = match self.invoker.clone() {
+                Some(v) => v,
+                None => self
+                    .builder
+                    .clone()
+                    .unwrap()
+                    .build(invocation.into())
+                    .unwrap(),
+            };
+            let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
+            let req = self.map_request(http_uri.clone(), path, sdk_body, coding, is_compression);
 
-        match response {
-            Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
-                });
+            let response = conn
+                .call(req)
+                .await
+                .map_err(|err| crate::status::Status::from_error(err.into()));
 
-                Ok(Response::from_http(resp))
+            match response {
+                Ok(v) => {
+                    let resp = v.map(|body| {
+                        Decoding::new(body, codec.decoder(), compression, true)
+                    });
+
+                    Ok(Response::from_http(resp))
+                }
+                Err(err) => Err(err),
             }
-            Err(err) => Err(err),
+        } else {
+            let req = req.map(|m| stream::once(future::ready(m)));
+            let en = encode(
+                codec.encoder(),
+                req.into_inner().map(Ok),
+                compression,
+            )
+                .into_stream();
+            let body = hyper::Body::wrap_stream(en);
+            let sdk_body = SdkBody::from(body);
+
+            let mut conn = match self.invoker.clone() {
+                Some(v) => v,
+                None => self
+                    .builder
+                    .clone()
+                    .unwrap()
+                    .build(invocation.into())
+                    .unwrap(),
+            };
+            let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
+            let req = self.map_request(http_uri.clone(), path, sdk_body, coding, is_compression);
+
+            let response = conn
+                .call(req)
+                .await
+                .map_err(|err| crate::status::Status::from_error(err.into()));
+
+            match response {
+                Ok(v) => {
+                    let resp = v.map(|body| {
+                        Decoding::new(body, codec.decoder(), compression, false)
+                    });
+
+                    Ok(Response::from_http(resp))
+                }
+                Err(err) => Err(err),
+            }
         }
     }
 }

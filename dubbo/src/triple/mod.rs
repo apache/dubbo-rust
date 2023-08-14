@@ -23,5 +23,4 @@ pub mod decode;
 pub mod encode;
 pub mod server;
 pub mod transport;
-mod decode_json;
 mod encode_json;

@@ -19,6 +19,8 @@ dubbo:
         interface: org.apache.dubbo.sample.tri.Greeter
   consumer:
     references:
-      GreeterClientImpl:
-        url: tri://localhost:20000
+      - url: tri://localhost:20000
+        interface: org.apache.dubbo.sample.tri.Greeter
         protocol: tri
+        coding: json
+        compress: true

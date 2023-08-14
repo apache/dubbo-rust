@@ -32,9 +32,9 @@ pub fn encode<E, B>(
     resp_body: B,
     compression_encoding: Option<CompressionEncoding>,
 ) -> impl TryStream<Ok = Bytes, Error = Status>
-where
-    E: Encoder<Error = Status>,
-    B: Stream<Item = Result<E::Item, Status>>,
+    where
+        E: Encoder<Error = Status>,
+        B: Stream<Item = Result<E::Item, Status>>,
 {
     async_stream::stream! {
         let mut buf = BytesMut::with_capacity(super::consts::BUFFER_SIZE);
@@ -89,9 +89,9 @@ pub fn encode_server<E, B>(
     body: B,
     compression_encoding: Option<CompressionEncoding>,
 ) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
-where
-    E: Encoder<Error = Status>,
-    B: Stream<Item = Result<E::Item, Status>>,
+    where
+        E: Encoder<Error = Status>,
+        B: Stream<Item = Result<E::Item, Status>>,
 {
     let s = encode(encoder, body, compression_encoding).into_stream();
     EncodeBody::new_server(s)
@@ -102,9 +102,9 @@ pub fn encode_client<E, B>(
     body: B,
     compression_encoding: Option<CompressionEncoding>,
 ) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
-where
-    E: Encoder<Error = Status>,
-    B: Stream<Item = E::Item>,
+    where
+        E: Encoder<Error = Status>,
+        B: Stream<Item = E::Item>,
 {
     let s = encode(encoder, body.map(Ok), compression_encoding).into_stream();
     EncodeBody::new_client(s)
@@ -145,8 +145,8 @@ impl<S> EncodeBody<S> {
 }
 
 impl<S> Body for EncodeBody<S>
-where
-    S: Stream<Item = Result<Bytes, crate::status::Status>>,
+    where
+        S: Stream<Item = Result<Bytes, crate::status::Status>>,
 {
     type Data = Bytes;
 

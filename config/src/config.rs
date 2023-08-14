@@ -22,6 +22,7 @@ use dubbo_logger::tracing;
 use dubbo_utils::yaml_util::yaml_file_parser;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
+use crate::consumer::ConsumerConfig;
 
 use super::{protocol::ProtocolConfig, provider::ProviderConfig, service::ServiceConfig};
 
@@ -45,6 +46,9 @@ pub struct RootConfig {
     pub registries: HashMap<String, RegistryConfig>,
 
     #[serde(default)]
+    pub consumer: Option<ConsumerConfig>,
+
+    #[serde(default)]
     pub data: HashMap<String, String>,
 }
 
@@ -63,6 +67,7 @@ impl RootConfig {
             protocols: HashMap::new(),
             registries: HashMap::new(),
             provider: ProviderConfig::new(),
+            consumer: None,
             data: HashMap::new(),
         }
     }
