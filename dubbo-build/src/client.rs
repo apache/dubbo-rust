@@ -20,7 +20,6 @@ use crate::{Method, Service};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-
 /// Generate service for client.
 ///
 /// This takes some `Service` and will generate a `TokenStream` that contains

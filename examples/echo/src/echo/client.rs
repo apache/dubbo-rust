@@ -28,7 +28,6 @@ impl Filter for FakeFilter {
     }
 }
 
-
 #[tokio::main]
 async fn main() {
     dubbo_logger::init();

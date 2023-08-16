@@ -1,8 +1,0 @@
-POST /org.apache.dubbo.sample.tri.Greeter/greet HTTP/1.1
-Host: 127.0.0.1:8888
-Content-Type: application/json
-
-{
-  "name":"hello!This is a test for unary"
-}
-

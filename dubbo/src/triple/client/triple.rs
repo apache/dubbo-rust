@@ -20,24 +20,25 @@ use std::str::FromStr;
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
 use aws_smithy_http::body::SdkBody;
+use dubbo_config::consumer::ConsumerConfig;
 use http::HeaderValue;
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use dubbo_config::consumer::{ConsumerConfig};
 
 use super::builder::ClientBuilder;
 use crate::codegen::{FakeCodec, ProstCodec, RpcInvocation, SerdeCodec};
 
 use crate::{
-    invocation::{IntoStreamingRequest, Metadata, Request, Response},
+    invocation::{IntoStreamingRequest, Invocation, Metadata, Request, Response},
     protocol::BoxInvoker,
-    triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding},
+    status::Status,
+    triple::{
+        codec::{Codec, Decoder, Encoder},
+        compression::CompressionEncoding,
+        decode::Decoding,
+        encode::encode,
+    },
 };
-use crate::invocation::Invocation;
-use crate::status::Status;
-use crate::triple::codec::{Decoder, Encoder};
-use crate::triple::encode::encode;
-
 
 #[derive(Debug, Clone, Default)]
 pub struct TripleClient {
@@ -152,20 +153,24 @@ impl TripleClient {
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
-        where
-            M1: Message + Send + Sync + 'static + Serialize,
-            M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+    where
+        M1: Message + Send + Sync + 'static + Serialize,
+        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let config = ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
+        let config =
+            ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
         let (is_json, is_compression) = match config {
-            None => { (false, true) }
-            Some(config) => { (config.codec.clone() == "json".to_string(), config.compress) }
+            None => (false, true),
+            Some(config) => (config.codec.clone() == "json".to_string(), config.compress),
         };
         let compression = match is_compression {
-            true => { self.send_compression_encoding }
-            false => { None }
+            true => self.send_compression_encoding,
+            false => None,
         };
-        let (decoder, encoder): (Box<dyn Decoder<Item=M2, Error=Status> + Send + 'static>, Box<dyn Encoder<Error=Status, Item=M1> + Send + 'static>) = match is_json {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+        ) = match is_json {
             true => {
                 let mut codec = SerdeCodec::<M1, M2>::default();
                 (Box::new(codec.decoder()), Box::new(codec.encoder()))
@@ -176,13 +181,8 @@ impl TripleClient {
             }
         };
         let req = req.map(|m| stream::once(future::ready(m)));
-        let body_stream = encode(
-            encoder,
-            req.into_inner().map(Ok),
-            compression,
-            is_json,
-        )
-            .into_stream();
+        let body_stream =
+            encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
         let bytes = hyper::body::to_bytes(body).await.unwrap();
         let sdk_body = SdkBody::from(bytes);
@@ -205,12 +205,9 @@ impl TripleClient {
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
-
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, decoder, compression, is_json)
-                });
+                let resp = v.map(|body| Decoding::new(body, decoder, compression, is_json));
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -234,28 +231,31 @@ impl TripleClient {
         }
     }
 
-
     pub async fn bidi_streaming<M1, M2>(
         &mut self,
-        req: impl IntoStreamingRequest<Message=M1>,
+        req: impl IntoStreamingRequest<Message = M1>,
         _codec: FakeCodec<M1, M2>,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
-        where
-            M1: Message + Send + Sync + 'static + Serialize,
-            M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+    where
+        M1: Message + Send + Sync + 'static + Serialize,
+        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let config = ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
+        let config =
+            ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
         let (is_json, is_compression) = match config {
-            None => { (false, true) }
-            Some(config) => { (config.codec.clone() == "json".to_string(), config.compress) }
+            None => (false, true),
+            Some(config) => (config.codec.clone() == "json".to_string(), config.compress),
         };
         let compression = match is_compression {
-            true => { self.send_compression_encoding }
-            false => { None }
+            true => self.send_compression_encoding,
+            false => None,
         };
-        let (decoder, encoder): (Box<dyn Decoder<Item=M2, Error=Status> + Send + 'static>, Box<dyn Encoder<Error=Status, Item=M1> + Send + 'static>) = match is_json {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+        ) = match is_json {
             true => {
                 let mut codec = SerdeCodec::<M1, M2>::default();
                 (Box::new(codec.decoder()), Box::new(codec.encoder()))
@@ -266,13 +266,7 @@ impl TripleClient {
             }
         };
         let req = req.into_streaming_request();
-        let en = encode(
-            encoder,
-            req.into_inner().map(Ok),
-            compression,
-            is_json,
-        )
-            .into_stream();
+        let en = encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
 
@@ -296,9 +290,7 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, decoder, compression, is_json)
-                });
+                let resp = v.map(|body| Decoding::new(body, decoder, compression, is_json));
 
                 Ok(Response::from_http(resp))
             }
@@ -308,25 +300,29 @@ impl TripleClient {
 
     pub async fn client_streaming<M1, M2>(
         &mut self,
-        req: impl IntoStreamingRequest<Message=M1>,
+        req: impl IntoStreamingRequest<Message = M1>,
         _codec: FakeCodec<M1, M2>,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
-        where
-            M1: Message + Send + Sync + 'static + Serialize,
-            M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+    where
+        M1: Message + Send + Sync + 'static + Serialize,
+        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let config = ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
+        let config =
+            ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
         let (is_json, is_compression) = match config {
-            None => { (false, true) }
-            Some(config) => { (config.codec.clone() == "json".to_string(), config.compress) }
+            None => (false, true),
+            Some(config) => (config.codec.clone() == "json".to_string(), config.compress),
         };
         let compression = match is_compression {
-            true => { self.send_compression_encoding }
-            false => { None }
+            true => self.send_compression_encoding,
+            false => None,
         };
-        let (decoder, encoder): (Box<dyn Decoder<Item=M2, Error=Status> + Send + 'static>, Box<dyn Encoder<Error=Status, Item=M1> + Send + 'static>) = match is_json {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+        ) = match is_json {
             true => {
                 let mut codec = SerdeCodec::<M1, M2>::default();
                 (Box::new(codec.decoder()), Box::new(codec.encoder()))
@@ -337,13 +333,7 @@ impl TripleClient {
             }
         };
         let req = req.into_streaming_request();
-        let en = encode(
-            encoder,
-            req.into_inner().map(Ok),
-            compression,
-            is_json,
-        )
-            .into_stream();
+        let en = encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
 
@@ -368,9 +358,7 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, decoder, compression, is_json)
-                });
+                let resp = v.map(|body| Decoding::new(body, decoder, compression, is_json));
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -401,21 +389,25 @@ impl TripleClient {
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
-        where
-            M1: Message + Send + Sync + 'static + Serialize,
-            M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+    where
+        M1: Message + Send + Sync + 'static + Serialize,
+        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let config = ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
+        let config =
+            ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
         let (is_json, is_compression) = match config {
-            None => { (false, true) }
-            Some(config) => { (config.codec.clone() == "json".to_string(), config.compress) }
+            None => (false, true),
+            Some(config) => (config.codec.clone() == "json".to_string(), config.compress),
         };
         let compression = match is_compression {
-            true => { self.send_compression_encoding }
-            false => { None }
+            true => self.send_compression_encoding,
+            false => None,
         };
 
-        let (decoder, encoder): (Box<dyn Decoder<Item=M2, Error=Status> + Send + 'static>, Box<dyn Encoder<Error=Status, Item=M1> + Send + 'static>) = match is_json {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+        ) = match is_json {
             true => {
                 let mut codec = SerdeCodec::<M1, M2>::default();
                 (Box::new(codec.decoder()), Box::new(codec.encoder()))
@@ -426,13 +418,7 @@ impl TripleClient {
             }
         };
         let req = req.map(|m| stream::once(future::ready(m)));
-        let en = encode(
-            encoder,
-            req.into_inner().map(Ok),
-            compression,
-            is_json,
-        )
-            .into_stream();
+        let en = encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
 
@@ -455,9 +441,7 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, decoder, compression, is_json)
-                });
+                let resp = v.map(|body| Decoding::new(body, decoder, compression, is_json));
 
                 Ok(Response::from_http(resp))
             }

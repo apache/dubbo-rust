@@ -87,4 +87,3 @@ impl<'a, U: Deserialize<'a>> Decoder for SerdeDecoder<U> {
         Ok(Some(U::deserialize(&mut de).unwrap()))
     }
 }
-

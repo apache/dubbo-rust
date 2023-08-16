@@ -23,9 +23,9 @@ dubbo:
         interface: org.apache.dubbo.sample.tri.Greeter
         protocol: tri
         codec: proto
-        compress: false
+        compress: true
       - url: tri://localhost:20000
         interface: grpc.examples.echo.Echo
         protocol: tri
         codec: json
-        compress: true
+        compress: false

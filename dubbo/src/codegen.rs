@@ -34,7 +34,7 @@ pub use super::{
     registry::{BoxRegistry, Registry},
     triple::{
         client::TripleClient,
-        codec::{prost::ProstCodec, serde_codec::SerdeCodec,Codec,FakeCodec},
+        codec::{prost::ProstCodec, serde_codec::SerdeCodec, Codec, FakeCodec},
         decode::Decoding,
         server::{
             service::{ClientStreamingSvc, ServerStreamingSvc, StreamingSvc, UnarySvc},

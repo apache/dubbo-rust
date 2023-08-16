@@ -19,10 +19,9 @@ pub mod buffer;
 pub mod prost;
 pub mod serde_codec;
 
-use std::io;
-use std::marker::PhantomData;
 use ::prost::Message;
 use serde::{Deserialize, Serialize};
+use std::{io, marker::PhantomData};
 
 pub use self::buffer::{DecodeBuf, EncodeBuf};
 use crate::status::Status;
@@ -34,9 +33,9 @@ pub trait Codec {
     type Decode: Send + 'static;
 
     /// The encoder that can encode a message.
-    type Encoder: Encoder<Item=Self::Encode, Error=Status> + Send + 'static;
+    type Encoder: Encoder<Item = Self::Encode, Error = Status> + Send + 'static;
     /// The encoder that can decode a message.
-    type Decoder: Decoder<Item=Self::Decode, Error=Status> + Send + 'static;
+    type Decoder: Decoder<Item = Self::Decode, Error = Status> + Send + 'static;
 
     /// Fetch the encoder.
     fn encoder(&mut self) -> Self::Encoder;
@@ -91,9 +90,9 @@ impl<T, U> Default for FakeCodec<T, U> {
 }
 
 impl<'a, T, U> FakeTypes for FakeCodec<T, U>
-    where
-        T: Message + Serialize + Send + 'static,
-        U: Message + Deserialize<'a> + Send + 'static,
+where
+    T: Message + Serialize + Send + 'static,
+    U: Message + Deserialize<'a> + Send + 'static,
 {
     type Encode = T;
     type Decode = U;

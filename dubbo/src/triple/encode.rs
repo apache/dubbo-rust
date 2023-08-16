@@ -28,13 +28,13 @@ use crate::triple::codec::{EncodeBuf, Encoder};
 
 #[allow(unused_must_use)]
 pub fn encode<E, B>(
-    mut encoder: Box<dyn Encoder<Error=Status, Item=E> + Send + 'static>,
+    mut encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     resp_body: B,
     compression_encoding: Option<CompressionEncoding>,
     is_json: bool,
-) -> impl TryStream<Ok=Bytes, Error=Status>
-    where
-        B: Stream<Item=Result<E, Status>>,
+) -> impl TryStream<Ok = Bytes, Error = Status>
+where
+    B: Stream<Item = Result<E, Status>>,
 {
     async_stream::stream! {
         let mut buf = BytesMut::with_capacity(super::consts::BUFFER_SIZE);
@@ -91,26 +91,26 @@ pub fn encode<E, B>(
 }
 
 pub fn encode_server<E, B>(
-    encoder: Box<dyn Encoder<Error=Status, Item=E> + Send + 'static>,
+    encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     body: B,
     compression_encoding: Option<CompressionEncoding>,
     is_json: bool,
-) -> EncodeBody<impl Stream<Item=Result<Bytes, Status>>>
-    where
-        B: Stream<Item=Result<E, Status>>,
+) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
+where
+    B: Stream<Item = Result<E, Status>>,
 {
     let s = encode(encoder, body, compression_encoding, is_json).into_stream();
     EncodeBody::new_server(s)
 }
 
 pub fn encode_client<E, B>(
-    encoder: Box<dyn Encoder<Error=Status, Item=E> + Send + 'static>,
+    encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     body: B,
     compression_encoding: Option<CompressionEncoding>,
     is_json: bool,
-) -> EncodeBody<impl Stream<Item=Result<Bytes, Status>>>
-    where
-        B: Stream<Item=E>,
+) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
+where
+    B: Stream<Item = E>,
 {
     let s = encode(encoder, body.map(Ok), compression_encoding, is_json).into_stream();
     EncodeBody::new_client(s)
@@ -152,8 +152,8 @@ impl<S> EncodeBody<S> {
 }
 
 impl<S> Body for EncodeBody<S>
-    where
-        S: Stream<Item=Result<Bytes, crate::status::Status>>,
+where
+    S: Stream<Item = Result<Bytes, crate::status::Status>>,
 {
     type Data = Bytes;
 

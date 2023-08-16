@@ -336,7 +336,6 @@ fn generate_unary<T: Method>(
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
 
-
     quote! {
         #[allow(non_camel_case_types)]
         struct #service_ident<T: #server_trait > {

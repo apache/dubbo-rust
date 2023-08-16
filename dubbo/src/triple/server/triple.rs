@@ -15,17 +15,19 @@
  * limitations under the License.
  */
 
-use std::marker::PhantomData;
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 use http_body::Body;
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 
 use crate::{
+    codegen::{ProstCodec, SerdeCodec},
     invocation::Request,
+    status::Status,
     triple::{
-        codec::Codec,
+        codec::{Codec, Decoder, Encoder},
         compression::{CompressionEncoding, COMPRESSIONS},
         decode::Decoding,
         encode::encode_server,
@@ -34,15 +36,11 @@ use crate::{
     BoxBody,
 };
 use dubbo_config::BusinessConfig;
-use crate::codegen::{ProstCodec, SerdeCodec};
-use crate::status::Status;
-use crate::triple::codec::{Decoder, Encoder};
 
 pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";
 pub const GRPC_ENCODING: &str = "grpc-encoding";
 
-pub struct TripleServer<T, V>
-{
+pub struct TripleServer<T, V> {
     _pd: PhantomData<(T, V)>,
     compression: Option<CompressionEncoding>,
 }
@@ -57,23 +55,30 @@ impl<T, V> TripleServer<T, V> {
 }
 
 impl<T, V> TripleServer<T, V>
-    where
-        T: Message + for<'a> Deserialize<'a> + Default + 'static,
-        V: Message + Serialize + Default + 'static
+where
+    T: Message + for<'a> Deserialize<'a> + Default + 'static,
+    V: Message + Serialize + Default + 'static,
 {
     pub async fn client_streaming<S, B>(
         &mut self,
         mut service: S,
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
-        where
-            S: ClientStreamingSvc<T, Response=V>,
-            B: Body + Send + 'static,
-            B::Error: Into<crate::Error> + Send,
+    where
+        S: ClientStreamingSvc<T, Response = V>,
+        B: Body + Send + 'static,
+        B::Error: Into<crate::Error> + Send,
     {
-        let content_type = req.headers().get("content-type").cloned().unwrap_or(HeaderValue::from_str("application/json").unwrap());
+        let content_type = req
+            .headers()
+            .get("content-type")
+            .cloned()
+            .unwrap_or(HeaderValue::from_str("application/json").unwrap());
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
-        let (decoder, encoder): (Box<dyn Decoder<Item=T, Error=Status> + Send + 'static>, Box<dyn Encoder<Error=Status, Item=V>+Send+'static>) = match is_json {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
+        ) = match is_json {
             true => {
                 let mut codec = SerdeCodec::<V, T>::default();
                 (Box::new(codec.decoder()), Box::new(codec.encoder()))
@@ -110,10 +115,9 @@ impl<T, V> TripleServer<T, V>
             is_json,
         );
 
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            content_type,
-        );
+        parts
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type);
         if let Some(encoding) = accept_encoding {
             parts
                 .headers
@@ -128,16 +132,23 @@ impl<T, V> TripleServer<T, V>
         mut service: S,
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
-        where
-            S: StreamingSvc<T, Response=V>,
-            S::ResponseStream: Send + 'static,
-            B: Body + Send + 'static,
-            B::Error: Into<crate::Error> + Send,
+    where
+        S: StreamingSvc<T, Response = V>,
+        S::ResponseStream: Send + 'static,
+        B: Body + Send + 'static,
+        B::Error: Into<crate::Error> + Send,
     {
-        let content_type = req.headers().get("content-type").cloned().unwrap_or(HeaderValue::from_str("application/json").unwrap());
+        let content_type = req
+            .headers()
+            .get("content-type")
+            .cloned()
+            .unwrap_or(HeaderValue::from_str("application/json").unwrap());
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
 
-        let (decoder, encoder): (Box<dyn Decoder<Item=T, Error=Status> + Send + 'static>, Box<dyn Encoder<Error=Status, Item=V>+Send+'static>) = match is_json {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
+        ) = match is_json {
             true => {
                 let mut codec = SerdeCodec::<V, T>::default();
                 (Box::new(codec.decoder()), Box::new(codec.encoder()))
@@ -170,10 +181,9 @@ impl<T, V> TripleServer<T, V>
         };
         let resp_body = encode_server(encoder, resp_body, compression, is_json);
 
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            content_type,
-        );
+        parts
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type);
         if let Some(encoding) = accept_encoding {
             parts
                 .headers
@@ -188,16 +198,23 @@ impl<T, V> TripleServer<T, V>
         mut service: S,
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
-        where
-            S: ServerStreamingSvc<T, Response=V>,
-            S::ResponseStream: Send + 'static,
-            B: Body + Send + 'static,
-            B::Error: Into<crate::Error> + Send,
+    where
+        S: ServerStreamingSvc<T, Response = V>,
+        S::ResponseStream: Send + 'static,
+        B: Body + Send + 'static,
+        B::Error: Into<crate::Error> + Send,
     {
-        let content_type = req.headers().get("content-type").cloned().unwrap_or(HeaderValue::from_str("application/json").unwrap());
+        let content_type = req
+            .headers()
+            .get("content-type")
+            .cloned()
+            .unwrap_or(HeaderValue::from_str("application/json").unwrap());
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
 
-        let (decoder, encoder): (Box<dyn Decoder<Item=T, Error=Status> + Send + 'static>, Box<dyn Encoder<Error=Status, Item=V>+Send+'static>) = match is_json {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
+        ) = match is_json {
             true => {
                 let mut codec = SerdeCodec::<V, T>::default();
                 (Box::new(codec.decoder()), Box::new(codec.encoder()))
@@ -237,10 +254,9 @@ impl<T, V> TripleServer<T, V>
         };
         let resp_body = encode_server(encoder, resp_body, compression, is_json);
 
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            content_type,
-        );
+        parts
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type);
         if let Some(encoding) = accept_encoding {
             parts
                 .headers
@@ -255,10 +271,10 @@ impl<T, V> TripleServer<T, V>
         mut service: S,
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
-        where
-            S: UnarySvc<T, Response=V>,
-            B: Body + Send + 'static,
-            B::Error: Into<crate::Error> + Send,
+    where
+        S: UnarySvc<T, Response = V>,
+        B: Body + Send + 'static,
+        B::Error: Into<crate::Error> + Send,
     {
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
         if self.compression.is_none() || accept_encoding.is_none() {
@@ -269,10 +285,17 @@ impl<T, V> TripleServer<T, V>
             Ok(val) => val,
             Err(status) => return status.to_http(),
         };
-        let content_type = req.headers().get("content-type").cloned().unwrap_or(HeaderValue::from_str("application/json").unwrap());
+        let content_type = req
+            .headers()
+            .get("content-type")
+            .cloned()
+            .unwrap_or(HeaderValue::from_str("application/json").unwrap());
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
 
-        let (decoder, encoder): (Box<dyn Decoder<Item=T, Error=Status> + Send + 'static>, Box<dyn Encoder<Error=Status, Item=V>+Send+'static>) = match is_json {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
+        ) = match is_json {
             true => {
                 let mut codec = SerdeCodec::<V, T>::default();
                 (Box::new(codec.decoder()), Box::new(codec.encoder()))
@@ -305,10 +328,9 @@ impl<T, V> TripleServer<T, V>
             is_json,
         );
 
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            content_type
-        );
+        parts
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type);
         if let Some(encoding) = accept_encoding {
             parts
                 .headers

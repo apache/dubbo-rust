@@ -17,12 +17,11 @@
 
 use std::{collections::HashMap, env, path::PathBuf};
 
-use crate::{protocol::Protocol, registry::RegistryConfig};
+use crate::{consumer::ConsumerConfig, protocol::Protocol, registry::RegistryConfig};
 use dubbo_logger::tracing;
 use dubbo_utils::yaml_util::yaml_file_parser;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use crate::consumer::ConsumerConfig;
 
 use super::{protocol::ProtocolConfig, provider::ProviderConfig, service::ServiceConfig};
 
