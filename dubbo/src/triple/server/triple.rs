@@ -23,11 +23,11 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 use crate::{
-    codegen::{ProstCodec, SerdeCodec},
     invocation::Request,
     status::Status,
     triple::{
-        codec::{Codec, Decoder, Encoder},
+        client::triple::get_codec,
+        codec::{Decoder, Encoder},
         compression::{CompressionEncoding, COMPRESSIONS},
         decode::Decoding,
         encode::encode_server,
@@ -78,16 +78,7 @@ where
         let (decoder, encoder): (
             Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
-        ) = match is_json {
-            true => {
-                let mut codec = SerdeCodec::<V, T>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-            false => {
-                let mut codec = ProstCodec::<V, T>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-        };
+        ) = get_codec(is_json);
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
         if self.compression.is_none() || accept_encoding.is_none() {
             accept_encoding = None;
@@ -148,16 +139,7 @@ where
         let (decoder, encoder): (
             Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
-        ) = match is_json {
-            true => {
-                let mut codec = SerdeCodec::<V, T>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-            false => {
-                let mut codec = ProstCodec::<V, T>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-        };
+        ) = get_codec(is_json);
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
@@ -214,16 +196,7 @@ where
         let (decoder, encoder): (
             Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
-        ) = match is_json {
-            true => {
-                let mut codec = SerdeCodec::<V, T>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-            false => {
-                let mut codec = ProstCodec::<V, T>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-        };
+        ) = get_codec(is_json);
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
@@ -295,16 +268,7 @@ where
         let (decoder, encoder): (
             Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
-        ) = match is_json {
-            true => {
-                let mut codec = SerdeCodec::<V, T>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-            false => {
-                let mut codec = ProstCodec::<V, T>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-        };
+        ) = get_codec(is_json);
         let req_stream = req.map(|body| Decoding::new(body, decoder, compression, is_json));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
         let msg = body.try_next().await.unwrap().ok_or_else(|| {

@@ -26,7 +26,7 @@ use prost::Message;
 use serde::{Deserialize, Serialize};
 
 use super::builder::ClientBuilder;
-use crate::codegen::{FakeCodec, ProstCodec, RpcInvocation, SerdeCodec};
+use crate::codegen::{ProstCodec, RpcInvocation, SerdeCodec};
 
 use crate::{
     invocation::{IntoStreamingRequest, Invocation, Metadata, Request, Response},
@@ -149,7 +149,6 @@ impl TripleClient {
     pub async fn unary<M1, M2>(
         &mut self,
         req: Request<M1>,
-        _codec: FakeCodec<M1, M2>,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
@@ -170,16 +169,7 @@ impl TripleClient {
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = match is_json {
-            true => {
-                let mut codec = SerdeCodec::<M1, M2>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-            false => {
-                let mut codec = ProstCodec::<M1, M2>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-        };
+        ) = get_codec(is_json);
         let req = req.map(|m| stream::once(future::ready(m)));
         let body_stream =
             encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
@@ -234,7 +224,6 @@ impl TripleClient {
     pub async fn bidi_streaming<M1, M2>(
         &mut self,
         req: impl IntoStreamingRequest<Message = M1>,
-        _codec: FakeCodec<M1, M2>,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
@@ -255,16 +244,7 @@ impl TripleClient {
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = match is_json {
-            true => {
-                let mut codec = SerdeCodec::<M1, M2>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-            false => {
-                let mut codec = ProstCodec::<M1, M2>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-        };
+        ) = get_codec(is_json);
         let req = req.into_streaming_request();
         let en = encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
         let body = hyper::Body::wrap_stream(en);
@@ -301,7 +281,6 @@ impl TripleClient {
     pub async fn client_streaming<M1, M2>(
         &mut self,
         req: impl IntoStreamingRequest<Message = M1>,
-        _codec: FakeCodec<M1, M2>,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
@@ -322,16 +301,7 @@ impl TripleClient {
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = match is_json {
-            true => {
-                let mut codec = SerdeCodec::<M1, M2>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-            false => {
-                let mut codec = ProstCodec::<M1, M2>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-        };
+        ) = get_codec(is_json);
         let req = req.into_streaming_request();
         let en = encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
         let body = hyper::Body::wrap_stream(en);
@@ -385,7 +355,6 @@ impl TripleClient {
     pub async fn server_streaming<M1, M2>(
         &mut self,
         req: Request<M1>,
-        _codec: FakeCodec<M1, M2>,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
@@ -407,16 +376,7 @@ impl TripleClient {
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = match is_json {
-            true => {
-                let mut codec = SerdeCodec::<M1, M2>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-            false => {
-                let mut codec = ProstCodec::<M1, M2>::default();
-                (Box::new(codec.decoder()), Box::new(codec.encoder()))
-            }
-        };
+        ) = get_codec(is_json);
         let req = req.map(|m| stream::once(future::ready(m)));
         let en = encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
         let body = hyper::Body::wrap_stream(en);
@@ -446,6 +406,28 @@ impl TripleClient {
                 Ok(Response::from_http(resp))
             }
             Err(err) => Err(err),
+        }
+    }
+}
+
+pub fn get_codec<M1, M2>(
+    is_json: bool,
+) -> (
+    Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+    Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+)
+where
+    M1: Message + Send + Sync + 'static + Serialize,
+    M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+{
+    match is_json {
+        true => {
+            let mut codec = SerdeCodec::<M1, M2>::default();
+            (Box::new(codec.decoder()), Box::new(codec.encoder()))
+        }
+        false => {
+            let mut codec = ProstCodec::<M1, M2>::default();
+            (Box::new(codec.decoder()), Box::new(codec.encoder()))
         }
     }
 }

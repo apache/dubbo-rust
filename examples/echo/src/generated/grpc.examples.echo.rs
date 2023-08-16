@@ -40,64 +40,50 @@ pub mod echo_client {
             &mut self,
             request: Request<super::EchoRequest>,
         ) -> Result<Response<super::EchoResponse>, dubbo::status::Status> {
-            let codec =
-                dubbo::codegen::FakeCodec::<super::EchoRequest, super::EchoResponse>::default();
             let invocation = RpcInvocation::default()
                 .with_service_unique_name(String::from("grpc.examples.echo.Echo"))
                 .with_method_name(String::from("UnaryEcho"));
             let path = http::uri::PathAndQuery::from_static("/grpc.examples.echo.Echo/UnaryEcho");
-            self.inner.unary(request, codec, path, invocation).await
+            self.inner.unary(request, path, invocation).await
         }
         /// ServerStreamingEcho is server side streaming.
         pub async fn server_streaming_echo(
             &mut self,
             request: Request<super::EchoRequest>,
         ) -> Result<Response<Decoding<super::EchoResponse>>, dubbo::status::Status> {
-            let codec =
-                dubbo::codegen::FakeCodec::<super::EchoRequest, super::EchoResponse>::default();
             let invocation = RpcInvocation::default()
                 .with_service_unique_name(String::from("grpc.examples.echo.Echo"))
                 .with_method_name(String::from("ServerStreamingEcho"));
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/ServerStreamingEcho",
             );
-            self.inner
-                .server_streaming(request, codec, path, invocation)
-                .await
+            self.inner.server_streaming(request, path, invocation).await
         }
         /// ClientStreamingEcho is client side streaming.
         pub async fn client_streaming_echo(
             &mut self,
             request: impl IntoStreamingRequest<Message = super::EchoRequest>,
         ) -> Result<Response<super::EchoResponse>, dubbo::status::Status> {
-            let codec =
-                dubbo::codegen::FakeCodec::<super::EchoRequest, super::EchoResponse>::default();
             let invocation = RpcInvocation::default()
                 .with_service_unique_name(String::from("grpc.examples.echo.Echo"))
                 .with_method_name(String::from("ClientStreamingEcho"));
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/ClientStreamingEcho",
             );
-            self.inner
-                .client_streaming(request, codec, path, invocation)
-                .await
+            self.inner.client_streaming(request, path, invocation).await
         }
         /// BidirectionalStreamingEcho is bidi streaming.
         pub async fn bidirectional_streaming_echo(
             &mut self,
             request: impl IntoStreamingRequest<Message = super::EchoRequest>,
         ) -> Result<Response<Decoding<super::EchoResponse>>, dubbo::status::Status> {
-            let codec =
-                dubbo::codegen::FakeCodec::<super::EchoRequest, super::EchoResponse>::default();
             let invocation = RpcInvocation::default()
                 .with_service_unique_name(String::from("grpc.examples.echo.Echo"))
                 .with_method_name(String::from("BidirectionalStreamingEcho"));
             let path = http::uri::PathAndQuery::from_static(
                 "/grpc.examples.echo.Echo/BidirectionalStreamingEcho",
             );
-            self.inner
-                .bidi_streaming(request, codec, path, invocation)
-                .await
+            self.inner.bidi_streaming(request, path, invocation).await
         }
     }
 }

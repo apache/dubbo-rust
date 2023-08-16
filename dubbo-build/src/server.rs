@@ -21,8 +21,6 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{Ident, Lit, LitStr};
 
-pub const CODEC_PATH: &str = "dubbo::codegen::ProstCodec";
-
 /// Generate service for Server.
 ///
 /// This takes some `Service` and will generate a `TokenStream` that contains
@@ -370,8 +368,6 @@ fn generate_server_streaming<T: Method>(
     method_ident: Ident,
     server_trait: Ident,
 ) -> TokenStream {
-    let _codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
-
     let service_ident = quote::format_ident!("{}Server", method.identifier());
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
@@ -417,7 +413,6 @@ fn generate_client_streaming<T: Method>(
     let service_ident = quote::format_ident!("{}Server", method.identifier());
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);
-    let _codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
 
     quote! {
         #[allow(non_camel_case_types)]
@@ -457,8 +452,6 @@ fn generate_streaming<T: Method>(
     method_ident: Ident,
     server_trait: Ident,
 ) -> TokenStream {
-    let _codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
-
     let service_ident = quote::format_ident!("{}Server", method.identifier());
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);

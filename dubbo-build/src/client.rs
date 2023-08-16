@@ -174,14 +174,12 @@ fn generate_unary<T: Method>(
             &mut self,
             request: Request<#request>,
         ) -> Result<Response<#response>, dubbo::status::Status> {
-           let codec = dubbo::codegen::FakeCodec::<#request, #response>::default();
            let invocation = RpcInvocation::default()
             .with_service_unique_name(String::from(#service_unique_name))
             .with_method_name(String::from(#method_name));
            let path = http::uri::PathAndQuery::from_static(#path);
            self.inner.unary(
                 request,
-                codec,
                 path,
                 invocation,
             ).await
@@ -205,15 +203,12 @@ fn generate_server_streaming<T: Method>(
             &mut self,
             request: Request<#request>,
         ) -> Result<Response<Decoding<#response>>, dubbo::status::Status> {
-
-            let codec = dubbo::codegen::FakeCodec::<#request, #response>::default();
             let invocation = RpcInvocation::default()
              .with_service_unique_name(String::from(#service_unique_name))
              .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.server_streaming(
                 request,
-                codec,
                 path,
                 invocation,
             ).await
@@ -237,14 +232,12 @@ fn generate_client_streaming<T: Method>(
             &mut self,
             request: impl IntoStreamingRequest<Message = #request>
         ) -> Result<Response<#response>, dubbo::status::Status> {
-            let codec = dubbo::codegen::FakeCodec::<#request, #response>::default();
             let invocation = RpcInvocation::default()
              .with_service_unique_name(String::from(#service_unique_name))
              .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.client_streaming(
                 request,
-                codec,
                 path,
                 invocation,
             ).await
@@ -268,14 +261,12 @@ fn generate_streaming<T: Method>(
             &mut self,
             request: impl IntoStreamingRequest<Message = #request>
         ) -> Result<Response<Decoding<#response>>, dubbo::status::Status> {
-            let codec = dubbo::codegen::FakeCodec::<#request, #response>::default();
             let invocation = RpcInvocation::default()
              .with_service_unique_name(String::from(#service_unique_name))
              .with_method_name(String::from(#method_name));
             let path = http::uri::PathAndQuery::from_static(#path);
             self.inner.bidi_streaming(
                 request,
-                codec,
                 path,
                 invocation,
             ).await
