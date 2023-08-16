@@ -40,7 +40,7 @@ pub mod echo_client {
             &mut self,
             request: Request<super::EchoRequest>,
         ) -> Result<Response<super::EchoResponse>, dubbo::status::Status> {
-            let codec = dubbo::codegen::ProstCodec::<
+            let codec = dubbo::codegen::FakeCodec::<
                 super::EchoRequest,
                 super::EchoResponse,
             >::default();
@@ -57,7 +57,7 @@ pub mod echo_client {
             &mut self,
             request: Request<super::EchoRequest>,
         ) -> Result<Response<Decoding<super::EchoResponse>>, dubbo::status::Status> {
-            let codec = dubbo::codegen::ProstCodec::<
+            let codec = dubbo::codegen::FakeCodec::<
                 super::EchoRequest,
                 super::EchoResponse,
             >::default();
@@ -74,7 +74,7 @@ pub mod echo_client {
             &mut self,
             request: impl IntoStreamingRequest<Message = super::EchoRequest>,
         ) -> Result<Response<super::EchoResponse>, dubbo::status::Status> {
-            let codec = dubbo::codegen::ProstCodec::<
+            let codec = dubbo::codegen::FakeCodec::<
                 super::EchoRequest,
                 super::EchoResponse,
             >::default();
@@ -91,7 +91,7 @@ pub mod echo_client {
             &mut self,
             request: impl IntoStreamingRequest<Message = super::EchoRequest>,
         ) -> Result<Response<Decoding<super::EchoResponse>>, dubbo::status::Status> {
-            let codec = dubbo::codegen::ProstCodec::<
+            let codec = dubbo::codegen::FakeCodec::<
                 super::EchoRequest,
                 super::EchoResponse,
             >::default();

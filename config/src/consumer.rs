@@ -36,6 +36,6 @@ pub struct Consumer {
     pub url: String,
     pub interface: String,
     pub protocol: String,
-    pub coding: String,
+    pub codec: String,
     pub compress: bool,
 }

@@ -22,10 +22,10 @@ dubbo:
       - url: tri://localhost:20000
         interface: org.apache.dubbo.sample.tri.Greeter
         protocol: tri
-        coding: proto
+        codec: proto
         compress: false
       - url: tri://localhost:20000
         interface: grpc.examples.echo.Echo
         protocol: tri
-        coding: proto
+        codec: json
         compress: true

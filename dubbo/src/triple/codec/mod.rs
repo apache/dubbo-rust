@@ -20,6 +20,9 @@ pub mod prost;
 pub mod serde_codec;
 
 use std::io;
+use std::marker::PhantomData;
+use ::prost::Message;
+use serde::{Deserialize, Serialize};
 
 pub use self::buffer::{DecodeBuf, EncodeBuf};
 use crate::status::Status;
@@ -31,9 +34,9 @@ pub trait Codec {
     type Decode: Send + 'static;
 
     /// The encoder that can encode a message.
-    type Encoder: Encoder<Item = Self::Encode, Error = Status> + Send + 'static;
+    type Encoder: Encoder<Item=Self::Encode, Error=Status> + Send + 'static;
     /// The encoder that can decode a message.
-    type Decoder: Decoder<Item = Self::Decode, Error = Status> + Send + 'static;
+    type Decoder: Decoder<Item=Self::Decode, Error=Status> + Send + 'static;
 
     /// Fetch the encoder.
     fn encoder(&mut self) -> Self::Encoder;
@@ -69,4 +72,29 @@ pub trait Decoder {
     /// is no need to get the length from the bytes, gRPC framing is handled
     /// for you.
     fn decode(&mut self, src: &mut DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error>;
+}
+
+trait FakeTypes {
+    type Encode: Send + 'static;
+    type Decode: Send + 'static;
+}
+
+#[derive(Debug)]
+pub struct FakeCodec<T, U> {
+    _pd: PhantomData<(T, U)>,
+}
+
+impl<T, U> Default for FakeCodec<T, U> {
+    fn default() -> Self {
+        Self { _pd: PhantomData }
+    }
+}
+
+impl<'a, T, U> FakeTypes for FakeCodec<T, U>
+    where
+        T: Message + Serialize + Send + 'static,
+        U: Message + Deserialize<'a> + Send + 'static,
+{
+    type Encode = T;
+    type Decode = U;
 }

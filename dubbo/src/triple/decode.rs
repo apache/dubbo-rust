@@ -50,11 +50,10 @@ enum State {
 }
 
 impl<T> Decoding<T> {
-    pub fn new<B, D>(body: B, decoder: D, compress: Option<CompressionEncoding>, is_json: bool) -> Self
+    pub fn new<B>(body: B, decoder: Box<dyn Decoder<Item=T, Error=crate::status::Status> + Send + 'static>,  compress: Option<CompressionEncoding>, is_json: bool) -> Self
         where
             B: Body + Send + 'static,
             B::Error: Into<crate::Error>,
-            D: Decoder<Item=T, Error=crate::status::Status> + Send + 'static,
     {
         Self {
             state: State::ReadHeader,
@@ -67,7 +66,7 @@ impl<T> Decoding<T> {
                     )
                 })
                 .boxed_unsync(),
-            decoder: Box::new(decoder),
+            decoder,
             buf: BytesMut::with_capacity(super::consts::BUFFER_SIZE),
             trailers: None,
             compress,
