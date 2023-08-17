@@ -328,8 +328,6 @@ fn generate_unary<T: Method>(
     method_ident: Ident,
     server_trait: Ident,
 ) -> TokenStream {
-    // let codec_name = syn::parse_str::<syn::Path>(CODEC_PATH).unwrap();
-
     let service_ident = quote::format_ident!("{}Server", method.identifier());
 
     let (request, response) = method.request_response_name(proto_path, compile_well_known_types);

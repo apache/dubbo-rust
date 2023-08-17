@@ -17,15 +17,11 @@ dubbo:
         group: test
         protocol: triple
         interface: org.apache.dubbo.sample.tri.Greeter
+  client:
+    codec: proto
+    compress: true
   consumer:
     references:
-      - url: tri://localhost:20000
-        interface: org.apache.dubbo.sample.tri.Greeter
+      GreeterClientImpl:
+        url: tri://localhost:20000
         protocol: tri
-        codec: proto
-        compress: true
-      - url: tri://localhost:20000
-        interface: grpc.examples.echo.Echo
-        protocol: tri
-        codec: json
-        compress: false

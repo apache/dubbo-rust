@@ -15,11 +15,24 @@
  * limitations under the License.
  */
 
-pub use config::*;
+use crate::get_global_config;
+use serde::{Deserialize, Serialize};
 
-pub mod client;
-pub mod config;
-pub mod protocol;
-pub mod provider;
-pub mod registry;
-pub mod service;
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct ClientConfig {
+    pub codec: String,
+    pub compress: bool,
+}
+
+impl ClientConfig {
+    pub fn get_codec_and_compress() -> (bool, bool) {
+        let config = get_global_config().client.clone();
+        match config {
+            None => (false, true),
+            Some(cfg) => (
+                cfg.codec == "json".to_string().clone(),
+                cfg.compress.clone(),
+            ),
+        }
+    }
+}

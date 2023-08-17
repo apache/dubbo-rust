@@ -20,7 +20,6 @@ use std::str::FromStr;
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
 use aws_smithy_http::body::SdkBody;
-use dubbo_config::consumer::ConsumerConfig;
 use http::HeaderValue;
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -29,7 +28,7 @@ use super::builder::ClientBuilder;
 use crate::codegen::{ProstCodec, RpcInvocation, SerdeCodec};
 
 use crate::{
-    invocation::{IntoStreamingRequest, Invocation, Metadata, Request, Response},
+    invocation::{IntoStreamingRequest, Metadata, Request, Response},
     protocol::BoxInvoker,
     status::Status,
     triple::{
@@ -156,11 +155,9 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let config =
-            ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
-        let (is_json, is_compression) = match config {
+        let (is_json, is_compression) = match &self.builder {
             None => (false, true),
-            Some(config) => (config.codec.clone() == "json".to_string(), config.compress),
+            Some(builder) => (builder.codec_is_json.clone(), builder.is_compress.clone()),
         };
         let compression = match is_compression {
             true => self.send_compression_encoding,
@@ -231,11 +228,9 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let config =
-            ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
-        let (is_json, is_compression) = match config {
+        let (is_json, is_compression) = match &self.builder {
             None => (false, true),
-            Some(config) => (config.codec.clone() == "json".to_string(), config.compress),
+            Some(builder) => (builder.codec_is_json.clone(), builder.is_compress.clone()),
         };
         let compression = match is_compression {
             true => self.send_compression_encoding,
@@ -288,11 +283,9 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let config =
-            ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
-        let (is_json, is_compression) = match config {
+        let (is_json, is_compression) = match &self.builder {
             None => (false, true),
-            Some(config) => (config.codec.clone() == "json".to_string(), config.compress),
+            Some(builder) => (builder.codec_is_json.clone(), builder.is_compress.clone()),
         };
         let compression = match is_compression {
             true => self.send_compression_encoding,
@@ -362,11 +355,9 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let config =
-            ConsumerConfig::get_global_consumer_config(invocation.get_target_service_unique_name());
-        let (is_json, is_compression) = match config {
+        let (is_json, is_compression) = match &self.builder {
             None => (false, true),
-            Some(config) => (config.codec.clone() == "json".to_string(), config.compress),
+            Some(builder) => (builder.codec_is_json.clone(), builder.is_compress.clone()),
         };
         let compression = match is_compression {
             true => self.send_compression_encoding,

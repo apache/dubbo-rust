@@ -40,12 +40,12 @@ use dubbo_config::BusinessConfig;
 pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";
 pub const GRPC_ENCODING: &str = "grpc-encoding";
 
-pub struct TripleServer<T, V> {
-    _pd: PhantomData<(T, V)>,
+pub struct TripleServer<M1, M2> {
+    _pd: PhantomData<(M1, M2)>,
     compression: Option<CompressionEncoding>,
 }
 
-impl<T, V> TripleServer<T, V> {
+impl<M1, M2> TripleServer<M1, M2> {
     pub fn new() -> Self {
         Self {
             _pd: PhantomData,
@@ -54,10 +54,10 @@ impl<T, V> TripleServer<T, V> {
     }
 }
 
-impl<T, V> TripleServer<T, V>
+impl<M1, M2> TripleServer<M1, M2>
 where
-    T: Message + for<'a> Deserialize<'a> + Default + 'static,
-    V: Message + Serialize + Default + 'static,
+    M1: Message + for<'a> Deserialize<'a> + Default + 'static,
+    M2: Message + Serialize + Default + 'static,
 {
     pub async fn client_streaming<S, B>(
         &mut self,
@@ -65,7 +65,7 @@ where
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
     where
-        S: ClientStreamingSvc<T, Response = V>,
+        S: ClientStreamingSvc<M1, Response = M2>,
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
     {
@@ -76,8 +76,8 @@ where
             .unwrap_or(HeaderValue::from_str("application/json").unwrap());
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
         let (decoder, encoder): (
-            Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
-            Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
+            Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
         ) = get_codec(is_json);
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
         if self.compression.is_none() || accept_encoding.is_none() {
@@ -124,7 +124,7 @@ where
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
     where
-        S: StreamingSvc<T, Response = V>,
+        S: StreamingSvc<M1, Response = M2>,
         S::ResponseStream: Send + 'static,
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
@@ -137,8 +137,8 @@ where
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
 
         let (decoder, encoder): (
-            Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
-            Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
+            Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
         ) = get_codec(is_json);
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
@@ -181,7 +181,7 @@ where
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
     where
-        S: ServerStreamingSvc<T, Response = V>,
+        S: ServerStreamingSvc<M1, Response = M2>,
         S::ResponseStream: Send + 'static,
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
@@ -194,8 +194,8 @@ where
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
 
         let (decoder, encoder): (
-            Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
-            Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
+            Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
         ) = get_codec(is_json);
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
@@ -245,7 +245,7 @@ where
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
     where
-        S: UnarySvc<T, Response = V>,
+        S: UnarySvc<M1, Response = M2>,
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
     {
@@ -266,8 +266,8 @@ where
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
 
         let (decoder, encoder): (
-            Box<dyn Decoder<Item = T, Error = Status> + Send + 'static>,
-            Box<dyn Encoder<Error = Status, Item = V> + Send + 'static>,
+            Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
         ) = get_codec(is_json);
         let req_stream = req.map(|body| Decoding::new(body, decoder, compression, is_json));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
@@ -328,7 +328,7 @@ where
     }
 }
 
-impl<T, V> BusinessConfig for TripleServer<T, V> {
+impl<M1, M2> BusinessConfig for TripleServer<M1, M2> {
     fn init() -> Self {
         todo!()
     }
