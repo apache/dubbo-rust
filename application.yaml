@@ -17,9 +17,6 @@ dubbo:
         group: test
         protocol: triple
         interface: org.apache.dubbo.sample.tri.Greeter
-  client:
-    codec: proto
-    compress: true
   consumer:
     references:
       GreeterClientImpl:

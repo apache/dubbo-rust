@@ -17,7 +17,7 @@
 
 use std::{collections::HashMap, env, path::PathBuf};
 
-use crate::{client::ClientConfig, protocol::Protocol, registry::RegistryConfig};
+use crate::{protocol::Protocol, registry::RegistryConfig};
 use dubbo_logger::tracing;
 use dubbo_utils::yaml_util::yaml_file_parser;
 use once_cell::sync::OnceCell;
@@ -45,9 +45,6 @@ pub struct RootConfig {
     pub registries: HashMap<String, RegistryConfig>,
 
     #[serde(default)]
-    pub client: Option<ClientConfig>,
-
-    #[serde(default)]
     pub data: HashMap<String, String>,
 }
 
@@ -66,7 +63,6 @@ impl RootConfig {
             protocols: HashMap::new(),
             registries: HashMap::new(),
             provider: ProviderConfig::new(),
-            client: None,
             data: HashMap::new(),
         }
     }

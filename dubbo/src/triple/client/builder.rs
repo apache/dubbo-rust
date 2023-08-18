@@ -27,7 +27,6 @@ use crate::{
 
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
-use dubbo_config::client::ClientConfig;
 
 use super::TripleClient;
 
@@ -41,34 +40,26 @@ pub struct ClientBuilder {
     directory: Option<Box<dyn Directory>>,
     pub direct: bool,
     host: String,
-    pub codec_is_json: bool,
-    pub is_compress: bool,
 }
 
 impl ClientBuilder {
     pub fn new() -> ClientBuilder {
-        let (codec_is_json, is_compress) = ClientConfig::get_codec_and_compress();
         ClientBuilder {
             timeout: None,
             connector: "",
             directory: None,
             direct: false,
             host: "".to_string(),
-            codec_is_json,
-            is_compress,
         }
     }
 
     pub fn from_static(host: &str) -> ClientBuilder {
-        let (codec_is_json, is_compress) = ClientConfig::get_codec_and_compress();
         Self {
             timeout: None,
             connector: "",
             directory: Some(Box::new(StaticDirectory::new(&host))),
             direct: true,
             host: host.to_string(),
-            codec_is_json,
-            is_compress,
         }
     }
 

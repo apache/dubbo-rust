@@ -66,8 +66,6 @@ impl TripleClient {
         uri: http::Uri,
         path: http::uri::PathAndQuery,
         body: SdkBody,
-        is_json: bool,
-        compression: bool,
     ) -> http::Request<SdkBody> {
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(path);
@@ -93,18 +91,10 @@ impl TripleClient {
             "authority",
             HeaderValue::from_str(uri.authority().unwrap().as_str()).unwrap(),
         );
-        if is_json {
-            req.headers_mut().insert(
-                "content-type",
-                HeaderValue::from_static("application/grpc+json"),
-            );
-        } else {
-            req.headers_mut().insert(
-                "content-type",
-                HeaderValue::from_static("application/grpc+proto"),
-            );
-        }
-
+        req.headers_mut().insert(
+            "content-type",
+            HeaderValue::from_static("application/grpc+proto"),
+        );
         req.headers_mut()
             .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
         req.headers_mut()
@@ -119,17 +109,14 @@ impl TripleClient {
             "tri-unit-info",
             HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
-        if compression {
-            if let Some(_encoding) = self.send_compression_encoding {
-                req.headers_mut()
-                    .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
-                req.headers_mut().insert(
-                    "grpc-accept-encoding",
-                    http::HeaderValue::from_static("gzip"),
-                );
-            }
+        if let Some(_encoding) = self.send_compression_encoding {
+            req.headers_mut()
+                .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+            req.headers_mut().insert(
+                "grpc-accept-encoding",
+                http::HeaderValue::from_static("gzip"),
+            );
         }
-
         // const (
         //     TripleContentType    = "application/grpc+proto"
         //     TripleUserAgent      = "grpc-go/1.35.0-dev"
@@ -155,21 +142,19 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let (is_json, is_compression) = match &self.builder {
-            None => (false, true),
-            Some(builder) => (builder.codec_is_json.clone(), builder.is_compress.clone()),
-        };
-        let compression = match is_compression {
-            true => self.send_compression_encoding,
-            false => None,
-        };
+        let is_json = false;
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
         ) = get_codec(is_json);
         let req = req.map(|m| stream::once(future::ready(m)));
-        let body_stream =
-            encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
+        let body_stream = encode(
+            encoder,
+            req.into_inner().map(Ok),
+            self.send_compression_encoding,
+            is_json,
+        )
+        .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
         let bytes = hyper::body::to_bytes(body).await.unwrap();
         let sdk_body = SdkBody::from(bytes);
@@ -185,7 +170,7 @@ impl TripleClient {
         };
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body, is_json, is_compression);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         let response = conn
             .call(req)
@@ -194,7 +179,9 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| Decoding::new(body, decoder, compression, is_json));
+                let resp = v.map(|body| {
+                    Decoding::new(body, decoder, self.send_compression_encoding, is_json)
+                });
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -228,20 +215,19 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let (is_json, is_compression) = match &self.builder {
-            None => (false, true),
-            Some(builder) => (builder.codec_is_json.clone(), builder.is_compress.clone()),
-        };
-        let compression = match is_compression {
-            true => self.send_compression_encoding,
-            false => None,
-        };
+        let is_json = false;
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
         ) = get_codec(is_json);
         let req = req.into_streaming_request();
-        let en = encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
+        let en = encode(
+            encoder,
+            req.into_inner().map(Ok),
+            self.send_compression_encoding,
+            is_json,
+        )
+        .into_stream();
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
 
@@ -256,7 +242,7 @@ impl TripleClient {
         };
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body, is_json, is_compression);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         let response = conn
             .call(req)
@@ -265,7 +251,9 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| Decoding::new(body, decoder, compression, is_json));
+                let resp = v.map(|body| {
+                    Decoding::new(body, decoder, self.send_compression_encoding, is_json)
+                });
 
                 Ok(Response::from_http(resp))
             }
@@ -283,20 +271,19 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let (is_json, is_compression) = match &self.builder {
-            None => (false, true),
-            Some(builder) => (builder.codec_is_json.clone(), builder.is_compress.clone()),
-        };
-        let compression = match is_compression {
-            true => self.send_compression_encoding,
-            false => None,
-        };
+        let is_json = false;
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
         ) = get_codec(is_json);
         let req = req.into_streaming_request();
-        let en = encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
+        let en = encode(
+            encoder,
+            req.into_inner().map(Ok),
+            self.send_compression_encoding,
+            is_json,
+        )
+        .into_stream();
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
 
@@ -311,7 +298,7 @@ impl TripleClient {
         };
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body, is_json, is_compression);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         // let mut conn = Connection::new().with_host(http_uri);
         let response = conn
@@ -321,7 +308,9 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| Decoding::new(body, decoder, compression, is_json));
+                let resp = v.map(|body| {
+                    Decoding::new(body, decoder, self.send_compression_encoding, is_json)
+                });
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -355,21 +344,19 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let (is_json, is_compression) = match &self.builder {
-            None => (false, true),
-            Some(builder) => (builder.codec_is_json.clone(), builder.is_compress.clone()),
-        };
-        let compression = match is_compression {
-            true => self.send_compression_encoding,
-            false => None,
-        };
-
+        let is_json = false;
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
         ) = get_codec(is_json);
         let req = req.map(|m| stream::once(future::ready(m)));
-        let en = encode(encoder, req.into_inner().map(Ok), compression, is_json).into_stream();
+        let en = encode(
+            encoder,
+            req.into_inner().map(Ok),
+            self.send_compression_encoding,
+            is_json,
+        )
+        .into_stream();
         let body = hyper::Body::wrap_stream(en);
         let sdk_body = SdkBody::from(body);
 
@@ -383,7 +370,7 @@ impl TripleClient {
                 .unwrap(),
         };
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body, is_json, is_compression);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         let response = conn
             .call(req)
@@ -392,7 +379,9 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| Decoding::new(body, decoder, compression, is_json));
+                let resp = v.map(|body| {
+                    Decoding::new(body, decoder, self.send_compression_encoding, is_json)
+                });
 
                 Ok(Response::from_http(resp))
             }
