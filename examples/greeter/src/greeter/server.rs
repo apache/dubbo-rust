@@ -76,7 +76,7 @@ impl Greeter for GreeterServerImpl {
         request: Request<GreeterRequest>,
     ) -> Result<Response<GreeterReply>, dubbo::status::Status> {
         info!("GreeterServer::greet {:?}", request.metadata);
-
+        println!("{:?}", request.into_inner());
         Ok(Response::new(GreeterReply {
             message: "hello, dubbo-rust".to_string(),
         }))
