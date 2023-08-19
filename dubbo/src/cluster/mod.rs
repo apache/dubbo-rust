@@ -30,6 +30,7 @@ use crate::{
 
 pub mod directory;
 pub mod loadbalance;
+pub mod router;
 
 pub trait Directory: Debug {
     fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<BoxInvoker>;
@@ -116,8 +117,9 @@ pub struct MockDirectory {
 
 impl MockDirectory {
     pub fn new() -> MockDirectory {
+        // let router_chain = get_global_router_manager().read().unwrap().get_router_chain(invocation);
         Self {
-            // router_chain: RouterChain::default(),
+            // router_chain
         }
     }
 }
@@ -130,27 +132,3 @@ impl Directory for MockDirectory {
         // self.router_chain.route(u, invo);
     }
 }
-
-// #[derive(Debug, Default)]
-// pub struct RouterChain {
-//     router: HashMap<String, BoxRouter>,
-//     invokers: Arc<Vec<BoxInvoker>>,
-// }
-
-// impl RouterChain {
-//     pub fn route(&mut self, url: Url, invo: Arc<RpcInvocation>) -> Arc<Vec<BoxInvoker>> {
-//         let r = self.router.get("mock").unwrap();
-//         r.route(self.invokers.clone(), url, invo)
-//     }
-// }
-
-// pub trait Router: Debug {
-//     fn route(
-//         &self,
-//         invokers: Arc<Vec<BoxInvoker>>,
-//         url: Url,
-//         invo: Arc<RpcInvocation>,
-//     ) -> Arc<Vec<BoxInvoker>>;
-// }
-
-// pub type BoxRouter = Box<dyn Router + Sync + Send>;
