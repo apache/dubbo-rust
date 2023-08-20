@@ -95,4 +95,3 @@ pub fn get_connector(connector: &str) -> BoxCloneService<Uri, BoxIO, crate::Erro
         }
     }
 }
- 
