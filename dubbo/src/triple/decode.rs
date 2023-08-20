@@ -38,13 +38,13 @@ pub struct Decoding<T> {
     trailers: Option<Metadata>,
     compress: Option<CompressionEncoding>,
     decompress_buf: BytesMut,
-    is_json: bool,
+    is_grpc: bool,
 }
 
 #[derive(PartialEq)]
 enum State {
     ReadHeader,
-    ReadJSON,
+    ReadTriple,
     ReadBody { len: usize, is_compressed: bool },
     Error,
 }
@@ -54,7 +54,7 @@ impl<T> Decoding<T> {
         body: B,
         decoder: Box<dyn Decoder<Item = T, Error = crate::status::Status> + Send + 'static>,
         compress: Option<CompressionEncoding>,
-        is_json: bool,
+        is_grpc: bool,
     ) -> Self
     where
         B: Body + Send + 'static,
@@ -76,7 +76,7 @@ impl<T> Decoding<T> {
             trailers: None,
             compress,
             decompress_buf: BytesMut::new(),
-            is_json,
+            is_grpc,
         }
     }
 
@@ -98,12 +98,12 @@ impl<T> Decoding<T> {
         trailer.map(|data| data.map(Metadata::from_headers))
     }
 
-    pub fn decode_json(&mut self) -> Result<Option<T>, crate::status::Status> {
+    pub fn decode_triple(&mut self) -> Result<Option<T>, crate::status::Status> {
         if self.state == State::ReadHeader {
-            self.state = State::ReadJSON;
+            self.state = State::ReadTriple;
             return Ok(None);
         }
-        if let State::ReadJSON = self.state {
+        if let State::ReadTriple = self.state {
             if self.buf.is_empty() {
                 return Ok(None);
             }
@@ -138,7 +138,7 @@ impl<T> Decoding<T> {
         Ok(None)
     }
 
-    pub fn decode_proto(&mut self) -> Result<Option<T>, crate::status::Status> {
+    pub fn decode_grpc(&mut self) -> Result<Option<T>, crate::status::Status> {
         if self.state == State::ReadHeader {
             // buffer is full
             if self.buf.remaining() < super::consts::HEADER_SIZE {
@@ -215,10 +215,10 @@ impl<T> Decoding<T> {
     }
 
     pub fn decode_chunk(&mut self) -> Result<Option<T>, crate::status::Status> {
-        if self.is_json {
-            self.decode_json()
+        if self.is_grpc {
+            self.decode_grpc()
         } else {
-            self.decode_proto()
+            self.decode_triple()
         }
     }
 }

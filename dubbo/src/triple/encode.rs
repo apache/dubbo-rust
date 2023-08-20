@@ -31,7 +31,7 @@ pub fn encode<E, B>(
     mut encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     resp_body: B,
     compression_encoding: Option<CompressionEncoding>,
-    is_json: bool,
+    is_grpc: bool,
 ) -> impl TryStream<Ok = Bytes, Error = Status>
 where
     B: Stream<Item = Result<E, Status>>,
@@ -48,10 +48,10 @@ where
         loop {
             match resp_body.next().await {
                 Some(Ok(item)) => {
-                    if !is_json {
+                    if is_grpc {
                         buf.reserve(super::consts::HEADER_SIZE);
-                    unsafe {
-                        buf.advance_mut(super::consts::HEADER_SIZE);
+                        unsafe {
+                            buf.advance_mut(super::consts::HEADER_SIZE);
                         }
                     }
                     // 编码数据到缓冲中
@@ -67,18 +67,18 @@ where
                     } else {
                         encoder.encode(item, &mut EncodeBuf::new(&mut buf)).map_err(|_e| crate::status::Status::new(crate::status::Code::Internal, "encode error".to_string()));
                     }
-                    let result=match is_json{
+                    let result=match is_grpc{
                         true=>{
-                            buf.clone()
+                            let len = buf.len() - super::consts::HEADER_SIZE;
+                            {
+                                let mut buf = &mut buf[..super::consts::HEADER_SIZE];
+                                buf.put_u8(enable_compress as u8);
+                                buf.put_u32(len as u32);
+                            }
+                            buf.split_to(len + super::consts::HEADER_SIZE)
                         }
                         false=>{
-                            let len = buf.len() - super::consts::HEADER_SIZE;
-                        {
-                        let mut buf = &mut buf[..super::consts::HEADER_SIZE];
-                        buf.put_u8(enable_compress as u8);
-                        buf.put_u32(len as u32);
-                        }
-                        buf.split_to(len + super::consts::HEADER_SIZE)
+                            buf.clone()
                         }
                     };
                     yield Ok(result.freeze());
@@ -94,12 +94,12 @@ pub fn encode_server<E, B>(
     encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     body: B,
     compression_encoding: Option<CompressionEncoding>,
-    is_json: bool,
+    is_grpc: bool,
 ) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
 where
     B: Stream<Item = Result<E, Status>>,
 {
-    let s = encode(encoder, body, compression_encoding, is_json).into_stream();
+    let s = encode(encoder, body, compression_encoding, is_grpc).into_stream();
     EncodeBody::new_server(s)
 }
 
@@ -107,12 +107,12 @@ pub fn encode_client<E, B>(
     encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     body: B,
     compression_encoding: Option<CompressionEncoding>,
-    is_json: bool,
+    is_grpc: bool,
 ) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
 where
     B: Stream<Item = E>,
 {
-    let s = encode(encoder, body.map(Ok), compression_encoding, is_json).into_stream();
+    let s = encode(encoder, body.map(Ok), compression_encoding, is_grpc).into_stream();
     EncodeBody::new_client(s)
 }
 

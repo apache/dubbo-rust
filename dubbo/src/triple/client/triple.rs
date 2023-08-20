@@ -142,17 +142,16 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let is_json = false;
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec(is_json);
+        ) = get_codec(false);
         let req = req.map(|m| stream::once(future::ready(m)));
         let body_stream = encode(
             encoder,
             req.into_inner().map(Ok),
             self.send_compression_encoding,
-            is_json,
+            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
@@ -179,9 +178,8 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, decoder, self.send_compression_encoding, is_json)
-                });
+                let resp = v
+                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -215,17 +213,16 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let is_json = false;
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec(is_json);
+        ) = get_codec(false);
         let req = req.into_streaming_request();
         let en = encode(
             encoder,
             req.into_inner().map(Ok),
             self.send_compression_encoding,
-            is_json,
+            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
@@ -251,9 +248,8 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, decoder, self.send_compression_encoding, is_json)
-                });
+                let resp = v
+                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
 
                 Ok(Response::from_http(resp))
             }
@@ -271,17 +267,16 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let is_json = false;
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec(is_json);
+        ) = get_codec(false);
         let req = req.into_streaming_request();
         let en = encode(
             encoder,
             req.into_inner().map(Ok),
             self.send_compression_encoding,
-            is_json,
+            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
@@ -308,9 +303,8 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, decoder, self.send_compression_encoding, is_json)
-                });
+                let resp = v
+                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -344,17 +338,16 @@ impl TripleClient {
         M1: Message + Send + Sync + 'static + Serialize,
         M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
-        let is_json = false;
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec(is_json);
+        ) = get_codec(false);
         let req = req.map(|m| stream::once(future::ready(m)));
         let en = encode(
             encoder,
             req.into_inner().map(Ok),
             self.send_compression_encoding,
-            is_json,
+            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
@@ -379,9 +372,8 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, decoder, self.send_compression_encoding, is_json)
-                });
+                let resp = v
+                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
 
                 Ok(Response::from_http(resp))
             }
