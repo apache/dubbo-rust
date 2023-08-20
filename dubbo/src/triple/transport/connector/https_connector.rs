@@ -28,7 +28,7 @@ use rustls_native_certs::load_native_certs;
 use tokio::net::TcpStream;
 use tokio_rustls::{
     client::TlsStream,
-    rustls::{self, OwnedTrustAnchor},
+    rustls::{self},
     TlsConnector as TlsConnectorTokio,
 };
 use tower_service::Service;
@@ -108,13 +108,6 @@ where
 
         let mut root_store = rustls::RootCertStore::empty();
 
-        root_store.add_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.iter().map(|ta| {
-            OwnedTrustAnchor::from_subject_spki_name_constraints(
-                ta.subject,
-                ta.spki,
-                ta.name_constraints,
-            )
-        }));
         for cert in load_native_certs()? {
             root_store.add(&rustls::Certificate(cert.0))?;
         }
