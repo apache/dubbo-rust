@@ -44,7 +44,7 @@ pub struct Decoding<T> {
 #[derive(PartialEq)]
 enum State {
     ReadHeader,
-    ReadTriple,
+    ReadHttpBody,
     ReadBody { len: usize, is_compressed: bool },
     Error,
 }
@@ -98,12 +98,12 @@ impl<T> Decoding<T> {
         trailer.map(|data| data.map(Metadata::from_headers))
     }
 
-    pub fn decode_triple(&mut self) -> Result<Option<T>, crate::status::Status> {
+    pub fn decode_http(&mut self) -> Result<Option<T>, crate::status::Status> {
         if self.state == State::ReadHeader {
-            self.state = State::ReadTriple;
+            self.state = State::ReadHttpBody;
             return Ok(None);
         }
-        if let State::ReadTriple = self.state {
+        if let State::ReadHttpBody = self.state {
             if self.buf.is_empty() {
                 return Ok(None);
             }
@@ -218,7 +218,7 @@ impl<T> Decoding<T> {
         if self.is_grpc {
             self.decode_grpc()
         } else {
-            self.decode_triple()
+            self.decode_http()
         }
     }
 }
