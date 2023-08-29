@@ -74,6 +74,7 @@ where
             .get("content-type")
             .cloned()
             .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
+        //Determine whether to use JSON as the serialization method.
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
@@ -134,6 +135,7 @@ where
             .get("content-type")
             .cloned()
             .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
+        //Determine whether to use JSON as the serialization method.
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
@@ -190,6 +192,7 @@ where
             .get("content-type")
             .cloned()
             .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
+        //Determine whether to use JSON as the serialization method.
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
@@ -260,7 +263,9 @@ where
             .get("content-type")
             .cloned()
             .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
+        //Determine whether to use JSON as the serialization method.
         let is_json = content_type == "application/json" || content_type == "application/grpc+json";
+        //Determine whether to use the gRPC mode to handle request data
         let is_grpc = content_type.to_str().unwrap().contains("grpc");
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
