@@ -26,7 +26,7 @@ use crate::{boxed, triple::transport::connector::get_connector};
 #[derive(Debug, Clone)]
 pub struct Connection {
     host: hyper::Uri,
-    connector: &'static str,
+    connector: String,
     builder: Builder,
 }
 
@@ -40,12 +40,12 @@ impl Connection {
     pub fn new() -> Self {
         Connection {
             host: hyper::Uri::default(),
-            connector: "http",
+            connector: "http".to_string(),
             builder: Builder::new(),
         }
     }
 
-    pub fn with_connector(mut self, connector: &'static str) -> Self {
+    pub fn with_connector(mut self, connector: String) -> Self {
         self.connector = connector;
         self
     }
@@ -82,7 +82,7 @@ where
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
         let builder = self.builder.clone().http2_only(true).to_owned();
-        let mut connector = Connect::new(get_connector(self.connector), builder);
+        let mut connector = Connect::new(get_connector(self.connector.as_str()), builder);
         let uri = self.host.clone();
         let fut = async move {
             debug!("send base call to {}", uri);

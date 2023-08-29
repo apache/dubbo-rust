@@ -19,6 +19,14 @@ path = "src/echo/server.rs"
 name = "echo-client"
 path = "src/echo/client.rs"
 
+[[bin]]
+name = "echo-tls-server"
+path = "src/echo-tls/server.rs"
+
+[[bin]]
+name = "echo-tls-client"
+path = "src/echo-tls/client.rs"
+
 [dependencies]
 http = "0.2"
 http-body = "0.4.4"

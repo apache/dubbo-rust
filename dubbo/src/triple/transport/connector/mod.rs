@@ -16,6 +16,7 @@
  */
 
 pub mod http_connector;
+pub mod https_connector;
 #[cfg(any(target_os = "macos", target_os = "unix"))]
 pub mod unix_connector;
 
@@ -73,10 +74,14 @@ where
     }
 }
 
-pub fn get_connector(connector: &'static str) -> BoxCloneService<Uri, BoxIO, crate::Error> {
+pub fn get_connector(connector: &str) -> BoxCloneService<Uri, BoxIO, crate::Error> {
     match connector {
         "http" => {
             let c = http_connector::HttpConnector::new();
+            BoxCloneService::new(Connector::new(c))
+        }
+        "https" => {
+            let c = https_connector::HttpsConnector::new();
             BoxCloneService::new(Connector::new(c))
         }
         #[cfg(any(target_os = "macos", target_os = "unix"))]
