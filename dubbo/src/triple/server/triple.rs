@@ -74,12 +74,11 @@ where
             .get("content-type")
             .cloned()
             .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
-        //Determine whether to use JSON as the serialization method.
-        let is_json = content_type == "application/json" || content_type == "application/grpc+json";
+        let content_type_str = content_type.to_str().unwrap();
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
-        ) = get_codec(is_json);
+        ) = get_codec(content_type_str);
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
         if self.compression.is_none() || accept_encoding.is_none() {
             accept_encoding = None;
@@ -135,12 +134,11 @@ where
             .get("content-type")
             .cloned()
             .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
-        //Determine whether to use JSON as the serialization method.
-        let is_json = content_type == "application/json" || content_type == "application/grpc+json";
+        let content_type_str = content_type.to_str().unwrap();
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
-        ) = get_codec(is_json);
+        ) = get_codec(content_type_str);
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
@@ -192,12 +190,11 @@ where
             .get("content-type")
             .cloned()
             .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
-        //Determine whether to use JSON as the serialization method.
-        let is_json = content_type == "application/json" || content_type == "application/grpc+json";
+        let content_type_str = content_type.to_str().unwrap();
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
-        ) = get_codec(is_json);
+        ) = get_codec(content_type_str);
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
@@ -263,15 +260,15 @@ where
             .get("content-type")
             .cloned()
             .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
-        //Determine whether to use JSON as the serialization method.
-        let is_json = content_type == "application/json" || content_type == "application/grpc+json";
+        let content_type_str = content_type.to_str().unwrap();
         //Determine whether to use the gRPC mode to handle request data
-        let is_grpc = content_type.to_str().unwrap().contains("grpc");
+        let handle_request_as_grpc = content_type_str.contains("grpc");
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
-        ) = get_codec(is_json);
-        let req_stream = req.map(|body| Decoding::new(body, decoder, compression, is_grpc));
+        ) = get_codec(content_type_str);
+        let req_stream =
+            req.map(|body| Decoding::new(body, decoder, compression, handle_request_as_grpc));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
         let msg = body.try_next().await.unwrap().ok_or_else(|| {
             crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
@@ -291,7 +288,7 @@ where
             encoder,
             stream::once(future::ready(resp_body)).map(Ok).into_stream(),
             accept_encoding,
-            is_grpc,
+            handle_request_as_grpc,
         );
 
         parts

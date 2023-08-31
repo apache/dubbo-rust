@@ -145,7 +145,7 @@ impl TripleClient {
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec(false);
+        ) = get_codec("application/grpc+proto");
         let req = req.map(|m| stream::once(future::ready(m)));
         let body_stream = encode(
             encoder,
@@ -216,7 +216,7 @@ impl TripleClient {
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec(false);
+        ) = get_codec("application/grpc+proto");
         let req = req.into_streaming_request();
         let en = encode(
             encoder,
@@ -270,7 +270,7 @@ impl TripleClient {
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec(false);
+        ) = get_codec("application/grpc+proto");
         let req = req.into_streaming_request();
         let en = encode(
             encoder,
@@ -341,7 +341,7 @@ impl TripleClient {
         let (decoder, encoder): (
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec(false);
+        ) = get_codec("application/grpc+proto");
         let req = req.map(|m| stream::once(future::ready(m)));
         let en = encode(
             encoder,
@@ -383,7 +383,7 @@ impl TripleClient {
 }
 
 pub fn get_codec<M1, M2>(
-    is_json: bool,
+    content_type: &str,
 ) -> (
     Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
     Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
@@ -392,7 +392,8 @@ where
     M1: Message + Send + Sync + 'static + Serialize,
     M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
 {
-    match is_json {
+    //Determine whether to use JSON as the serialization method.
+    match content_type.ends_with("json") {
         true => {
             let mut codec = SerdeCodec::<M1, M2>::default();
             (Box::new(codec.decoder()), Box::new(codec.encoder()))

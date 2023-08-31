@@ -31,7 +31,7 @@ pub fn encode<E, B>(
     mut encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     resp_body: B,
     compression_encoding: Option<CompressionEncoding>,
-    is_grpc: bool,
+    encode_as_grpc: bool,
 ) -> impl TryStream<Ok = Bytes, Error = Status>
 where
     B: Stream<Item = Result<E, Status>>,
@@ -48,7 +48,7 @@ where
         loop {
             match resp_body.next().await {
                 Some(Ok(item)) => {
-                    if is_grpc {
+                    if encode_as_grpc {
                         buf.reserve(super::consts::HEADER_SIZE);
                         unsafe {
                             buf.advance_mut(super::consts::HEADER_SIZE);
@@ -67,7 +67,7 @@ where
                     } else {
                         encoder.encode(item, &mut EncodeBuf::new(&mut buf)).map_err(|_e| crate::status::Status::new(crate::status::Code::Internal, "encode error".to_string()));
                     }
-                    let result=match is_grpc{
+                    let result=match encode_as_grpc{
                         true=>{
                             let len = buf.len() - super::consts::HEADER_SIZE;
                             {
@@ -94,12 +94,12 @@ pub fn encode_server<E, B>(
     encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     body: B,
     compression_encoding: Option<CompressionEncoding>,
-    is_grpc: bool,
+    encode_as_grpc: bool,
 ) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
 where
     B: Stream<Item = Result<E, Status>>,
 {
-    let s = encode(encoder, body, compression_encoding, is_grpc).into_stream();
+    let s = encode(encoder, body, compression_encoding, encode_as_grpc).into_stream();
     EncodeBody::new_server(s)
 }
 

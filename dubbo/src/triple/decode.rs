@@ -38,7 +38,7 @@ pub struct Decoding<T> {
     trailers: Option<Metadata>,
     compress: Option<CompressionEncoding>,
     decompress_buf: BytesMut,
-    is_grpc: bool,
+    decode_as_grpc: bool,
 }
 
 #[derive(PartialEq)]
@@ -54,12 +54,13 @@ impl<T> Decoding<T> {
         body: B,
         decoder: Box<dyn Decoder<Item = T, Error = crate::status::Status> + Send + 'static>,
         compress: Option<CompressionEncoding>,
-        is_grpc: bool,
+        decode_as_grpc: bool,
     ) -> Self
     where
         B: Body + Send + 'static,
         B::Error: Into<crate::Error>,
     {
+        //Determine whether to use the gRPC mode to handle request data
         Self {
             state: State::ReadHeader,
             body: body
@@ -76,7 +77,7 @@ impl<T> Decoding<T> {
             trailers: None,
             compress,
             decompress_buf: BytesMut::new(),
-            is_grpc,
+            decode_as_grpc,
         }
     }
 
@@ -215,7 +216,7 @@ impl<T> Decoding<T> {
     }
 
     pub fn decode_chunk(&mut self) -> Result<Option<T>, crate::status::Status> {
-        if self.is_grpc {
+        if self.decode_as_grpc {
             self.decode_grpc()
         } else {
             self.decode_http()
