@@ -30,6 +30,7 @@ use dubbo_base::Url;
 pub type ClientBoxService =
     BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct ClientBuilder {
     pub timeout: Option<u64>,
@@ -56,7 +57,7 @@ impl ClientBuilder {
             connector: "",
             directory: Some(Arc::new(Box::new(StaticDirectory::new(&host)))),
             direct: true,
-            host: host.clone().to_string(),
+            host: host.to_string(),
         }
     }
 
