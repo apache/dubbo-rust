@@ -24,11 +24,12 @@ use crate::{
     utils::boxed_clone::BoxCloneService,
 };
 
-use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
 
+use super::replay::ClonedBody;
+
 pub type ClientBoxService =
-    BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
+    BoxCloneService<http::Request<ClonedBody>, http::Response<crate::BoxBody>, crate::Error>;
 
 #[derive(Clone, Debug, Default)]
 pub struct ClientBuilder {
@@ -100,7 +101,7 @@ impl ClientBuilder {
         Self { direct, ..self }
     }
 
-    pub fn build(self, _invocation: Arc<RpcInvocation>) -> Option<BoxInvoker> {
+    pub fn build(self) -> Option<BoxInvoker> {
         if self.direct {
             return Some(Box::new(TripleInvoker::new(
                 Url::from_url(&self.host).unwrap(),
