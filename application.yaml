@@ -22,3 +22,36 @@ dubbo:
       GreeterClientImpl:
         url: tri://localhost:20000
         protocol: tri
+  routers:
+    consumer:
+      - service: "org.apache.dubbo.sample.tri.Greeter"
+        url: triple://localhost:20000
+        protocol: triple
+    nacos:
+      addr: "127.0.0.1:8848"
+      namespace: ""
+      app: ""
+    conditions:
+      - scope: "service"
+        force: false
+        runtime: true
+        enabled: true
+        key: "org.apache.dubbo.sample.tri.Greeter"
+        conditions:
+          - method=greet => port=8889
+      - scope: "service"
+        force: true
+        runtime: true
+        enabled: true
+        key: "user.UserService"
+        conditions:
+          - method=get_s => port=2003
+    tags:
+      force: true
+      enabled: true
+      key: shop-detail
+      tags:
+        - name: gray
+          matches:
+            - key: env
+              value: gray

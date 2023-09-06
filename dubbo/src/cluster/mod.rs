@@ -32,6 +32,7 @@ use crate::{
 
 pub mod directory;
 pub mod loadbalance;
+pub mod router;
 
 pub trait Directory: Debug {
     fn list(&self, service_name: String) -> Vec<BoxInvoker>;
@@ -176,8 +177,9 @@ pub struct MockDirectory {
 
 impl MockDirectory {
     pub fn new() -> MockDirectory {
+        // let router_chain = get_global_router_manager().read().unwrap().get_router_chain(invocation);
         Self {
-            // router_chain: RouterChain::default(),
+            // router_chain
         }
     }
 }
@@ -190,6 +192,7 @@ impl Directory for MockDirectory {
         // self.router_chain.route(u, invo);
     }
 }
+
 
 // #[derive(Debug, Default)]
 // pub struct RouterChain {
