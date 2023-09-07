@@ -39,24 +39,13 @@ dubbo:
         key: "org.apache.dubbo.sample.tri.Greeter"
         conditions:
           - method=greet => port=8888
-      - configVersion: v1.0
-        scope: "service"
-        force: false
-        enabled: true
-        key: "user.UserService"
-        conditions:
-          - method=get_s => port=2003
     tags:
       configVersion: v1.0
       force: false
       enabled: false
       key: application
       tags:
-        - name: gray
+        - name: local
           match:
             - key: ip
               value: 127.0.0.1
-        - name: red
-          match:
-            - key: ip
-              value: 127.0.1.1
