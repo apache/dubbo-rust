@@ -1,7 +1,7 @@
 use crate::cluster::router::manager::router_manager::{
     get_global_router_manager, RouterConfigChangeEvent,
 };
-use dubbo_config::router::{ConditionRouterConfig, NacosConfig, TagRouterConfig};
+use dubbo_config::router::{NacosConfig};
 use dubbo_logger::{tracing, tracing::info};
 use nacos_sdk::api::{
     config::{ConfigChangeListener, ConfigResponse, ConfigService, ConfigServiceBuilder},
@@ -35,8 +35,8 @@ impl NacosClient {
                             .namespace(namespace)
                             .app_name(app),
                     )
-                    .build()
-                    .expect("NacosClient build failed!Please check NacosConfig"),
+                        .build()
+                        .expect("NacosClient build failed!Please check NacosConfig"),
                 ));
                 Self { client }
             }
@@ -52,54 +52,47 @@ impl NacosClient {
                             .auth_username(auth.auth_username)
                             .auth_password(auth.auth_password),
                     )
-                    // .enable_auth_plugin_http()
-                    .build()
-                    .expect("NacosClient build failed!Please check NacosConfig"),
+                        // .enable_auth_plugin_http()
+                        .build()
+                        .expect("NacosClient build failed!Please check NacosConfig"),
                 ));
                 return Self { client };
             }
         }
     }
-    pub fn get_condition_config(&self, data_id: String) -> Option<ConditionRouterConfig> {
+    pub fn get_config<T>(
+        &self,
+        data_id: String,
+        group: String,
+        config_type: &str,
+    ) -> Option<T>
+        where
+            T: serde::de::DeserializeOwned,
+    {
         let config_resp = self
             .client
             .read()
             .unwrap()
-            .get_config(data_id.clone(), "condition".to_string());
-        return match config_resp {
-            Ok(config_resp) => {
-                self.add_listener(data_id.clone(), "condition".to_string());
-                let string = config_resp.content();
-                Some(serde_yaml::from_str(string).unwrap())
-            }
-            Err(_err) => None,
-        };
-    }
+            .get_config(data_id.clone(), group.clone());
 
-    pub fn get_tag_config(&self, data_id: String) -> Option<TagRouterConfig> {
-        let config_resp = self
-            .client
-            .read()
-            .unwrap()
-            .get_config(data_id.clone(), "tag".to_string());
-        return match config_resp {
+        match config_resp {
             Ok(config_resp) => {
-                self.add_listener(data_id.clone(), "tag".to_string());
+                self.add_listener(data_id.clone(), group.clone());
                 let string = config_resp.content();
                 let result = serde_yaml::from_str(string);
                 match result {
                     Ok(config) => {
-                        info!("success to get TagRouter config and parse success");
+                        info!("success to get {}Router config and parse success", config_type);
                         Some(config)
                     }
-                    _ => {
-                        info!("failed to parse TagRouter rule");
+                    Err(_) => {
+                        info!("failed to parse {}Router rule", config_type);
                         None
                     }
                 }
             }
-            Err(_err) => None,
-        };
+            Err(_) => None,
+        }
     }
     pub fn add_listener(&self, data_id: String, group: String) {
         let res_listener = self

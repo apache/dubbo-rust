@@ -17,19 +17,18 @@ pub struct ConditionRouter {
 }
 
 impl Router for ConditionRouter {
-    fn route(&self, invokers: Vec<Url>, url: Url, invo: Arc<RpcInvocation>) -> Vec<Url> {
-        let mut invokers_result = invokers.clone();
-        if let Some(routers) = self.application_routers.clone() {
+    fn route(&self, mut invokers: Vec<Url>, url: Url, invo: Arc<RpcInvocation>) -> Vec<Url> {
+        if let Some(routers) = &self.application_routers {
             for router in &routers.read().unwrap().routers {
-                invokers_result = router.route(invokers_result, url.clone(), invo.clone())
+                invokers = router.route(invokers, url.clone(), invo.clone());
             }
         }
-        if let Some(routers) = self.service_routers.clone() {
+        if let Some(routers) = &self.service_routers {
             for router in &routers.read().unwrap().routers {
-                invokers_result = router.route(invokers_result, url.clone(), invo.clone())
+                invokers = router.route(invokers, url.clone(), invo.clone());
             }
         }
-        invokers_result
+        invokers
     }
 }
 
