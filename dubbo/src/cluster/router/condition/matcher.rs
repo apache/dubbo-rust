@@ -17,10 +17,7 @@ impl ConditionMatcher {
         }
     }
 
-    pub fn is_match(
-        &self,
-        value: Option<String>,
-    ) -> Result<bool, Box<dyn Error>> {
+    pub fn is_match(&self, value: Option<String>) -> Result<bool, Box<dyn Error>> {
         match value {
             None => Ok(false),
             Some(val) => {
@@ -46,11 +43,7 @@ impl ConditionMatcher {
         &mut self.mismatches
     }
 
-    fn do_pattern_match(
-        &self,
-        pattern: &str,
-        value: &str,
-    ) -> bool {
+    fn do_pattern_match(&self, pattern: &str, value: &str) -> bool {
         if pattern.contains('*') {
             return star_matcher(pattern, value);
         }

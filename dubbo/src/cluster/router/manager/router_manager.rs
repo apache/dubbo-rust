@@ -67,17 +67,27 @@ impl RouterManager {
         const TAG: &str = "tag";
         const CONDITION: &str = "condition";
 
-        if let Some(tag_config) = self.nacos.as_ref().and_then(|n| n.get_config("application".to_string(), TAG.to_string(), TAG)) {
+        if let Some(tag_config) = self
+            .nacos
+            .as_ref()
+            .and_then(|n| n.get_config("application".to_string(), TAG.to_string(), TAG))
+        {
             self.tag_router_manager.init();
             self.tag_router_manager.update(tag_config);
         }
 
-        if let Some(condition_app_config) = self.nacos.as_ref().and_then(|n| n.get_config("application".to_string(), CONDITION.to_string(), TAG)) {
+        if let Some(condition_app_config) = self
+            .nacos
+            .as_ref()
+            .and_then(|n| n.get_config("application".to_string(), CONDITION.to_string(), TAG))
+        {
             self.condition_router_manager.update(condition_app_config);
         }
 
         for (service_name, _) in &self.consumer {
-            if let Some(condition_config) = self.nacos.as_ref().and_then(|n| n.get_config(service_name.to_string(), CONDITION.to_string(), CONDITION)) {
+            if let Some(condition_config) = self.nacos.as_ref().and_then(|n| {
+                n.get_config(service_name.to_string(), CONDITION.to_string(), CONDITION)
+            }) {
                 self.condition_router_manager.update(condition_config);
             }
         }
@@ -92,7 +102,8 @@ impl RouterManager {
             trace!("Nacos not configured, using local YAML configuration for routing");
             if let Some(condition_configs) = &config.conditions {
                 for condition_config in condition_configs {
-                    self.condition_router_manager.update(condition_config.clone());
+                    self.condition_router_manager
+                        .update(condition_config.clone());
                 }
             } else {
                 info!("Unconfigured Condition Router")
@@ -117,7 +128,7 @@ impl RouterManager {
             let service_url = Url::from_url(
                 format!("{}/{}", consumer_config.url, consumer_config.service).as_str(),
             )
-                .expect("Consumer config error");
+            .expect("Consumer config error");
 
             self.consumer.insert(consumer_config.service, service_url);
         }

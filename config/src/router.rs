@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct ConditionRouterConfig {
     #[serde(rename = "configVersion")]
-    pub config_version:String,
+    pub config_version: String,
     pub scope: String,
     pub force: bool,
     pub enabled: bool,
@@ -14,7 +14,7 @@ pub struct ConditionRouterConfig {
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
 pub struct TagRouterConfig {
     #[serde(rename = "configVersion")]
-    pub config_version:String,
+    pub config_version: String,
     pub force: bool,
     pub enabled: bool,
     pub key: String,

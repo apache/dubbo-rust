@@ -34,11 +34,13 @@ impl ConditionRouterManager {
                 if routers_application_is_null {
                     None
                 } else {
-                    Some(ConditionRouter::new(None, Some(self.routers_application.clone())))
+                    Some(ConditionRouter::new(
+                        None,
+                        Some(self.routers_application.clone()),
+                    ))
                 }
             })
     }
-
 
     pub fn update(&mut self, config: ConditionRouterConfig) {
         let force = config.force;

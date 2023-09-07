@@ -53,11 +53,11 @@ impl Router for TagRouter {
         let self_param = to_original_map(url);
         let invocation_tag = self.match_tag(self_param);
         let mut invokers_result = Vec::new();
-        let mut invokers_no_tag=Vec::new();
+        let mut invokers_no_tag = Vec::new();
         for invoker in &invokers {
             let invoker_param = to_original_map(invoker.clone());
             let invoker_tag = self.match_tag(invoker_param);
-            if invoker_tag ==None{
+            if invoker_tag == None {
                 invokers_no_tag.push(invoker.clone());
             }
             if invoker_tag == invocation_tag {

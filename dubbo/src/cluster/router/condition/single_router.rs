@@ -168,15 +168,15 @@ impl ConditionSingleRouter {
     }
 
     pub fn match_when(&self, url: Url, invocation: Arc<RpcInvocation>) -> bool {
-        if self.when_condition.is_empty(){
-            return true
+        if self.when_condition.is_empty() {
+            return true;
         }
-        self.do_match(url, &self.when_condition, invocation,)
+        self.do_match(url, &self.when_condition, invocation)
     }
 
     pub fn match_then(&self, url: Url, invocation: Arc<RpcInvocation>) -> bool {
         if self.then_condition.is_empty() {
-            return false
+            return false;
         }
         self.do_match(url, &self.then_condition, invocation)
     }
@@ -185,7 +185,7 @@ impl ConditionSingleRouter {
         &self,
         url: Url,
         conditions: &HashMap<String, Arc<RwLock<ConditionMatcher>>>,
-        invocation: Arc<RpcInvocation>
+        invocation: Arc<RpcInvocation>,
     ) -> bool {
         let sample: HashMap<String, String> = to_original_map(url);
         conditions.iter().all(|(key, condition_matcher)| {

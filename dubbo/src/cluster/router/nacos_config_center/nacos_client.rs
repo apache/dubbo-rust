@@ -1,7 +1,7 @@
 use crate::cluster::router::manager::router_manager::{
     get_global_router_manager, RouterConfigChangeEvent,
 };
-use dubbo_config::router::{NacosConfig};
+use dubbo_config::router::NacosConfig;
 use dubbo_logger::{tracing, tracing::info};
 use nacos_sdk::api::{
     config::{ConfigChangeListener, ConfigResponse, ConfigService, ConfigServiceBuilder},
@@ -35,8 +35,8 @@ impl NacosClient {
                             .namespace(namespace)
                             .app_name(app),
                     )
-                        .build()
-                        .expect("NacosClient build failed!Please check NacosConfig"),
+                    .build()
+                    .expect("NacosClient build failed!Please check NacosConfig"),
                 ));
                 Self { client }
             }
@@ -52,22 +52,17 @@ impl NacosClient {
                             .auth_username(auth.auth_username)
                             .auth_password(auth.auth_password),
                     )
-                        // .enable_auth_plugin_http()
-                        .build()
-                        .expect("NacosClient build failed!Please check NacosConfig"),
+                    // .enable_auth_plugin_http()
+                    .build()
+                    .expect("NacosClient build failed!Please check NacosConfig"),
                 ));
                 return Self { client };
             }
         }
     }
-    pub fn get_config<T>(
-        &self,
-        data_id: String,
-        group: String,
-        config_type: &str,
-    ) -> Option<T>
-        where
-            T: serde::de::DeserializeOwned,
+    pub fn get_config<T>(&self, data_id: String, group: String, config_type: &str) -> Option<T>
+    where
+        T: serde::de::DeserializeOwned,
     {
         let config_resp = self
             .client
@@ -82,7 +77,10 @@ impl NacosClient {
                 let result = serde_yaml::from_str(string);
                 match result {
                     Ok(config) => {
-                        info!("success to get {}Router config and parse success", config_type);
+                        info!(
+                            "success to get {}Router config and parse success",
+                            config_type
+                        );
                         Some(config)
                     }
                     Err(_) => {
