@@ -25,27 +25,5 @@ dubbo:
   routers:
     consumer:
       - service: "org.apache.dubbo.sample.tri.Greeter"
-        url: triple://127.0.0.1:20000
+        url: tri://127.0.0.1:20000
         protocol: triple
-    nacos:
-      addr: "127.0.0.1:8848"
-      namespace: ""
-      app: ""
-    conditions:
-      - configVersion: v1.0
-        scope: "service"
-        force: false
-        enabled: true
-        key: "org.apache.dubbo.sample.tri.Greeter"
-        conditions:
-          - method=greet => port=8888
-    tags:
-      configVersion: v1.0
-      force: false
-      enabled: false
-      key: application
-      tags:
-        - name: local
-          match:
-            - key: ip
-              value: 127.0.0.1

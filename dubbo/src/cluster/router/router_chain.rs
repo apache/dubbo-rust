@@ -54,14 +54,15 @@ impl RouterChain {
 fn test() {
     use crate::cluster::router::manager::router_manager::get_global_router_manager;
 
-    let u1 = Url::from_url("triple://127.0.0.1:8888/org.apache.dubbo.sample.tri.Greeter").unwrap();
-    let u2 = Url::from_url("triple://127.0.0.1:8889/org.apache.dubbo.sample.tri.Greeter").unwrap();
-    let u3 = Url::from_url("triple://127.0.0.1:8800/org.apache.dubbo.sample.tri.Greeter").unwrap();
-    let u4 = Url::from_url("triple://127.0.2.1:8880/org.apache.dubbo.sample.tri.Greeter").unwrap();
-    let u5 = Url::from_url("triple://127.0.1.1:8882/org.apache.dubbo.sample.tri.Greeter").unwrap();
-    let u6 = Url::from_url("triple://213.0.1.1:8888/org.apache.dubbo.sample.tri.Greeter").unwrap();
-    let u7 = Url::from_url("triple://169.0.1.1:8887/org.apache.dubbo.sample.tri.Greeter").unwrap();
+    let u1 = Url::from_url("tri://127.0.0.1:8888/org.apache.dubbo.sample.tri.Greeter").unwrap();
+    let u2 = Url::from_url("tri://127.0.0.1:8889/org.apache.dubbo.sample.tri.Greeter").unwrap();
+    let u3 = Url::from_url("tri://127.0.0.1:8800/org.apache.dubbo.sample.tri.Greeter").unwrap();
+    let u4 = Url::from_url("tri://127.0.2.1:8880/org.apache.dubbo.sample.tri.Greeter").unwrap();
+    let u5 = Url::from_url("tri://127.0.1.1:8882/org.apache.dubbo.sample.tri.Greeter").unwrap();
+    let u6 = Url::from_url("tri://213.0.1.1:8888/org.apache.dubbo.sample.tri.Greeter").unwrap();
+    let u7 = Url::from_url("tri://169.0.1.1:8887/org.apache.dubbo.sample.tri.Greeter").unwrap();
     let invos = vec![u1, u2, u3, u4, u5, u6, u7];
+    let len = invos.len().clone();
     let invo = Arc::new(
         RpcInvocation::default()
             .with_method_name("greet".to_string())
@@ -72,5 +73,6 @@ fn test() {
         .unwrap()
         .get_router_chain(invo.clone());
     let result = x.route(invos, invo.clone());
+    println!("total:{},result:{}", len, result.len().clone());
     dbg!(result);
 }
