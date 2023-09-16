@@ -47,6 +47,7 @@ dubbo-config = { path = "../config", version = "0.3.0" }
 #对象存储
 state = { version = "0.5", features = ["tls"] }
 
+thiserror = "1.0.48"
 regex = "1.9.1"
 nacos-sdk = { version = "0.3.0", features = ["default"] }
 serde_yaml = "0.9.22"

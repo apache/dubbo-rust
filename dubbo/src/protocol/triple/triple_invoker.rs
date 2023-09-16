@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
 use std::{
     fmt::{Debug, Formatter},
@@ -25,7 +24,7 @@ use tower_service::Service;
 
 use crate::{
     protocol::Invoker,
-    triple::{client::builder::ClientBoxService, transport::connection::Connection},
+    triple::{client::{builder::ClientBoxService, replay::ClonedBody}, transport::connection::Connection},
     utils::boxed_clone::BoxCloneService,
 };
 
@@ -51,14 +50,14 @@ impl Debug for TripleInvoker {
     }
 }
 
-impl Service<http::Request<SdkBody>> for TripleInvoker {
+impl Service<http::Request<ClonedBody>> for TripleInvoker {
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
 
     type Future = crate::BoxFuture<Self::Response, Self::Error>;
 
-    fn call(&mut self, req: http::Request<SdkBody>) -> Self::Future {
+    fn call(&mut self, req: http::Request<ClonedBody>) -> Self::Future {
         self.conn.call(req)
     }
 
@@ -70,7 +69,7 @@ impl Service<http::Request<SdkBody>> for TripleInvoker {
     }
 }
 
-impl Invoker<http::Request<SdkBody>> for TripleInvoker {
+impl Invoker<http::Request<ClonedBody>> for TripleInvoker {
     fn get_url(&self) -> Url {
         self.url.clone()
     }
