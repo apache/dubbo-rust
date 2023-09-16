@@ -24,7 +24,6 @@ use std::{
 
 use crate::{
     codegen::TripleInvoker,
-    invocation::{Invocation, RpcInvocation},
     protocol::BoxInvoker,
     registry::{memory_registry::MemoryNotifyListener, BoxRegistry},
 };
@@ -51,7 +50,7 @@ impl StaticDirectory {
                 panic!("http uri parse error: {}, host: {}", err, host)
             }
         };
-        StaticDirectory { uri: uri }
+        StaticDirectory { uri }
     }
 
     pub fn from_uri(uri: &http::Uri) -> StaticDirectory {
@@ -60,12 +59,12 @@ impl StaticDirectory {
 }
 
 impl Directory for StaticDirectory {
-    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
+    fn list(&self, service_name: String) -> Vec<BoxInvoker> {
         let url = Url::from_url(&format!(
             "tri://{}:{}/{}",
             self.uri.host().unwrap(),
             self.uri.port().unwrap(),
-            invocation.get_target_service_unique_name(),
+            service_name,
         ))
         .unwrap();
         let invoker = Box::new(TripleInvoker::new(url));
@@ -89,8 +88,7 @@ impl RegistryDirectory {
 }
 
 impl Directory for RegistryDirectory {
-    fn list(&self, invocation: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
-        let service_name = invocation.get_target_service_unique_name();
+    fn list(&self, service_name: String) -> Vec<BoxInvoker> {
 
         let url = Url::from_url(&format!(
             "triple://{}:{}/{}",
