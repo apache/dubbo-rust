@@ -18,75 +18,105 @@
 use std::{io::ErrorKind, pin::Pin};
 
 use async_trait::async_trait;
+use dubbo::filter::{context::ContextFilter, timeout::TimeoutFilter};
 use futures_util::{Stream, StreamExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use dubbo::{codegen::*, Dubbo};
-use dubbo_config::RootConfig;
-use dubbo_logger::{
-    tracing::{info, span},
-    Level,
+use dubbo::codegen::*;
+use example_echo::generated::generated::{
+    echo_server::{register_server, Echo, EchoServer},
+    EchoRequest, EchoResponse,
 };
-use protos::{
-    greeter_server::{register_server, Greeter},
-    GreeterReply, GreeterRequest,
-};
-use registry_zookeeper::ZookeeperRegistry;
-
-pub mod protos {
-    #![allow(non_camel_case_types)]
-    include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
-}
 
 type ResponseStream =
-    Pin<Box<dyn Stream<Item = Result<GreeterReply, dubbo::status::Status>> + Send>>;
+    Pin<Box<dyn Stream<Item = Result<EchoResponse, dubbo::status::Status>> + Send>>;
+
+#[derive(Clone)]
+pub struct FakeFilter {}
+
+impl Filter for FakeFilter {
+    fn call(&mut self, req: Request<()>) -> Result<Request<()>, dubbo::status::Status> {
+        println!("server fake filter: {:?}", req.metadata);
+        Ok(req)
+    }
+}
 
 #[tokio::main]
 async fn main() {
     dubbo_logger::init();
-    let span = span!(Level::DEBUG, "greeter.server");
-    let _enter = span.enter();
-    register_server(GreeterServerImpl {
-        name: "greeter".to_string(),
+    register_server(EchoServerImpl {
+        name: "echo".to_string(),
     });
-    let zkr = ZookeeperRegistry::default();
-    let r = RootConfig::new();
-    let r = match r.load() {
-        Ok(config) => config,
-        Err(_err) => panic!("err: {:?}", _err), // response was droped
-    };
-    let mut f = Dubbo::new()
-        .with_config(r)
-        .add_registry("zookeeper", Box::new(zkr));
-    f.start().await;
+    let server = EchoServerImpl::default();
+    let s = EchoServer::<EchoServerImpl>::with_filter(server, FakeFilter {});
+    let timeout_filter = FilterService::new(s, TimeoutFilter {});
+    let context_filter = FilterService::new(timeout_filter, ContextFilter {});
+
+    dubbo::protocol::triple::TRIPLE_SERVICES
+        .write()
+        .unwrap()
+        .insert(
+            "grpc.examples.echo.Echo".to_string(),
+            dubbo::utils::boxed_clone::BoxCloneService::new(context_filter),
+        );
+
+    let builder = ServerBuilder::new()
+        .with_listener("tcp".to_string())
+        .with_tls("fixtures/server.crt", "fixtures/server.key")
+        .with_service_names(vec!["grpc.examples.echo.Echo".to_string()])
+        .with_addr("127.0.0.1:8889");
+    builder.build().serve().await.unwrap();
 }
 
 #[allow(dead_code)]
 #[derive(Default, Clone)]
-struct GreeterServerImpl {
+struct EchoServerImpl {
     name: String,
 }
 
 // #[async_trait]
 #[async_trait]
-impl Greeter for GreeterServerImpl {
-    async fn greet(
+impl Echo for EchoServerImpl {
+    async fn unary_echo(
         &self,
-        request: Request<GreeterRequest>,
-    ) -> Result<Response<GreeterReply>, dubbo::status::Status> {
-        info!("GreeterServer::greet {:?}", request.metadata);
-        println!("{:?}", request.into_inner());
-        Ok(Response::new(GreeterReply {
+        req: Request<EchoRequest>,
+    ) -> Result<Response<EchoResponse>, dubbo::status::Status> {
+        println!("EchoServer::hello {:?}", req.metadata);
+
+        Ok(Response::new(EchoResponse {
             message: "hello, dubbo-rust".to_string(),
         }))
     }
 
-    async fn greet_client_stream(
+    type ServerStreamingEchoStream = ResponseStream;
+
+    async fn server_streaming_echo(
         &self,
-        request: Request<Decoding<GreeterRequest>>,
-    ) -> Result<Response<GreeterReply>, dubbo::status::Status> {
-        let mut s = request.into_inner();
+        req: Request<EchoRequest>,
+    ) -> Result<Response<Self::ServerStreamingEchoStream>, dubbo::status::Status> {
+        println!("server_streaming_echo: {:?}", req.into_inner());
+
+        let data = vec![
+            Result::<_, dubbo::status::Status>::Ok(EchoResponse {
+                message: "msg1 from tls-server".to_string(),
+            }),
+            Result::<_, dubbo::status::Status>::Ok(EchoResponse {
+                message: "msg2 from tls-server".to_string(),
+            }),
+            Result::<_, dubbo::status::Status>::Ok(EchoResponse {
+                message: "msg3 from tls-server".to_string(),
+            }),
+        ];
+        let resp = futures_util::stream::iter(data);
+
+        Ok(Response::new(Box::pin(resp)))
+    }
+    async fn client_streaming_echo(
+        &self,
+        req: Request<Decoding<EchoRequest>>,
+    ) -> Result<Response<EchoResponse>, dubbo::status::Status> {
+        let mut s = req.into_inner();
         loop {
             let result = s.next().await;
             match result {
@@ -95,41 +125,19 @@ impl Greeter for GreeterServerImpl {
                 None => break,
             }
         }
-        Ok(Response::new(GreeterReply {
-            message: "hello client streaming".to_string(),
+        Ok(Response::new(EchoResponse {
+            message: "hello tls-client streaming".to_string(),
         }))
     }
 
-    type greetServerStreamStream = ResponseStream;
-    async fn greet_server_stream(
+    type BidirectionalStreamingEchoStream = ResponseStream;
+
+    async fn bidirectional_streaming_echo(
         &self,
-        request: Request<GreeterRequest>,
-    ) -> Result<Response<Self::greetServerStreamStream>, dubbo::status::Status> {
-        println!("greet_server_stream: {:?}", request.into_inner());
-
-        let data = vec![
-            Result::<_, dubbo::status::Status>::Ok(GreeterReply {
-                message: "msg1 from server".to_string(),
-            }),
-            Result::<_, dubbo::status::Status>::Ok(GreeterReply {
-                message: "msg2 from server".to_string(),
-            }),
-            Result::<_, dubbo::status::Status>::Ok(GreeterReply {
-                message: "msg3 from server".to_string(),
-            }),
-        ];
-        let resp = futures_util::stream::iter(data);
-
-        Ok(Response::new(Box::pin(resp)))
-    }
-
-    type greetStreamStream = ResponseStream;
-    async fn greet_stream(
-        &self,
-        request: Request<Decoding<GreeterRequest>>,
-    ) -> Result<Response<Self::greetStreamStream>, dubbo::status::Status> {
+        request: Request<Decoding<EchoRequest>>,
+    ) -> Result<Response<Self::BidirectionalStreamingEchoStream>, dubbo::status::Status> {
         println!(
-            "GreeterServer::greet_stream, grpc header: {:?}",
+            "EchoServer::bidirectional_streaming_echo, grpc header: {:?}",
             request.metadata
         );
 
@@ -149,8 +157,8 @@ impl Greeter for GreeterServerImpl {
                         //     )).await.expect("working rx");
                         //     continue;
                         // }
-                        tx.send(Ok(GreeterReply {
-                            message: format!("server reply: {:?}", v.name),
+                        tx.send(Ok(EchoResponse {
+                            message: format!("server reply: {:?}", v.message),
                         }))
                         .await
                         .expect("working rx")
@@ -179,7 +187,7 @@ impl Greeter for GreeterServerImpl {
         let out_stream = ReceiverStream::new(rx);
 
         Ok(Response::new(
-            Box::pin(out_stream) as Self::greetStreamStream
+            Box::pin(out_stream) as Self::BidirectionalStreamingEchoStream
         ))
     }
 }

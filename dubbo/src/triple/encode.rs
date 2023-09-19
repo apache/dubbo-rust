@@ -28,13 +28,13 @@ use crate::triple::codec::{EncodeBuf, Encoder};
 
 #[allow(unused_must_use)]
 pub fn encode<E, B>(
-    mut encoder: E,
+    mut encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     resp_body: B,
     compression_encoding: Option<CompressionEncoding>,
+    encode_as_grpc: bool,
 ) -> impl TryStream<Ok = Bytes, Error = Status>
 where
-    E: Encoder<Error = Status>,
-    B: Stream<Item = Result<E::Item, Status>>,
+    B: Stream<Item = Result<E, Status>>,
 {
     async_stream::stream! {
         let mut buf = BytesMut::with_capacity(super::consts::BUFFER_SIZE);
@@ -48,12 +48,13 @@ where
         loop {
             match resp_body.next().await {
                 Some(Ok(item)) => {
-                    // 编码数据到缓冲中
-                    buf.reserve(super::consts::HEADER_SIZE);
-                    unsafe {
-                        buf.advance_mut(super::consts::HEADER_SIZE);
+                    if encode_as_grpc {
+                        buf.reserve(super::consts::HEADER_SIZE);
+                        unsafe {
+                            buf.advance_mut(super::consts::HEADER_SIZE);
+                        }
                     }
-
+                    // 编码数据到缓冲中
                     if enable_compress {
                         uncompression_buf.clear();
 
@@ -66,16 +67,21 @@ where
                     } else {
                         encoder.encode(item, &mut EncodeBuf::new(&mut buf)).map_err(|_e| crate::status::Status::new(crate::status::Code::Internal, "encode error".to_string()));
                     }
-
-
-                    let len = buf.len() - super::consts::HEADER_SIZE;
-                    {
-                        let mut buf = &mut buf[..super::consts::HEADER_SIZE];
-                        buf.put_u8(enable_compress as u8);
-                        buf.put_u32(len as u32);
-                    }
-
-                    yield Ok(buf.split_to(len + super::consts::HEADER_SIZE).freeze());
+                    let result=match encode_as_grpc{
+                        true=>{
+                            let len = buf.len() - super::consts::HEADER_SIZE;
+                            {
+                                let mut buf = &mut buf[..super::consts::HEADER_SIZE];
+                                buf.put_u8(enable_compress as u8);
+                                buf.put_u32(len as u32);
+                            }
+                            buf.split_to(len + super::consts::HEADER_SIZE)
+                        }
+                        false=>{
+                            buf.clone()
+                        }
+                    };
+                    yield Ok(result.freeze());
                 },
                 Some(Err(err)) => yield Err(err.into()),
                 None => break,
@@ -85,28 +91,28 @@ where
 }
 
 pub fn encode_server<E, B>(
-    encoder: E,
+    encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     body: B,
     compression_encoding: Option<CompressionEncoding>,
+    encode_as_grpc: bool,
 ) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
 where
-    E: Encoder<Error = Status>,
-    B: Stream<Item = Result<E::Item, Status>>,
+    B: Stream<Item = Result<E, Status>>,
 {
-    let s = encode(encoder, body, compression_encoding).into_stream();
+    let s = encode(encoder, body, compression_encoding, encode_as_grpc).into_stream();
     EncodeBody::new_server(s)
 }
 
 pub fn encode_client<E, B>(
-    encoder: E,
+    encoder: Box<dyn Encoder<Error = Status, Item = E> + Send + 'static>,
     body: B,
     compression_encoding: Option<CompressionEncoding>,
+    is_grpc: bool,
 ) -> EncodeBody<impl Stream<Item = Result<Bytes, Status>>>
 where
-    E: Encoder<Error = Status>,
-    B: Stream<Item = E::Item>,
+    B: Stream<Item = E>,
 {
-    let s = encode(encoder, body.map(Ok), compression_encoding).into_stream();
+    let s = encode(encoder, body.map(Ok), compression_encoding, is_grpc).into_stream();
     EncodeBody::new_client(s)
 }
 
@@ -115,6 +121,7 @@ enum Role {
     Server,
     Client,
 }
+
 #[pin_project]
 pub struct EncodeBody<S> {
     #[pin]

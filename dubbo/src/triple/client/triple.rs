@@ -21,14 +21,22 @@ use futures_util::{future, stream, StreamExt, TryStreamExt};
 
 use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
+use prost::Message;
+use serde::{Deserialize, Serialize};
 
 use super::builder::ClientBuilder;
-use crate::codegen::RpcInvocation;
+use crate::codegen::{ProstCodec, RpcInvocation, SerdeCodec};
 
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
     protocol::BoxInvoker,
-    triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
+    status::Status,
+    triple::{
+        codec::{Codec, Decoder, Encoder},
+        compression::CompressionEncoding,
+        decode::Decoding,
+        encode::encode,
+    },
 };
 
 #[derive(Debug, Clone, Default)]
@@ -104,12 +112,11 @@ impl TripleClient {
         if let Some(_encoding) = self.send_compression_encoding {
             req.headers_mut()
                 .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+            req.headers_mut().insert(
+                "grpc-accept-encoding",
+                http::HeaderValue::from_static("gzip"),
+            );
         }
-        req.headers_mut().insert(
-            "grpc-accept-encoding",
-            http::HeaderValue::from_static("gzip"),
-        );
-
         // const (
         //     TripleContentType    = "application/grpc+proto"
         //     TripleUserAgent      = "grpc-go/1.35.0-dev"
@@ -125,23 +132,26 @@ impl TripleClient {
         req
     }
 
-    pub async fn unary<C, M1, M2>(
+    pub async fn unary<M1, M2>(
         &mut self,
         req: Request<M1>,
-        mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
-        C: Codec<Encode = M1, Decode = M2>,
-        M1: Send + Sync + 'static,
-        M2: Send + Sync + 'static,
+        M1: Message + Send + Sync + 'static + Serialize,
+        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+        ) = get_codec("application/grpc+proto");
         let req = req.map(|m| stream::once(future::ready(m)));
         let body_stream = encode(
-            codec.encoder(),
+            encoder,
             req.into_inner().map(Ok),
             self.send_compression_encoding,
+            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
@@ -168,9 +178,8 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
-                });
+                let resp = v
+                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -194,23 +203,26 @@ impl TripleClient {
         }
     }
 
-    pub async fn bidi_streaming<C, M1, M2>(
+    pub async fn bidi_streaming<M1, M2>(
         &mut self,
         req: impl IntoStreamingRequest<Message = M1>,
-        mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
-        C: Codec<Encode = M1, Decode = M2>,
-        M1: Send + Sync + 'static,
-        M2: Send + Sync + 'static,
+        M1: Message + Send + Sync + 'static + Serialize,
+        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+        ) = get_codec("application/grpc+proto");
         let req = req.into_streaming_request();
         let en = encode(
-            codec.encoder(),
+            encoder,
             req.into_inner().map(Ok),
             self.send_compression_encoding,
+            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
@@ -236,9 +248,8 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
-                });
+                let resp = v
+                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
 
                 Ok(Response::from_http(resp))
             }
@@ -246,23 +257,26 @@ impl TripleClient {
         }
     }
 
-    pub async fn client_streaming<C, M1, M2>(
+    pub async fn client_streaming<M1, M2>(
         &mut self,
         req: impl IntoStreamingRequest<Message = M1>,
-        mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
-        C: Codec<Encode = M1, Decode = M2>,
-        M1: Send + Sync + 'static,
-        M2: Send + Sync + 'static,
+        M1: Message + Send + Sync + 'static + Serialize,
+        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+        ) = get_codec("application/grpc+proto");
         let req = req.into_streaming_request();
         let en = encode(
-            codec.encoder(),
+            encoder,
             req.into_inner().map(Ok),
             self.send_compression_encoding,
+            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
@@ -289,9 +303,8 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
-                });
+                let resp = v
+                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -315,23 +328,26 @@ impl TripleClient {
         }
     }
 
-    pub async fn server_streaming<C, M1, M2>(
+    pub async fn server_streaming<M1, M2>(
         &mut self,
         req: Request<M1>,
-        mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
-        C: Codec<Encode = M1, Decode = M2>,
-        M1: Send + Sync + 'static,
-        M2: Send + Sync + 'static,
+        M1: Message + Send + Sync + 'static + Serialize,
+        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
     {
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+        ) = get_codec("application/grpc+proto");
         let req = req.map(|m| stream::once(future::ready(m)));
         let en = encode(
-            codec.encoder(),
+            encoder,
             req.into_inner().map(Ok),
             self.send_compression_encoding,
+            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
@@ -356,13 +372,35 @@ impl TripleClient {
 
         match response {
             Ok(v) => {
-                let resp = v.map(|body| {
-                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
-                });
+                let resp = v
+                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
 
                 Ok(Response::from_http(resp))
             }
             Err(err) => Err(err),
+        }
+    }
+}
+
+pub fn get_codec<M1, M2>(
+    content_type: &str,
+) -> (
+    Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
+    Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
+)
+where
+    M1: Message + Send + Sync + 'static + Serialize,
+    M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+{
+    //Determine whether to use JSON as the serialization method.
+    match content_type.ends_with("json") {
+        true => {
+            let mut codec = SerdeCodec::<M1, M2>::default();
+            (Box::new(codec.decoder()), Box::new(codec.encoder()))
+        }
+        false => {
+            let mut codec = ProstCodec::<M1, M2>::default();
+            (Box::new(codec.decoder()), Box::new(codec.encoder()))
         }
     }
 }

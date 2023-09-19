@@ -59,7 +59,7 @@ impl ClientBuilder {
             connector: "",
             directory: Some(Box::new(StaticDirectory::new(&host))),
             direct: true,
-            host: host.clone().to_string(),
+            host: host.to_string(),
         }
     }
 

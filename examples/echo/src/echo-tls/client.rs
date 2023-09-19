@@ -31,18 +31,13 @@ impl Filter for FakeFilter {
 #[tokio::main]
 async fn main() {
     dubbo_logger::init();
-    // let builder = ClientBuilder::new()
-    //     .with_connector("unix")
-    //     .with_host("unix://127.0.0.1:8888");
-    let builder = ClientBuilder::from_static(&"http://127.0.0.1:8888")
-        .with_timeout(1000000)
-        .with_direct(true);
+
+    let builder = ClientBuilder::from_static(&"https://127.0.0.1:8889").with_timeout(1000000);
     let mut cli = EchoClient::new(builder);
-    // let mut unary_cli = cli.clone().with_filter(FakeFilter {});
-    // let mut cli = EchoClient::build(ClientBuilder::from_static("http://127.0.0.1:8888"));
+
     let resp = cli
         .unary_echo(Request::new(EchoRequest {
-            message: "message from client".to_string(),
+            message: "message from tls-client".to_string(),
         }))
         .await;
     let resp = match resp {
@@ -54,13 +49,13 @@ async fn main() {
 
     let data = vec![
         EchoRequest {
-            message: "msg1 from client streaming".to_string(),
+            message: "msg1 from tls-client streaming".to_string(),
         },
         EchoRequest {
-            message: "msg2 from client streaming".to_string(),
+            message: "msg2 from tls-client streaming".to_string(),
         },
         EchoRequest {
-            message: "msg3 from client streaming".to_string(),
+            message: "msg3 from tls-client streaming".to_string(),
         },
     ];
     let req = futures_util::stream::iter(data);
@@ -70,17 +65,17 @@ async fn main() {
         Err(err) => return println!("{:?}", err),
     };
     let (_parts, resp_body) = client_streaming_resp.into_parts();
-    println!("client streaming, Response: {:?}", resp_body);
-    //
+    println!("tls-client streaming, Response: {:?}", resp_body);
+
     let data = vec![
         EchoRequest {
-            message: "msg1 from client".to_string(),
+            message: "msg1 from tls-client".to_string(),
         },
         EchoRequest {
-            message: "msg2 from client".to_string(),
+            message: "msg2 from tls-client".to_string(),
         },
         EchoRequest {
-            message: "msg3 from client".to_string(),
+            message: "msg3 from tls-client".to_string(),
         },
     ];
     let req = futures_util::stream::iter(data);

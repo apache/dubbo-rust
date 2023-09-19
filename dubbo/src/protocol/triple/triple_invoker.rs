@@ -38,9 +38,13 @@ pub struct TripleInvoker {
 impl TripleInvoker {
     pub fn new(url: Url) -> TripleInvoker {
         let uri = http::Uri::from_str(&url.to_url()).unwrap();
+        let mut conn = Connection::new().with_host(uri.clone());
+        if let Some(scheme) = uri.scheme_str() {
+            conn = conn.with_connector(scheme.to_string());
+        }
         Self {
             url,
-            conn: BoxCloneService::new(Connection::new().with_host(uri)),
+            conn: BoxCloneService::new(conn),
         }
     }
 }

@@ -16,12 +16,18 @@
  */
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
+use http::HeaderValue;
 use http_body::Body;
+use prost::Message;
+use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 
 use crate::{
     invocation::Request,
+    status::Status,
     triple::{
-        codec::Codec,
+        client::triple::get_codec,
+        codec::{Decoder, Encoder},
         compression::{CompressionEncoding, COMPRESSIONS},
         decode::Decoding,
         encode::encode_server,
@@ -34,23 +40,24 @@ use dubbo_config::BusinessConfig;
 pub const GRPC_ACCEPT_ENCODING: &str = "grpc-accept-encoding";
 pub const GRPC_ENCODING: &str = "grpc-encoding";
 
-pub struct TripleServer<T> {
-    codec: T,
+pub struct TripleServer<M1, M2> {
+    _pd: PhantomData<(M1, M2)>,
     compression: Option<CompressionEncoding>,
 }
 
-impl<T> TripleServer<T> {
-    pub fn new(codec: T) -> Self {
+impl<M1, M2> TripleServer<M1, M2> {
+    pub fn new() -> Self {
         Self {
-            codec,
-            compression: None,
+            _pd: PhantomData,
+            compression: Some(CompressionEncoding::Gzip),
         }
     }
 }
 
-impl<T> TripleServer<T>
+impl<M1, M2> TripleServer<M1, M2>
 where
-    T: Codec,
+    M1: Message + for<'a> Deserialize<'a> + Default + 'static,
+    M2: Message + Serialize + Default + 'static,
 {
     pub async fn client_streaming<S, B>(
         &mut self,
@@ -58,10 +65,20 @@ where
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
     where
-        S: ClientStreamingSvc<T::Decode, Response = T::Encode>,
+        S: ClientStreamingSvc<M1, Response = M2>,
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
     {
+        let content_type = req
+            .headers()
+            .get("content-type")
+            .cloned()
+            .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
+        let content_type_str = content_type.to_str().unwrap();
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
+        ) = get_codec(content_type_str);
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
         if self.compression.is_none() || accept_encoding.is_none() {
             accept_encoding = None;
@@ -73,7 +90,7 @@ where
             Err(status) => return status.to_http(),
         };
 
-        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
+        let req_stream = req.map(|body| Decoding::new(body, decoder, compression, true));
 
         let resp = service.call(Request::from_http(req_stream)).await;
 
@@ -83,15 +100,15 @@ where
         };
 
         let resp_body = encode_server(
-            self.codec.encoder(),
+            encoder,
             stream::once(future::ready(resp_body)).map(Ok).into_stream(),
             accept_encoding,
+            true,
         );
 
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/grpc"),
-        );
+        parts
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type);
         if let Some(encoding) = accept_encoding {
             parts
                 .headers
@@ -107,11 +124,21 @@ where
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
     where
-        S: StreamingSvc<T::Decode, Response = T::Encode>,
+        S: StreamingSvc<M1, Response = M2>,
         S::ResponseStream: Send + 'static,
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
     {
+        let content_type = req
+            .headers()
+            .get("content-type")
+            .cloned()
+            .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
+        let content_type_str = content_type.to_str().unwrap();
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
+        ) = get_codec(content_type_str);
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
@@ -125,7 +152,7 @@ where
             Err(status) => return status.to_http(),
         };
 
-        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
+        let req_stream = req.map(|body| Decoding::new(body, decoder, compression, true));
 
         let resp = service.call(Request::from_http(req_stream)).await;
 
@@ -133,12 +160,11 @@ where
             Ok(v) => v.into_http().into_parts(),
             Err(err) => return err.to_http(),
         };
-        let resp_body = encode_server(self.codec.encoder(), resp_body, compression);
+        let resp_body = encode_server(encoder, resp_body, compression, true);
 
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/grpc"),
-        );
+        parts
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type);
         if let Some(encoding) = accept_encoding {
             parts
                 .headers
@@ -154,11 +180,21 @@ where
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
     where
-        S: ServerStreamingSvc<T::Decode, Response = T::Encode>,
+        S: ServerStreamingSvc<M1, Response = M2>,
         S::ResponseStream: Send + 'static,
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
     {
+        let content_type = req
+            .headers()
+            .get("content-type")
+            .cloned()
+            .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
+        let content_type_str = content_type.to_str().unwrap();
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
+        ) = get_codec(content_type_str);
         // Firstly, get grpc_accept_encoding from http_header, get compression
         // Secondly, if server enable compression and compression is valid, this method should compress response
         let mut accept_encoding = CompressionEncoding::from_accept_encoding(req.headers());
@@ -171,8 +207,7 @@ where
             Ok(val) => val,
             Err(status) => return status.to_http(),
         };
-
-        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
+        let req_stream = req.map(|body| Decoding::new(body, decoder, compression, true));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
         let msg = body.try_next().await.unwrap().ok_or_else(|| {
             crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
@@ -188,12 +223,11 @@ where
             Ok(v) => v.into_http().into_parts(),
             Err(err) => return err.to_http(),
         };
-        let resp_body = encode_server(self.codec.encoder(), resp_body, compression);
+        let resp_body = encode_server(encoder, resp_body, compression, true);
 
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/grpc"),
-        );
+        parts
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type);
         if let Some(encoding) = accept_encoding {
             parts
                 .headers
@@ -209,7 +243,7 @@ where
         req: http::Request<B>,
     ) -> http::Response<BoxBody>
     where
-        S: UnarySvc<T::Decode, Response = T::Encode>,
+        S: UnarySvc<M1, Response = M2>,
         B: Body + Send + 'static,
         B::Error: Into<crate::Error> + Send,
     {
@@ -217,13 +251,24 @@ where
         if self.compression.is_none() || accept_encoding.is_none() {
             accept_encoding = None;
         }
-
         let compression = match self.get_encoding_from_req(req.headers()) {
             Ok(val) => val,
             Err(status) => return status.to_http(),
         };
-
-        let req_stream = req.map(|body| Decoding::new(body, self.codec.decoder(), compression));
+        let content_type = req
+            .headers()
+            .get("content-type")
+            .cloned()
+            .unwrap_or(HeaderValue::from_str("application/grpc+proto").unwrap());
+        let content_type_str = content_type.to_str().unwrap();
+        //Determine whether to use the gRPC mode to handle request data
+        let handle_request_as_grpc = content_type_str.contains("grpc");
+        let (decoder, encoder): (
+            Box<dyn Decoder<Item = M1, Error = Status> + Send + 'static>,
+            Box<dyn Encoder<Error = Status, Item = M2> + Send + 'static>,
+        ) = get_codec(content_type_str);
+        let req_stream =
+            req.map(|body| Decoding::new(body, decoder, compression, handle_request_as_grpc));
         let (parts, mut body) = Request::from_http(req_stream).into_parts();
         let msg = body.try_next().await.unwrap().ok_or_else(|| {
             crate::status::Status::new(crate::status::Code::Unknown, "request wrong".to_string())
@@ -240,15 +285,15 @@ where
             Err(err) => return err.to_http(),
         };
         let resp_body = encode_server(
-            self.codec.encoder(),
+            encoder,
             stream::once(future::ready(resp_body)).map(Ok).into_stream(),
             accept_encoding,
+            handle_request_as_grpc,
         );
 
-        parts.headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/grpc"),
-        );
+        parts
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type);
         if let Some(encoding) = accept_encoding {
             parts
                 .headers
@@ -282,7 +327,7 @@ where
     }
 }
 
-impl<T> BusinessConfig for TripleServer<T> {
+impl<M1, M2> BusinessConfig for TripleServer<M1, M2> {
     fn init() -> Self {
         todo!()
     }
