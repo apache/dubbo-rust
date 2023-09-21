@@ -41,7 +41,7 @@ use dubbo::{
     StdError,
 };
 
-// 从url中获取服务注册的元数据
+// Get metadata of a service registration from a URL
 // rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)
 // dubboPath = fmt.Sprintf("/%s/%s/%s", r.URL.GetParam(constant.RegistryGroupKey, "dubbo"), r.service(c), common.DubboNodes[common.PROVIDER])
 
