@@ -22,16 +22,12 @@ use std::{
 };
 use tower_service::Service;
 
-use crate::{
-    protocol::Invoker,
-    triple::{client::{builder::ClientBoxService, replay::ClonedBody}, transport::connection::Connection},
-    utils::boxed_clone::BoxCloneService,
-};
+use crate::triple::transport::connection::Connection;
 
 #[derive(Clone)]
 pub struct TripleInvoker {
     url: Url,
-    conn: ClientBoxService,
+    conn: Connection,
 }
 
 impl TripleInvoker {
@@ -39,7 +35,7 @@ impl TripleInvoker {
         let uri = http::Uri::from_str(&url.to_url()).unwrap();
         Self {
             url,
-            conn: BoxCloneService::new(Connection::new().with_host(uri)),
+            conn: Connection::new().with_host(uri),
         }
     }
 }
@@ -50,14 +46,14 @@ impl Debug for TripleInvoker {
     }
 }
 
-impl Service<http::Request<ClonedBody>> for TripleInvoker {
+impl<B: http_body::Body> Service<http::Request<B>> for TripleInvoker {
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
 
     type Future = crate::BoxFuture<Self::Response, Self::Error>;
 
-    fn call(&mut self, req: http::Request<ClonedBody>) -> Self::Future {
+    fn call(&mut self, req: http::Request<B>) -> Self::Future {
         self.conn.call(req)
     }
 
@@ -69,8 +65,3 @@ impl Service<http::Request<ClonedBody>> for TripleInvoker {
     }
 }
 
-impl Invoker<http::Request<ClonedBody>> for TripleInvoker {
-    fn get_url(&self) -> Url {
-        self.url.clone()
-    }
-}

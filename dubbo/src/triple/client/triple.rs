@@ -19,10 +19,10 @@ use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
+use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
 
 use super::builder::ClientBuilder;
-use super::replay::ClonedBody;
 use crate::codegen::RpcInvocation;
 
 use crate::{
@@ -57,9 +57,8 @@ impl TripleClient {
         &self,
         uri: http::Uri,
         path: http::uri::PathAndQuery,
-        body: ClonedBody,
-        invocation: RpcInvocation,
-    ) -> http::Request<ClonedBody> {
+        body: SdkBody,
+    ) -> http::Request<SdkBody> {
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(path);
 
@@ -111,8 +110,6 @@ impl TripleClient {
             http::HeaderValue::from_static("gzip"),
         );
 
-        req.extensions_mut().insert(invocation);
-
         // const (
         //     TripleContentType    = "application/grpc+proto"
         //     TripleUserAgent      = "grpc-go/1.35.0-dev"
@@ -141,23 +138,25 @@ impl TripleClient {
         M2: Send + Sync + 'static,
     {
         let req = req.map(|m| stream::once(future::ready(m)));
-        let en = encode(
+        let body_stream = encode(
             codec.encoder(),
             req.into_inner().map(Ok),
             self.send_compression_encoding,
         )
         .into_stream();
-        let body = ClonedBody::new(en);
+        let body = hyper::Body::wrap_stream(body_stream);
+        let bytes = hyper::body::to_bytes(body).await.unwrap();
+        let sdk_body = SdkBody::from(bytes);
 
         let mut conn = self
             .builder
             .clone()
             .unwrap()
-            .build()
+            .build(invocation.into())
             .unwrap();
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, body, invocation);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         let response = conn
             .call(req)
@@ -211,19 +210,18 @@ impl TripleClient {
             self.send_compression_encoding,
         )
         .into_stream();
-
-
-        let body = ClonedBody::new(en);
+        let body = hyper::Body::wrap_stream(en);
+        let sdk_body = SdkBody::from(body);
 
         let mut conn = self
             .builder
             .clone()
             .unwrap()
-            .build()
+            .build(invocation.into())
             .unwrap();
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, body, invocation);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         let response = conn
             .call(req)
@@ -261,17 +259,18 @@ impl TripleClient {
             self.send_compression_encoding,
         )
         .into_stream();
-        let body = ClonedBody::new(en);
+        let body = hyper::Body::wrap_stream(en);
+        let sdk_body = SdkBody::from(body);
 
         let mut conn = self
             .builder
             .clone()
             .unwrap()
-            .build()
+            .build(invocation.into())
             .unwrap();
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, body, invocation);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         // let mut conn = Connection::new().with_host(http_uri);
         let response = conn
@@ -326,18 +325,18 @@ impl TripleClient {
             self.send_compression_encoding,
         )
         .into_stream();
-
-        let body = ClonedBody::new(en);
+        let body = hyper::Body::wrap_stream(en);
+        let sdk_body = SdkBody::from(body);
 
         let mut conn = self
             .builder
             .clone()
             .unwrap()
-            .build()
+            .build(invocation.into())
             .unwrap();
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, body, invocation);
+        let req = self.map_request(http_uri.clone(), path, sdk_body);
 
         let response = conn
             .call(req)

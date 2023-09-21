@@ -26,6 +26,9 @@ pub mod registry;
 pub mod status;
 pub mod triple;
 pub mod utils;
+pub mod directory;
+pub mod route;
+pub mod loadbalancer; 
 
 use http_body::Body;
 use std::{future::Future, pin::Pin};

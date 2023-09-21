@@ -196,7 +196,7 @@ pub trait Invocation {
     fn get_method_name(&self) -> String;
 }
 
-#[derive(Default,Clone)]
+#[derive(Default, Clone)]
 pub struct RpcInvocation {
     target_service_unique_name: String,
     method_name: String,

@@ -19,18 +19,17 @@ use std::sync::Arc;
 
 use crate::{
     cluster::{directory::StaticDirectory, Cluster, Directory, MockCluster, MockDirectory},
-    codegen::{RegistryDirectory, RpcInvocation, TripleInvoker},
+    codegen::{RpcInvocation, TripleInvoker},
     protocol::BoxInvoker,
     utils::boxed_clone::BoxCloneService,
 };
-use dubbo_base::Url;
-use super::replay::ClonedBody;
 
+use aws_smithy_http::body::SdkBody;
+use dubbo_base::Url;
 
 pub type ClientBoxService =
-    BoxCloneService<http::Request<ClonedBody>, http::Response<crate::BoxBody>, crate::Error>;
+    BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct ClientBuilder {
     pub timeout: Option<u64>,
@@ -57,7 +56,7 @@ impl ClientBuilder {
             connector: "",
             directory: Some(Arc::new(Box::new(StaticDirectory::new(&host)))),
             direct: true,
-            host: host.to_string(),
+            host: host.clone().to_string(),
         }
     }
 
@@ -101,7 +100,7 @@ impl ClientBuilder {
         Self { direct, ..self }
     }
 
-    pub fn build(self) -> Option<BoxInvoker> {
+    pub fn build(self, _invocation: Arc<RpcInvocation>) -> Option<BoxInvoker> {
         if self.direct {
             return Some(Box::new(TripleInvoker::new(
                 Url::from_url(&self.host).unwrap(),

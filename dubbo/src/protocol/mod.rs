@@ -26,8 +26,6 @@ use tower_service::Service;
 
 use dubbo_base::Url;
 
-use crate::triple::client::replay::{ClonedBytesStream, ClonedBody};
-
 pub mod server_desc;
 pub mod triple;
 
@@ -44,18 +42,19 @@ pub trait Exporter {
     fn unexport(&self);
 }
 
-pub trait Invoker<ReqBody>: Debug + Service<ReqBody> {
+pub trait Invoker<ReqBody>: Service<ReqBody> {
     fn get_url(&self) -> Url;
 }
 
 pub type BoxExporter = Box<dyn Exporter + Send + Sync>;
 pub type BoxInvoker = Box<
     dyn Invoker<
-            http::Request<ClonedBody>,
+            http::Request<SdkBody>,
             Response = http::Response<crate::BoxBody>,
             Error = crate::Error,
             Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
-        > + Send,
+        > + Send
+        + Sync,
 >;
 
 pub struct WrapperInvoker<T>(T);

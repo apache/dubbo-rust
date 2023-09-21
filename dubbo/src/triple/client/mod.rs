@@ -17,5 +17,5 @@
 
 pub mod builder;
 pub mod triple;
-pub mod replay;
+
 pub use triple::TripleClient;
