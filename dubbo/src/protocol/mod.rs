@@ -21,12 +21,11 @@ use std::{
 };
 
 use async_trait::async_trait;
-use aws_smithy_http::body::SdkBody;
 use tower_service::Service;
 
 use dubbo_base::Url;
 
-use crate::triple::client::replay::{ClonedBytesStream, ClonedBody};
+use crate::triple::client::replay::ClonedBody;
 
 pub mod server_desc;
 pub mod triple;

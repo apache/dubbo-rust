@@ -16,10 +16,10 @@ pub struct ConditionRouterManager {
 }
 
 impl ConditionRouterManager {
-    pub fn get_router(&self, service_name: String) -> Option<ConditionRouter> {
+    pub fn get_router(&self, service_name: &String) -> Option<ConditionRouter> {
         let routers_application_is_null = self.routers_application.read().unwrap().is_null();
         self.routers_service
-            .get(&service_name)
+            .get(service_name)
             .map(|routers_service| {
                 ConditionRouter::new(
                     Some(routers_service.clone()),
@@ -44,8 +44,8 @@ impl ConditionRouterManager {
 
     pub fn update(&mut self, config: ConditionRouterConfig) {
         let force = config.force;
-        let scope = config.scope.clone();
-        let key = config.key.clone();
+        let scope = config.scope;
+        let key = config.key;
         let enable = config.enabled;
 
         let routers = config
@@ -67,12 +67,6 @@ impl ConditionRouterManager {
                     .routers = routers;
             }
             _ => {}
-        }
-    }
-
-    pub fn _parse_rules(&mut self, configs: Vec<ConditionRouterConfig>) {
-        for config in configs {
-            self.update(config)
         }
     }
 }

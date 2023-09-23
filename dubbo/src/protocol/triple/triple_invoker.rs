@@ -24,7 +24,10 @@ use tower_service::Service;
 
 use crate::{
     protocol::Invoker,
-    triple::{client::{builder::ClientBoxService, replay::ClonedBody}, transport::connection::Connection},
+    triple::{
+        client::{builder::ClientBoxService, replay::ClonedBody},
+        transport::connection::Connection,
+    },
     utils::boxed_clone::BoxCloneService,
 };
 

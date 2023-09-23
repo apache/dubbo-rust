@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use crate::{
     cluster::{directory::StaticDirectory, Cluster, Directory, MockCluster, MockDirectory},
-    codegen::{RegistryDirectory, RpcInvocation, TripleInvoker},
+    codegen::{RegistryDirectory, TripleInvoker},
     protocol::BoxInvoker,
     utils::boxed_clone::BoxCloneService,
 };
@@ -102,14 +102,14 @@ impl ClientBuilder {
         Self { direct, ..self }
     }
 
-    pub fn build(self) -> Option<BoxInvoker> {
+    pub fn build(self, service_name: String) -> Option<BoxInvoker> {
         if self.direct {
             return Some(Box::new(TripleInvoker::new(
                 Url::from_url(&self.host).unwrap(),
             )));
         }
 
-        let cluster = MockCluster::default().join(Box::new(MockDirectory::new()));
+        let cluster = MockCluster::default().join(Box::new(MockDirectory::new(service_name)));
 
         return Some(cluster);
     }

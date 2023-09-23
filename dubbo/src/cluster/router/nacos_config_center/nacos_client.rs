@@ -24,43 +24,35 @@ impl NacosClient {
         let server_addr = config.addr;
         let namespace = config.namespace;
         let app = config.app;
-        match config.enable_auth {
-            None => {
-                info!("disable nacos auth!");
-                info!("nacos init,addr:{}", server_addr);
-                let client = Arc::new(RwLock::new(
-                    ConfigServiceBuilder::new(
-                        ClientProps::new()
-                            .server_addr(server_addr)
-                            .namespace(namespace)
-                            .app_name(app),
-                    )
-                    .build()
-                    .expect("NacosClient build failed!Please check NacosConfig"),
-                ));
-                Self { client }
-            }
-            Some(auth) => {
-                info!("enable nacos auth!");
-                info!("nacos init,addr:{}", server_addr);
-                let client = Arc::new(RwLock::new(
-                    ConfigServiceBuilder::new(
-                        ClientProps::new()
-                            .server_addr(server_addr)
-                            .namespace(namespace)
-                            .app_name(app)
-                            .auth_username(auth.auth_username)
-                            .auth_password(auth.auth_password),
-                    )
-                    // .enable_auth_plugin_http()
-                    .build()
-                    .expect("NacosClient build failed!Please check NacosConfig"),
-                ));
-                return Self { client };
-            }
+        let enable_auth = config.enable_auth;
+
+        let mut props = ClientProps::new()
+            .server_addr(server_addr)
+            .namespace(namespace)
+            .app_name(app);
+
+        if enable_auth.is_some() {
+            info!("enable nacos auth!");
+        } else {
+            info!("disable nacos auth!");
         }
+
+        if let Some(auth) = enable_auth {
+            props = props
+                .auth_username(auth.auth_username)
+                .auth_password(auth.auth_password);
+        }
+
+        let client = Arc::new(RwLock::new(
+            ConfigServiceBuilder::new(props)
+                .build()
+                .expect("NacosClient build failed! Please check NacosConfig"),
+        ));
+
+        Self { client }
     }
-    pub fn get_config<T>(&self, data_id: String, group: String, config_type: &str) -> Option<T>
+
+    pub fn get_config<T>(&self, data_id: &str, group: &str, config_type: &str) -> Option<T>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -68,13 +60,14 @@ impl NacosClient {
             .client
             .read()
             .unwrap()
-            .get_config(data_id.clone(), group.clone());
+            .get_config(data_id.to_string(), group.to_string());
 
         match config_resp {
             Ok(config_resp) => {
-                self.add_listener(data_id.clone(), group.clone());
+                self.add_listener(data_id, group);
                 let string = config_resp.content();
                 let result = serde_yaml::from_str(string);
+
                 match result {
                     Ok(config) => {
                         info!(
@@ -92,17 +85,25 @@ impl NacosClient {
             Err(_) => None,
         }
     }
-    pub fn add_listener(&self, data_id: String, group: String) {
-        let res_listener = self
+
+    pub fn add_listener(&self, data_id: &str, group: &str) {
+        if let Err(err) = self
             .client
             .write()
-            .expect("failed to create nacos config listener")
-            .add_listener(data_id, group, Arc::new(ConfigChangeListenerImpl {}));
-        match res_listener {
-            Ok(_) => {
-                info!("listening the config success");
-            }
-            Err(err) => tracing::error!("listen config error {:?}", err),
+            .map_err(|e| format!("failed to create nacos config listener: {}", e))
+            .and_then(|client| {
+                client
+                    .add_listener(
+                        data_id.to_string(),
+                        group.to_string(),
+                        Arc::new(ConfigChangeListenerImpl {}),
+                    )
+                    .map_err(|e| format!("failed to add nacos config listener: {}", e))
+            })
+        {
+            tracing::error!("{}", err);
+        } else {
+            info!("listening the config success");
         }
     }
 }
@@ -111,13 +112,15 @@ impl ConfigChangeListener for ConfigChangeListenerImpl {
     fn notify(&self, config_resp: ConfigResponse) {
         let content_type = config_resp.content_type();
         let event = RouterConfigChangeEvent {
-            service_name: config_resp.data_id().clone(),
-            router_kind: config_resp.group().clone(),
-            content: config_resp.content().clone(),
+            service_name: config_resp.data_id().to_string(),
+            router_kind: config_resp.group().to_string(),
+            content: config_resp.content().to_string(),
         };
+
         if content_type == "yaml" {
             get_global_router_manager().write().unwrap().notify(event);
         }
-        info!("notify config={:?}", config_resp);
+
+        info!("notify config: {:?}", config_resp);
     }
 }

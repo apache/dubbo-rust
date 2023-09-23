@@ -30,7 +30,7 @@ use crate::{
 use dubbo_base::Url;
 use dubbo_logger::tracing;
 
-use crate::cluster::Directory;
+use crate::{cluster::Directory, codegen::RpcInvocation, invocation::Invocation};
 
 /// Directory.
 ///
@@ -59,12 +59,12 @@ impl StaticDirectory {
 }
 
 impl Directory for StaticDirectory {
-    fn list(&self, service_name: String) -> Vec<BoxInvoker> {
+    fn list(&self, inv: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
         let url = Url::from_url(&format!(
             "tri://{}:{}/{}",
             self.uri.host().unwrap(),
             self.uri.port().unwrap(),
-            service_name,
+            inv.get_target_service_unique_name(),
         ))
         .unwrap();
         let invoker = Box::new(TripleInvoker::new(url));
@@ -88,8 +88,8 @@ impl RegistryDirectory {
 }
 
 impl Directory for RegistryDirectory {
-    fn list(&self, service_name: String) -> Vec<BoxInvoker> {
-
+    fn list(&self, inv: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
+        let service_name = inv.get_target_service_unique_name();
         let url = Url::from_url(&format!(
             "triple://{}:{}/{}",
             "127.0.0.1", "8888", service_name

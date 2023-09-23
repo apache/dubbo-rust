@@ -23,6 +23,9 @@ use tower::{ready_cache::ReadyCache, ServiceExt};
 use tower_service::Service;
 
 use crate::{
+    cluster::router::{
+        manager::router_manager::get_global_router_manager, router_chain::RouterChain,
+    },
     codegen::RpcInvocation,
     invocation::Invocation,
     protocol::{triple::triple_invoker::TripleInvoker, BoxInvoker, Invoker},
@@ -35,7 +38,7 @@ pub mod loadbalance;
 pub mod router;
 
 pub trait Directory: Debug {
-    fn list(&self, service_name: String) -> Vec<BoxInvoker>;
+    fn list(&self, inv: Arc<RpcInvocation>) -> Vec<BoxInvoker>;
 }
 
 type BoxDirectory = Box<dyn Directory + Send + Sync>;
@@ -134,7 +137,7 @@ impl Service<http::Request<ClonedBody>> for FailoverCluster {
         let inv = inv.unwrap();
         let service_name = inv.get_target_service_unique_name();
 
-        let invokers = self.dir.list(service_name.clone());
+        let invokers = self.dir.list(Arc::new(inv.clone()));
 
         Box::pin(async move {
             let mut current_req = req;
@@ -172,55 +175,36 @@ impl Invoker<http::Request<ClonedBody>> for FailoverCluster {
 
 #[derive(Debug, Default)]
 pub struct MockDirectory {
-    // router_chain: RouterChain,
+    router_chain: RouterChain,
 }
 
 impl MockDirectory {
-    pub fn new() -> MockDirectory {
-        // let router_chain = get_global_router_manager().read().unwrap().get_router_chain(invocation);
-        Self {
-            // router_chain
-        }
+    pub fn new(service_name: String) -> MockDirectory {
+        let router_chain = get_global_router_manager()
+            .read()
+            .unwrap()
+            .get_router_chain(service_name);
+        Self { router_chain }
     }
 }
 
 impl Directory for MockDirectory {
-    fn list(&self, service_name: String) -> Vec<BoxInvoker> {
-        // tracing::info!("MockDirectory: {}", meta);
+    fn list(&self, inv: Arc<RpcInvocation>) -> Vec<BoxInvoker> {
         let u = Url::from_url("triple://127.0.0.1:8888/helloworld.Greeter").unwrap();
-        vec![Box::new(TripleInvoker::new(u))]
-        // self.router_chain.route(u, invo);
+        let mut urls = vec![u];
+        // tracing::info!("MockDirectory: {}", meta);
+        urls = self.router_chain.route(urls, inv);
+        let mut result = Vec::new();
+        for url in urls {
+            result.push(Box::new(TripleInvoker::new(url)) as BoxInvoker);
+        }
+        result
     }
 }
 
-
-// #[derive(Debug, Default)]
-// pub struct RouterChain {
-//     router: HashMap<String, BoxRouter>,
-//     invokers: Arc<Vec<BoxInvoker>>,
-// }
-
-// impl RouterChain {
-//     pub fn route(&mut self, url: Url, invo: Arc<RpcInvocation>) -> Arc<Vec<BoxInvoker>> {
-//         let r = self.router.get("mock").unwrap();
-//         r.route(self.invokers.clone(), url, invo)
-//     }
-// }
-
-// pub trait Router: Debug {
-//     fn route(
-//         &self,
-//         invokers: Arc<Vec<BoxInvoker>>,
-//         url: Url,
-//         invo: Arc<RpcInvocation>,
-//     ) -> Arc<Vec<BoxInvoker>>;
-// }
-
-// pub type BoxRouter = Box<dyn Router + Sync + Send>;
-
 #[cfg(test)]
 pub mod tests {
-    use std::task::Poll;
+    use std::{sync::Arc, task::Poll};
 
     use bytes::{Buf, BufMut, BytesMut};
     use dubbo_base::Url;
@@ -250,8 +234,11 @@ pub mod tests {
     struct MockDirectory;
 
     impl Directory for MockDirectory {
-        fn list(&self, service_name: String) -> Vec<crate::protocol::BoxInvoker> {
-            println!("get invoker list for {}", service_name);
+        fn list(&self, inv: Arc<RpcInvocation>) -> Vec<crate::protocol::BoxInvoker> {
+            println!(
+                "get invoker list for {}",
+                inv.get_target_service_unique_name()
+            );
 
             vec![
                 Box::new(MockInvoker(1)),
