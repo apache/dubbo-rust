@@ -14,7 +14,7 @@ hyper = { version = "0.14.26", features = ["full"] }
 http = "0.2"
 tower-service.workspace = true
 http-body = "0.4.4"
-tower = { workspace = true, features = ["timeout", "ready-cache"] }
+tower = { workspace = true, features = ["timeout", "ready-cache","discover"] }
 futures-util = "0.3.23"
 futures-core ="0.3.23"
 argh = "0.1"
@@ -46,7 +46,6 @@ dubbo-config = { path = "../config", version = "0.3.0" }
 
 #对象存储
 state = { version = "0.5", features = ["tls"] }
-
 thiserror = "1.0.48"
 regex = "1.9.1"
 nacos-sdk = { version = "0.3.0", features = ["default"] }
