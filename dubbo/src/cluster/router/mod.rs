@@ -9,17 +9,17 @@ use crate::invocation::RpcInvocation;
 use dubbo_base::Url;
 use std::{fmt::Debug, sync::Arc};
 
-pub trait Router: Debug + Clone {
-    fn route(&self, invokers: Vec<Url>, url: Url, invo: Arc<RpcInvocation>) -> Vec<Url>;
+pub trait Router: Debug {
+    fn route(&self, invokers: Vec<Url>, url: Url, invocation: Arc<RpcInvocation>) -> Vec<Url>;
 }
 
-// pub type BoxRouter = Box<dyn Router + Sync + Send>;
+pub type BoxRouter = Box<dyn Router + Sync + Send>;
 
 #[derive(Debug, Default, Clone)]
 pub struct MockRouter {}
 
 impl Router for MockRouter {
-    fn route(&self, invokers: Vec<Url>, _url: Url, _invo: Arc<RpcInvocation>) -> Vec<Url> {
+    fn route(&self, invokers: Vec<Url>, _url: Url, _invocation: Arc<RpcInvocation>) -> Vec<Url> {
         invokers
     }
 }

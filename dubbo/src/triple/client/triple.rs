@@ -21,12 +21,11 @@ use futures_util::{future, stream, StreamExt, TryStreamExt};
 
 use http::HeaderValue;
 
-use super::builder::ClientBuilder;
-use super::replay::ClonedBody;
+use super::{builder::ClientBuilder, replay::ClonedBody};
 use crate::codegen::RpcInvocation;
 
 use crate::{
-    invocation::{IntoStreamingRequest, Metadata, Request, Response},
+    invocation::{IntoStreamingRequest, Invocation, Metadata, Request, Response},
     triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
 };
 
@@ -153,7 +152,7 @@ impl TripleClient {
             .builder
             .clone()
             .unwrap()
-            .build()
+            .build(invocation.get_target_service_unique_name())
             .unwrap();
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
@@ -212,14 +211,13 @@ impl TripleClient {
         )
         .into_stream();
 
-
         let body = ClonedBody::new(en);
 
         let mut conn = self
             .builder
             .clone()
             .unwrap()
-            .build()
+            .build(invocation.get_target_service_unique_name())
             .unwrap();
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
@@ -267,7 +265,7 @@ impl TripleClient {
             .builder
             .clone()
             .unwrap()
-            .build()
+            .build(invocation.get_target_service_unique_name())
             .unwrap();
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
@@ -333,7 +331,7 @@ impl TripleClient {
             .builder
             .clone()
             .unwrap()
-            .build()
+            .build(invocation.get_target_service_unique_name())
             .unwrap();
 
         let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();

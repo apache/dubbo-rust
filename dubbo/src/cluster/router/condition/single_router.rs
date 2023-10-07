@@ -169,20 +169,16 @@ impl ConditionSingleRouter {
 
     pub fn match_when(&self, url: Url, invocation: Arc<RpcInvocation>) -> bool {
         if self.when_condition.is_empty() {
-            true
-        } else {
-            false
-        };
-        self.do_match(url, &self.when_condition, invocation, true)
+            return true;
+        }
+        self.do_match(url, &self.when_condition, invocation)
     }
 
     pub fn match_then(&self, url: Url, invocation: Arc<RpcInvocation>) -> bool {
-        if self.when_condition.is_empty() {
-            true
-        } else {
-            false
-        };
-        self.do_match(url, &self.then_condition, invocation, false)
+        if self.then_condition.is_empty() {
+            return false;
+        }
+        self.do_match(url, &self.then_condition, invocation)
     }
 
     pub fn do_match(
@@ -190,25 +186,19 @@ impl ConditionSingleRouter {
         url: Url,
         conditions: &HashMap<String, Arc<RwLock<ConditionMatcher>>>,
         invocation: Arc<RpcInvocation>,
-        is_when: bool,
     ) -> bool {
         let sample: HashMap<String, String> = to_original_map(url);
-        for (key, condition_matcher) in conditions {
+        conditions.iter().all(|(key, condition_matcher)| {
             let matcher = condition_matcher.read().unwrap();
             let value = get_value(key, &sample, invocation.clone());
-            match matcher.is_match(value, invocation.clone(), is_when) {
-                Ok(result) => {
-                    if !result {
-                        return false;
-                    }
-                }
+            match matcher.is_match(value) {
+                Ok(result) => result,
                 Err(error) => {
                     info!("Error occurred: {:?}", error);
-                    return false;
+                    false
                 }
             }
-        }
-        true
+        })
     }
 }
 
