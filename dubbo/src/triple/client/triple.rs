@@ -15,41 +15,43 @@
  * limitations under the License.
  */
 
-use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
 use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
+use tower_service::Service;
 
-use super::builder::ClientBuilder;
+use super::builder::{ClientBuilder, ServiceMK};
 use crate::codegen::RpcInvocation;
 
+use crate::svc::NewService;
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
     triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
 };
 
-#[derive(Debug, Default, Clone)]
+#[derive(Clone)]
 pub struct TripleClient {
     pub(crate) send_compression_encoding: Option<CompressionEncoding>,
-    pub(crate) builder: Option<ClientBuilder>,
+    pub(crate) mk: ServiceMK,
 }
 
 impl TripleClient {
     pub fn connect(host: String) -> Self {
         let builder = ClientBuilder::from_static(&host).with_direct(true);
+        let mk = builder.build();
 
         TripleClient {
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            builder: Some(builder),
+            mk,
         }
     }
 
     pub fn new(builder: ClientBuilder) -> Self {
         TripleClient {
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            builder: Some(builder),
+            mk: builder.build(),
         }
     }
 
@@ -145,21 +147,18 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
-        let bytes = hyper::body::to_bytes(body).await.unwrap();
-        let sdk_body = SdkBody::from(bytes);
 
-        let mut conn = self
-            .builder
-            .clone()
-            .unwrap()
-            .build(invocation.into())
-            .unwrap();
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let mut invoker = self.mk.new_service(invocation);
 
-        let response = conn
-            .call(req)
+
+        let request = http::Request::builder()
+            .body(body).unwrap();
+
+       
+
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
@@ -211,20 +210,16 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
-        let sdk_body = SdkBody::from(body);
+      
+        let mut invoker = self.mk.new_service(invocation);
 
-        let mut conn = self
-            .builder
-            .clone()
-            .unwrap()
-            .build(invocation.into())
-            .unwrap();
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let request = http::Request::builder()
+            .body(body).unwrap();
 
-        let response = conn
-            .call(req)
+
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
@@ -260,21 +255,17 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
-        let sdk_body = SdkBody::from(body);
+        let mut invoker = self.mk.new_service(invocation);
 
-        let mut conn = self
-            .builder
-            .clone()
-            .unwrap()
-            .build(invocation.into())
-            .unwrap();
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let request = http::Request::builder()
+            .body(body).unwrap();
+
+
 
         // let mut conn = Connection::new().with_host(http_uri);
-        let response = conn
-            .call(req)
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
@@ -326,20 +317,15 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
-        let sdk_body = SdkBody::from(body);
+        let mut invoker = self.mk.new_service(invocation);
 
-        let mut conn = self
-            .builder
-            .clone()
-            .unwrap()
-            .build(invocation.into())
-            .unwrap();
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let request = http::Request::builder()
+            .body(body).unwrap();
 
-        let response = conn
-            .call(req)
+
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 

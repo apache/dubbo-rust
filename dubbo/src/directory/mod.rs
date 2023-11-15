@@ -18,23 +18,27 @@
  use core::panic;
 use std::{
     hash::Hash,
-    pin::Pin,
-    task::{Context, Poll}, collections::HashMap, sync::{Arc, Mutex}, marker::PhantomData,
+    task::{Context, Poll}, collections::HashMap, sync::{Arc, Mutex},
 };
     
-use crate::{StdError, codegen::RpcInvocation, invocation::Invocation};
-use dubbo_base::{param::Param, svc::NewService};
-use futures_core::Future;
+use crate::{StdError, codegen::RpcInvocation, invocation::Invocation, registry::n_registry::Registry, invoker::NewInvoker, svc::NewService, param::Param};
 use futures_util::future::{poll_fn, self};
-use pin_project::pin_project;
-use tokio::{sync::{watch, Notify}, select};
+use tokio::{sync::{watch, Notify, mpsc::channel}, select};
+use tokio_stream::wrappers::ReceiverStream;
 use tower::{
-    discover::{Change, Discover}, ServiceExt, buffer::Buffer, util::{FutureService, Oneshot},
+    discover::{Change, Discover}, buffer::Buffer,
 };
 
 use tower_service::Service;
 
-pub struct NewCachedDirectory<T>(PhantomData<T>);
+type BufferedDirectory = Buffer<Directory<ReceiverStream<Result<Change<String, NewInvoker>, StdError>>>, ()>;
+
+pub struct NewCachedDirectory<N>
+where
+    N: Registry + Clone + Send + Sync + 'static,
+{
+    inner: CachedDirectory<NewDirectory<N>, RpcInvocation>
+}
 
 
 pub struct CachedDirectory<N, T> 
@@ -48,20 +52,11 @@ where
 
 
 pub struct NewDirectory<N> {
-    // service registry
+    // registry
     inner: N,
 }
 
- 
-#[pin_project]
-pub struct NewDirectoryFuture<S> 
-where
-    S: Service<()>,
-    S::Response: Discover
-{
-    #[pin]
-    inner: Oneshot<S, ()>
-}
+
 
 #[derive(Clone)]
 pub struct Directory<D> 
@@ -72,38 +67,39 @@ where
     close: Arc<Notify>
 }
 
-impl<T> NewCachedDirectory<T> {
 
-    pub fn new() -> Self {
-        NewCachedDirectory(PhantomData)  
+
+impl<N> NewCachedDirectory<N> 
+where
+    N: Registry + Clone + Send + Sync + 'static,
+{
+
+    pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
+        tower_layer::layer_fn(|inner: N| {
+            NewCachedDirectory {
+                // inner is registry 
+                inner: CachedDirectory::new(NewDirectory::new(inner)), 
+            }
+        })
     }
 }
 
 
-impl<N, T> NewService<N> for NewCachedDirectory<T>
+impl<N, T> NewService<T> for NewCachedDirectory<N>
 where
     T: Param<RpcInvocation>,
     // service registry
-    N: NewService<T>, 
-    N::Service: Service<()> + Send,
-    // Discover service
-    <N::Service as Service<()>>::Response: Discover + Unpin + Send,
-    <N::Service as Service<()>>::Error: Into<StdError>, 
-    <N::Service as Service<()>>::Future: Unpin + Send, 
-    // Discover::Key
-    <<N::Service as Service<()>>::Response as Discover>::Key: Hash + Eq + Clone + Send,
-    // Discover::Service = new invoker
-    <<N::Service as Service<()>>::Response as Discover>::Service: NewService<()> + Clone + Send + Sync,
+    N: Registry + Clone + Send + Sync + 'static,
 {
-    type Service = CachedDirectory<NewDirectory<N>, T>;
+    type Service = BufferedDirectory; 
 
-    fn new_service(&self, target: N) -> Self::Service {
-        
-        CachedDirectory::new(NewDirectory::new(target))
+    fn new_service(&self, target: T) -> Self::Service {
+    
+        self.inner.new_service(target.param())
     }
 } 
  
-
+ 
 impl<N, T> CachedDirectory<N, T> 
 where
     N: NewService<T>
@@ -116,8 +112,8 @@ where
         }
     } 
 } 
-
-
+  
+ 
 impl<N, T> NewService<T> for CachedDirectory<N, T> 
 where
     T: Param<RpcInvocation>,
@@ -152,91 +148,70 @@ impl<N> NewDirectory<N> {
             inner
         }
     }
-}
+} 
 
 impl<N, T> NewService<T> for NewDirectory<N> 
 where
     T: Param<RpcInvocation>,
     // service registry
-    N: NewService<T>, 
-    N::Service: Service<()> + Send, 
-    // Discover service
-    <N::Service as Service<()>>::Response: Discover + Unpin + Send,
-    <N::Service as Service<()>>::Future: Unpin + Send,
-    <N::Service as Service<()>>::Error: Into<StdError>,
-    // Discover::Key
-    <<N::Service as Service<()>>::Response as Discover>::Key: Hash + Eq + Clone + Send,
-    // Discover::service = new invoker
-    <<N::Service as Service<()>>::Response as Discover>::Service: Send + Sync + Clone + NewService<()>,
+    N: Registry + Clone + Send + Sync + 'static, 
 {
-    type Service = Buffer<FutureService<NewDirectoryFuture<<N as NewService<T>>::Service>, Directory<<N::Service as Service<()>>::Response>>, ()>; 
+    type Service = BufferedDirectory; 
  
     fn new_service(&self, target: T) -> Self::Service {
-        let discovery_service =  self.inner.new_service(target);  
-        Buffer::new(FutureService::new(NewDirectoryFuture::new(discovery_service)), 10)
+        
+        let service_name = target.param().get_target_service_unique_name();
+
+        let registry = self.inner.clone();
+
+        let (tx, rx) = channel(1024);
+
+        tokio::spawn(async move {
+
+            let receiver = registry.subscribe(service_name).await;
+            match receiver {
+                Err(e) => {
+                    // error!("discover stream error: {}", e);
+                    
+                },
+                Ok(mut receiver) => {
+                    loop {
+                        let change = receiver.recv().await;
+                        match change {
+                            None => {
+                                // debug!("discover stream closed.");
+                                break;
+                            },
+                            Some(change) => {
+                                let _  = tx.send(change);
+                            }
+                        }
+                    }
+                }
+            }
+
+        }); 
+
+        Buffer::new(Directory::new(ReceiverStream::new(rx)), 1024)
     } 
 
 } 
 
 
-
-impl<S> NewDirectoryFuture<S> 
-where
-    // Discover service
-    S: Service<()>,
-    S::Response: Discover
-{
-    pub fn new(inner: S) -> Self {
-        NewDirectoryFuture {
-            inner: inner.oneshot(())
-        }
-    }
-}
-
-
-
-impl<S> Future for NewDirectoryFuture<S> 
-where
-    // Discover service
-    S: Service<()>,
-    // Discover
-    S::Response: Discover + Unpin + Send,
-    // the key may be dubbo url
-    <S::Response as Discover>::Key: Hash + Eq + Clone + Send, 
-    // error
-    S::Error: Into<StdError>, 
-    // new invoker
-    <S::Response as Discover>::Service: NewService<()> + Clone + Send + Sync
-{
-    type Output = Result<Directory<S::Response>, StdError>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.project(); 
-
-        this.inner.poll(cx).map(|poll_ret| {
-            poll_ret.map(|discover| { 
-                Directory::new(discover)
-            })
-        }).map_err(|e| {
-            e.into()
-        }) 
-
-    }
-}
-
 impl<D> Directory<D> 
 where
     // Discover
-    D: Discover + Unpin + Send,
+    D: Discover + Unpin + Send + 'static,
     // the key may be dubbo url
     D::Key: Hash + Eq + Clone + Send,
     // invoker new service
     D::Service: NewService<()> + Clone + Send + Sync,
-{
+{ 
 
-    pub fn new(mut discover: D) -> Self {
+    pub fn new(discover: D) -> Self {
+  
+        let mut discover = Box::pin(discover);
 
-        let pin_discover = Pin::new(&mut discover);
         let (tx, rx) = watch::channel(Vec::new());
         let close = Arc::new(Notify::new());
         let close_clone = close.clone();
@@ -248,9 +223,9 @@ where
                 let changed = select! {
                     _ = close_clone.notified() => {
                         // info!("discover stream closed.")
-                        return;
+                        return; 
                     },
-                    changed = poll_fn(|cx| pin_discover.poll_discover(cx)) => {
+                    changed = poll_fn(|cx| discover.as_mut().poll_discover(cx)) => {
                         changed
                     }
                 };

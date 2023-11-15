@@ -15,68 +15,57 @@
  * limitations under the License.
  */
 
-use std::marker::PhantomData;
 
-use dubbo_base::{svc::NewService, param::Param};
 use http::Request;
 use tower_service::Service;
 
-use crate::{codegen::RpcInvocation, cluster::failover::NewFailover, StdError};
+use crate::{codegen::RpcInvocation, StdError, svc::NewService, param::Param};
 
 use self::{failover::Failover, clone_body::CloneBody};
  
-mod clone_body; 
+mod clone_body;
 mod clone_invoker;
 mod failover;
 
-pub struct NewClusterService<S, Req> {
-    inner: S, // new loadbalancer service
-    _mark: PhantomData<Req>
+pub struct NewCluster<N> {
+    inner: N, // new loadbalancer service
 }
 
-pub struct ClusterService<S> {
+pub struct Cluster<S> {
     inner: S // failover service
 }
 
 
-impl<S, Req> NewClusterService<S, Req> 
-{
+impl<N> NewCluster<N> {
  
-    pub fn layer() -> impl tower_layer::Layer<S, Service = Self> {
-        tower_layer::layer_fn(|inner: S| {
-            NewClusterService {
+    pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
+        tower_layer::layer_fn(|inner: N| {
+            NewCluster {
                 inner, // new loadbalancer service
-                _mark: PhantomData
             }
         })
     }
 
 } 
 
-impl<S, T, Svc, Req> NewService<T> for NewClusterService<S, Req> 
+impl<S, T> NewService<T> for NewCluster<S> 
 where
     T: Param<RpcInvocation>, 
     // new loadbalancer service
-    S: NewService<T, Service = Svc> + Clone,
-    // loadbalancer service
-    Svc: Service<Req> + Clone + Send,
-    Svc::Error:  Into<StdError> + Send + Sync, 
-    Svc::Future: Send
+    S: NewService<T>,
 { 
 
-    type Service = ClusterService<Failover<Svc>>;
-
+    type Service = Cluster<Failover<S::Service>>;
+ 
     fn new_service(&self, target: T) -> Self::Service {
-        // Failover
-        let inner = NewFailover::new(self.inner.clone()).new_service(target);
 
-        ClusterService {
-            inner
+        Cluster {
+            inner: Failover::new(self.inner.new_service(target))
         }
     }
 }
   
-impl<S, B> Service<Request<B>> for ClusterService<S> 
+impl<S, B> Service<Request<B>> for Cluster<S> 
 where
     S: Service<Request<CloneBody<B>>>,
     B: http_body::Body + Unpin,

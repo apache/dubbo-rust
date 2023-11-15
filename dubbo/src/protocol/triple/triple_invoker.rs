@@ -22,7 +22,7 @@ use std::{
 };
 use tower_service::Service;
 
-use crate::triple::transport::connection::Connection;
+use crate::triple::transport::{connection::Connection, self};
 
 #[derive(Clone)]
 pub struct TripleInvoker {
@@ -46,7 +46,12 @@ impl Debug for TripleInvoker {
     }
 }
 
-impl<B: http_body::Body> Service<http::Request<B>> for TripleInvoker {
+impl<B> Service<http::Request<B>> for TripleInvoker 
+where
+    B: http_body::Body + Unpin + Send + 'static,
+    B::Error: Into<crate::Error>,
+    B::Data: Send + Unpin,
+{
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
@@ -61,7 +66,7 @@ impl<B: http_body::Body> Service<http::Request<B>> for TripleInvoker {
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        self.conn.poll_ready(cx)
+        <transport::connection::Connection as Service<http::Request<B>>>::poll_ready(&mut self.conn, cx)
     }
 }
 

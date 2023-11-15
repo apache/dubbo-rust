@@ -1,12 +1,11 @@
-use std::{task::Poll, marker::PhantomData};
+use std::task::Poll;
 
-use dubbo_base::{svc::NewService, param::Param};
 use futures_util::future;
 use http::Request;
 use tower::{ServiceExt, retry::Retry, util::Oneshot};
 use tower_service::Service;
-
-use crate::{codegen::RpcInvocation, StdError};
+ 
+use crate::StdError;
 
 pub struct Failover<N> {
     inner: N // loadbalancer service
@@ -14,48 +13,13 @@ pub struct Failover<N> {
 
 #[derive(Clone)]
 pub struct FailoverPolicy;
-
-
-pub struct NewFailover<N, Req> {
-    inner: N, // new loadbalancer service
-    _mark: PhantomData<Req>
-}
-
-
-impl<N, Req> NewFailover<N, Req> {
  
+
+impl<N> Failover<N> {
     pub fn new(inner: N) -> Self {
-        NewFailover {
-            inner,
-            _mark: PhantomData,
-        }
+        Self { inner }
     }
-} 
-
-impl<N, T, Req> NewService<T> for NewFailover<N, Req> 
-where
-    T: Param<RpcInvocation>,
-    // new loadbalancer service
-    N: NewService<T>,
-    // loadbalancer service
-    N::Service: Service<Req> + Send + Clone + 'static, 
-    <N::Service as Service<Req>>::Future: Send,
-    <N::Service as Service<Req>>::Error: Into<StdError> + Send + Sync
-{
-
-    type Service = Failover<N::Service>;
-
-    fn new_service(&self, target: T) -> Self::Service {
-        // loadbalancer service
-        let inner = self.inner.new_service(target);
-
-        Failover {
-            inner
-        }
-    } 
-
 }
- 
 
 impl<B, Res, E> tower::retry::Policy<Request<B>, Res, E> for FailoverPolicy
 where

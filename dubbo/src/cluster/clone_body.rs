@@ -59,17 +59,6 @@ impl<B: http_body::Body> BufferedBody<B> {
         }
     }
 
-    pub fn acquire_owned_body(&mut self) -> &mut OwnedBufferedBody<B> { 
-        self.owned.get_or_insert_with(|| {
-            let lock = self.shared.lock();
-            if let Err(e) = lock {
-                panic!("buffered body get shared data lock failed. {}", e);
-            }
-            let mut data = lock.unwrap();
-
-            data.take().expect("cannot get shared buffered body.")
-        })
-    }
 }
 
 impl<B> Clone for BufferedBody<B> {
@@ -81,7 +70,7 @@ impl<B> Clone for BufferedBody<B> {
             replay_body: true,
             replay_trailers: true,
             is_empty: self.is_empty,
-            size_hint: self.size_hint,
+            size_hint: self.size_hint.clone(),
         }
     }
 }
@@ -110,7 +99,18 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
         let mut_self = self.get_mut();
-        let owned_body = mut_self.acquire_owned_body();
+
+        let owned_body = mut_self.owned.get_or_insert_with(|| {
+            let lock = mut_self.shared.lock();
+            if let Err(e) = lock {
+                panic!("buffered body get shared data lock failed. {}", e);
+            }
+            let mut data = lock.unwrap();
+
+            data.take().expect("cannot get shared buffered body.")
+        });
+
+      
 
         if mut_self.replay_body {
             mut_self.replay_body = false;
@@ -165,8 +165,16 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Result<Option<http::HeaderMap>, Self::Error>> {
         let mut_self = self.get_mut();
-        let owned_body = mut_self.acquire_owned_body();
+        let owned_body = mut_self.owned.get_or_insert_with(|| {
+            let lock = mut_self.shared.lock();
+            if let Err(e) = lock {
+                panic!("buffered body get shared data lock failed. {}", e);
+            }
+            let mut data = lock.unwrap();
 
+            data.take().expect("cannot get shared buffered body.")
+        });
+ 
         if mut_self.replay_trailers {
             mut_self.replay_trailers = false;
             if let Some(ref trailers) = owned_body.trailers {
@@ -199,7 +207,7 @@ where
     }
 
     fn size_hint(&self) -> http_body::SizeHint {
-        self.size_hint
+        self.size_hint.clone()
     }
 
     
@@ -320,7 +328,6 @@ impl Buf for BytesData {
 }
 
 #[pin_project]
-#[derive(Clone)]
 pub struct CloneBody<B>(#[pin] BufferedBody<B>);
 
 impl<B> CloneBody<B> 
@@ -360,5 +367,16 @@ where
 
     fn size_hint(&self) -> http_body::SizeHint {
         self.0.size_hint()
+    }
+}
+
+
+impl<B> Clone for CloneBody<B> 
+where
+    B: http_body::Body + Unpin, 
+    B::Error: Into<StdError>,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }

@@ -21,8 +21,6 @@
 pub mod constants;
 pub mod node;
 pub mod url;
-pub mod param;
-pub mod svc; 
 
 pub use node::Node;
 pub use url::Url;

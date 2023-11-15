@@ -1,25 +1,24 @@
-use dubbo_base::{svc::NewService, param::Param};
 use futures_core::future::BoxFuture;
 use tower::{discover::ServiceList, ServiceExt};
 use tower_service::Service;
 
-use crate::{codegen::RpcInvocation, StdError};
-
+use crate::{codegen::RpcInvocation, StdError, svc::NewService, param::Param};
+ 
 pub struct NewLoadBalancer<N> {
-    inner: N
-}
+    inner: N,
+} 
 
 #[derive(Clone)]
 pub struct LoadBalancer<S> {
     inner: S, // Routes service
 }
 
-
 impl<N> NewLoadBalancer<N> {
 
     pub fn layer() -> impl tower_layer::Layer<N, Service = Self>{
 
         tower_layer::layer_fn(|inner| {
+
             NewLoadBalancer {
                 inner // NewRoutes
             }
@@ -27,11 +26,11 @@ impl<N> NewLoadBalancer<N> {
     }
 }
 
-impl<N,T> NewService<T> for NewLoadBalancer<N> 
+impl<N, T> NewService<T> for NewLoadBalancer<N> 
 where
     T: Param<RpcInvocation> + Clone,
     // NewRoutes
-    N: NewService<T>
+    N: NewService<T>, 
 {
 
     type Service = LoadBalancer<N::Service>;
@@ -51,7 +50,7 @@ impl<N, Req, Nsv>  Service<Req> for LoadBalancer<N>
 where
     Req: Send + 'static, 
     // Routes service
-    N: Service<(), Response = Vec<Nsv>>,
+    N: Service<(), Response = Vec<Nsv>> + Clone,
     N::Error: Into<StdError> + Send,
     N::Future: Send + 'static, 
     // new invoker

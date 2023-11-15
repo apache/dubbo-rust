@@ -1,75 +1,127 @@
-use async_trait::async_trait;
-use dubbo_base::{Url, svc::NewService, param::Param};
-use tower::discover::Discover;
-use tower_service::Service;
+use std::sync::Arc;
 
-use crate::{StdError, codegen::RpcInvocation, invocation::Invocation};
+use async_trait::async_trait;
+use dubbo_base::Url;
+use tokio::sync::mpsc::{Receiver, channel};
+use tower::discover::Change;
+
+
+use crate::{StdError, invoker::NewInvoker};
+
+type DiscoverStream = Receiver<Result<Change<String, NewInvoker>, StdError>>;
 
 #[async_trait]
 pub trait Registry {
 
-    type Discover: Discover;
-
-    type Error;
-
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>>;
-
-    async fn register(&self, url: Url) -> Result<(), Self::Error>;
+    async fn register(&self, url: Url) -> Result<(), StdError>;
     
-    async fn unregister(&self, url: Url) -> Result<(), Self::Error>;
+    async fn unregister(&self, url: Url) -> Result<(), StdError>;
 
     // todo service_name change to url
-    async fn subscribe(&self, service_name: String) -> Result<Self::Discover, Self::Error>;
+    async fn subscribe(&self, service_name: String) -> Result<DiscoverStream, StdError>;
 
-    async fn unsubscribe(&self, url: Url) -> Result<(), Self::Error>;
+    async fn unsubscribe(&self, url: Url) -> Result<(), StdError>;
+}
+
+#[derive(Clone)]
+pub struct ArcRegistry {
+    inner: Arc<dyn Registry + Send + Sync + 'static>
 }
 
 
-pub struct DiscoverService<N> {
-    inner: N,
-    service_name: String,
-} 
-
-impl<N> Service<()> for DiscoverService<N> 
-where
-    N: Registry,
-    N::Discover: Discover + Unpin + Send,
-{
-    type Response = N::Discover;
-    type Error = StdError;
-    type Future = std::pin::Pin<Box<dyn std::future::Future<Output=Result<Self::Response, Self::Error>> + Send>>;
-
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx)
-    }
-
-    fn call(&mut self, req: ()) -> Self::Future {
-        let service_name = self.service_name.clone();
-        let discover_fut = self.inner.subscribe(service_name);
-        Box::pin(async move {
-            discover_fut.await
-        })
-    }
-
+pub enum RegistryComponent {
+    NacosRegistry,
+    ZookeeperRegistry,
+    StaticRegistry(StaticRegistry),
 }
 
 
-impl<T, R> NewService<T> for R 
-where
-    T: Param<RpcInvocation>, 
-    R: Registry + Clone,
-    R::Discover: Discover + Unpin + Send,
-{
-    type Service = DiscoverService<R>;
+pub struct StaticRegistry {
+    urls: Vec<Url>
+}
 
-    fn new_service(&self, target: T) -> Self::Service {
-        let service_name = target.param().get_target_service_unique_name();
+impl ArcRegistry {
 
-        DiscoverService {
-            inner: self.clone(),
-            service_name,
+    pub fn new(registry: impl Registry + Send + Sync + 'static) -> Self {
+        Self { inner: Arc::new(registry) }
+    }
+}
+
+#[async_trait]
+impl Registry for ArcRegistry {
+    
+    async fn register(&self, url: Url) -> Result<(), StdError> {
+        self.register(url).await
+    }
+
+    async fn unregister(&self, url: Url) -> Result<(), StdError> {
+        self.unregister(url).await
+    }
+
+    async fn subscribe(&self, service_name: String) -> Result<DiscoverStream, StdError> {
+        self.subscribe(service_name).await
+    }
+
+    async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
+        self.unsubscribe(url).await
+    }
+}
+
+
+
+
+#[async_trait]
+impl Registry for RegistryComponent {
+    async fn register(&self, url: Url) -> Result<(), StdError> {
+        todo!()
+    }
+
+    async fn unregister(&self, url: Url) -> Result<(), StdError> {
+        todo!()
+    }
+
+    async fn subscribe(&self, service_name: String) -> Result<DiscoverStream, StdError> {
+        todo!()
+    }
+
+    async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
+        todo!()
+    }
+}
+
+
+impl StaticRegistry {
+
+    pub fn new(urls: Vec<Url>) -> Self {
+        Self {
+            urls
         }
     }
 }
 
 
+#[async_trait]
+impl Registry for StaticRegistry {
+    async fn register(&self, url: Url) -> Result<(), StdError> {
+        todo!()
+    }
+
+    async fn unregister(&self, url: Url) -> Result<(), StdError> {
+        todo!()
+    }
+
+    async fn subscribe(&self, service_name: String) -> Result<DiscoverStream, StdError> {
+        let (tx, rx) = channel(self.urls.len());
+        for url in self.urls.iter() {
+            let invoker = NewInvoker::new(url.clone());
+            let change = Ok(Change::Insert(service_name.clone(), invoker));
+            tx.send(change).await?;
+        }      
+
+        Ok(rx)
+    }
+
+    async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
+        todo!()
+    }
+}
