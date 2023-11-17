@@ -15,40 +15,43 @@
  * limitations under the License.
  */
 
-use std::str::FromStr;
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
+use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
+use tower_service::Service;
 
-use super::{builder::ClientBuilder, replay::ClonedBody};
+use super::builder::{ClientBuilder, ServiceMK};
 use crate::codegen::RpcInvocation;
 
+use crate::svc::NewService;
 use crate::{
-    invocation::{IntoStreamingRequest, Invocation, Metadata, Request, Response},
+    invocation::{IntoStreamingRequest, Metadata, Request, Response},
     triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
 };
 
-#[derive(Debug, Default, Clone)]
+#[derive(Clone)]
 pub struct TripleClient {
     pub(crate) send_compression_encoding: Option<CompressionEncoding>,
-    pub(crate) builder: Option<ClientBuilder>,
+    pub(crate) mk: ServiceMK,
 }
 
 impl TripleClient {
     pub fn connect(host: String) -> Self {
         let builder = ClientBuilder::from_static(&host).with_direct(true);
+        let mk = builder.build();
 
         TripleClient {
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            builder: Some(builder),
+            mk,
         }
     }
 
     pub fn new(builder: ClientBuilder) -> Self {
         TripleClient {
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            builder: Some(builder),
+            mk: builder.build(),
         }
     }
 
@@ -56,9 +59,8 @@ impl TripleClient {
         &self,
         uri: http::Uri,
         path: http::uri::PathAndQuery,
-        body: ClonedBody,
-        invocation: RpcInvocation,
-    ) -> http::Request<ClonedBody> {
+        body: SdkBody,
+    ) -> http::Request<SdkBody> {
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(path);
 
@@ -110,8 +112,6 @@ impl TripleClient {
             http::HeaderValue::from_static("gzip"),
         );
 
-        req.extensions_mut().insert(invocation);
-
         // const (
         //     TripleContentType    = "application/grpc+proto"
         //     TripleUserAgent      = "grpc-go/1.35.0-dev"
@@ -140,26 +140,25 @@ impl TripleClient {
         M2: Send + Sync + 'static,
     {
         let req = req.map(|m| stream::once(future::ready(m)));
-        let en = encode(
+        let body_stream = encode(
             codec.encoder(),
             req.into_inner().map(Ok),
             self.send_compression_encoding,
         )
         .into_stream();
-        let body = ClonedBody::new(en);
+        let body = hyper::Body::wrap_stream(body_stream);
 
-        let mut conn = self
-            .builder
-            .clone()
-            .unwrap()
-            .build(invocation.get_target_service_unique_name())
-            .unwrap();
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, body, invocation);
+        let mut invoker = self.mk.new_service(invocation);
 
-        let response = conn
-            .call(req)
+
+        let request = http::Request::builder()
+            .body(body).unwrap();
+
+       
+
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
@@ -210,21 +209,17 @@ impl TripleClient {
             self.send_compression_encoding,
         )
         .into_stream();
+        let body = hyper::Body::wrap_stream(en);
+      
+        let mut invoker = self.mk.new_service(invocation);
 
-        let body = ClonedBody::new(en);
 
-        let mut conn = self
-            .builder
-            .clone()
-            .unwrap()
-            .build(invocation.get_target_service_unique_name())
-            .unwrap();
+        let request = http::Request::builder()
+            .body(body).unwrap();
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, body, invocation);
 
-        let response = conn
-            .call(req)
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
@@ -259,21 +254,18 @@ impl TripleClient {
             self.send_compression_encoding,
         )
         .into_stream();
-        let body = ClonedBody::new(en);
+        let body = hyper::Body::wrap_stream(en);
+        let mut invoker = self.mk.new_service(invocation);
 
-        let mut conn = self
-            .builder
-            .clone()
-            .unwrap()
-            .build(invocation.get_target_service_unique_name())
-            .unwrap();
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, body, invocation);
+        let request = http::Request::builder()
+            .body(body).unwrap();
+
+
 
         // let mut conn = Connection::new().with_host(http_uri);
-        let response = conn
-            .call(req)
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
@@ -324,21 +316,16 @@ impl TripleClient {
             self.send_compression_encoding,
         )
         .into_stream();
+        let body = hyper::Body::wrap_stream(en);
+        let mut invoker = self.mk.new_service(invocation);
 
-        let body = ClonedBody::new(en);
 
-        let mut conn = self
-            .builder
-            .clone()
-            .unwrap()
-            .build(invocation.get_target_service_unique_name())
-            .unwrap();
+        let request = http::Request::builder()
+            .body(body).unwrap();
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, body, invocation);
 
-        let response = conn
-            .call(req)
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 

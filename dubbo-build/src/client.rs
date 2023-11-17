@@ -78,12 +78,6 @@ pub fn generate<T: Service>(
                     }
                 }
 
-                // pub fn build(builder: ClientBuilder) -> Self {
-                //     Self {
-                //         inner: TripleClient::new(builder),
-                //     }
-                // }
-
                 pub fn new(builder: ClientBuilder) -> Self {
                     Self {
                         inner: TripleClient::new(builder),

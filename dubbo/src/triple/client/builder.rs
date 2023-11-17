@@ -15,27 +15,28 @@
  * limitations under the License.
  */
 
+
 use std::sync::Arc;
 
 use crate::{
-    cluster::{directory::StaticDirectory, Cluster, Directory, MockCluster, MockDirectory},
-    codegen::{RegistryDirectory, TripleInvoker},
-    protocol::BoxInvoker,
-    utils::boxed_clone::BoxCloneService,
+    utils::boxed_clone::BoxCloneService, registry::n_registry::{RegistryComponent, StaticRegistry, ArcRegistry}, route::{NewRoutes, NewRoutesCache}, loadbalancer::NewLoadBalancer, cluster::{NewCluster, Cluster}, directory::NewCachedDirectory, svc::{ArcNewService, NewService, BoxedService}, StdError, codegen::RpcInvocation, BoxBody,
 };
-use dubbo_base::Url;
-use super::replay::ClonedBody;
 
+use aws_smithy_http::body::SdkBody;
+use dubbo_base::Url;
+use tower::ServiceBuilder;
 
 pub type ClientBoxService =
-    BoxCloneService<http::Request<ClonedBody>, http::Response<crate::BoxBody>, crate::Error>;
+    BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
 
-#[allow(dead_code)]
-#[derive(Clone, Debug, Default)]
+
+pub type ServiceMK = Arc<NewCluster<NewLoadBalancer<NewRoutesCache<NewRoutes<NewCachedDirectory<ArcRegistry>>>>>>;
+
+#[derive(Default)]
 pub struct ClientBuilder {
     pub timeout: Option<u64>,
     pub connector: &'static str,
-    directory: Option<Arc<Box<dyn Directory>>>,
+    registry: Option<ArcRegistry>,
     pub direct: bool,
     host: String,
 }
@@ -45,7 +46,7 @@ impl ClientBuilder {
         ClientBuilder {
             timeout: None,
             connector: "",
-            directory: None,
+            registry: None,
             direct: false,
             host: "".to_string(),
         }
@@ -55,7 +56,7 @@ impl ClientBuilder {
         Self {
             timeout: None,
             connector: "",
-            directory: Some(Arc::new(Box::new(StaticDirectory::new(&host)))),
+            registry: Some(ArcRegistry::new(RegistryComponent::StaticRegistry(StaticRegistry::new(vec![Url::from_url(host).unwrap()])))),
             direct: true,
             host: host.to_string(),
         }
@@ -68,31 +69,23 @@ impl ClientBuilder {
         }
     }
 
-    /// host: http://0.0.0.0:8888
-    pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
-        Self {
-            directory: Some(Arc::new(directory)),
-            ..self
-        }
-    }
-
-    pub fn with_registry_directory(self, registry: RegistryDirectory) -> Self {
-        Self {
-            directory: Some(Arc::new(Box::new(registry))),
+    pub fn with_registry(self, registry: RegistryComponent) -> Self {
+        Self { 
+            registry: Some(ArcRegistry::new(registry)), 
             ..self
         }
     }
 
     pub fn with_host(self, host: &'static str) -> Self {
         Self {
-            directory: Some(Arc::new(Box::new(StaticDirectory::new(&host)))),
+            registry: Some(ArcRegistry::new(RegistryComponent::StaticRegistry(StaticRegistry::new(vec![Url::from_url(host).unwrap()])))),
             ..self
         }
     }
 
     pub fn with_connector(self, connector: &'static str) -> Self {
         Self {
-            connector: connector,
+            connector,
             ..self
         }
     }
@@ -101,15 +94,18 @@ impl ClientBuilder {
         Self { direct, ..self }
     }
 
-    pub fn build(self, service_name: String) -> Option<BoxInvoker> {
-        if self.direct {
-            return Some(Box::new(TripleInvoker::new(
-                Url::from_url(&self.host).unwrap(),
-            )));
-        }
+    pub fn build(mut self) -> ServiceMK {
+  
 
-        let cluster = MockCluster::default().join(Box::new(MockDirectory::new(service_name)));
+        let registry = self.registry.take().expect("registry must not be empty");
 
-        return Some(cluster);
+        let mk_service = ServiceBuilder::new()
+                .layer(NewCluster::layer())
+                .layer(NewLoadBalancer::layer())
+                .layer(NewRoutesCache::layer())
+                .layer(NewCachedDirectory::layer())
+                .service(registry);
+
+        Arc::new(mk_service)
     }
 }

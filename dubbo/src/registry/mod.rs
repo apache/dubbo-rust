@@ -20,6 +20,7 @@ pub mod integration;
 pub mod memory_registry;
 pub mod protocol;
 pub mod types;
+pub mod n_registry;
 
 use std::{
     fmt::{Debug, Formatter},
@@ -27,6 +28,7 @@ use std::{
 };
 
 use dubbo_base::Url;
+
 
 pub type RegistryNotifyListener = Arc<dyn NotifyListener + Send + Sync + 'static>;
 pub trait Registry {
