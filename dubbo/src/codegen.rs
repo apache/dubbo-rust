@@ -27,11 +27,9 @@ pub use hyper::Body as hyperBody;
 pub use tower_service::Service;
 
 pub use super::{
-    cluster::directory::RegistryDirectory,
     empty_body,
     invocation::{IntoStreamingRequest, Request, Response, RpcInvocation},
     protocol::{triple::triple_invoker::TripleInvoker, Invoker},
-    registry::{BoxRegistry, Registry},
     triple::{
         client::TripleClient,
         codec::{prost::ProstCodec, Codec},
@@ -46,7 +44,7 @@ pub use super::{
 pub use crate::{
     filter::{service::FilterService, Filter},
     triple::{
-        client::builder::{ClientBoxService, ClientBuilder},
+        client::builder::ClientBuilder,
         server::builder::ServerBuilder,
         transport::connection::Connection,
     },
