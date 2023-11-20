@@ -21,21 +21,17 @@ pub mod protos {
 }
 
 use std::env;
-
+ 
 use dubbo::codegen::*;
 
-use dubbo_base::Url;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
-use registry_nacos::NacosRegistry;
-use registry_zookeeper::ZookeeperRegistry;
 
 #[tokio::main]
 async fn main() {
     dubbo_logger::init();
-
-    let mut builder = ClientBuilder::new();
-    builder.with_host("http://127.0.0.1:8888");
+ 
+    let builder = ClientBuilder::new().with_host("http://127.0.0.1:8888");
 
     let mut cli = GreeterClient::new(builder);
 
@@ -47,7 +43,7 @@ async fn main() {
         .await;
     let resp = match resp {
         Ok(resp) => resp,
-        Err(err) => return println!("{:?}", err),
+        Err(err) => return println!("response error: {:?}", err),
     };
     let (_parts, body) = resp.into_parts();
     println!("Response: {:?}", body);

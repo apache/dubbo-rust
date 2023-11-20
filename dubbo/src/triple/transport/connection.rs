@@ -15,19 +15,18 @@
  * limitations under the License.
  */
 
-use std::task::Poll;
-
-use dubbo_logger::tracing::debug;
 use hyper::client::{conn::Builder, service::Connect};
 use tower_service::Service;
 
-use crate::{boxed, triple::transport::connector::get_connector};
+use crate::{boxed, triple::transport::connector::get_connector, StdError, invoker::clone_body::CloneBody};
 
-#[derive(Debug, Clone)]
+type HyperConnect = Connect<crate::utils::boxed_clone::BoxCloneService<http::Uri, super::io::BoxIO, StdError>, CloneBody, http::Uri>;
+
 pub struct Connection {
     host: hyper::Uri,
     connector: &'static str,
     builder: Builder,
+    connect: Option<HyperConnect>,
 }
 
 impl Default for Connection {
@@ -42,6 +41,7 @@ impl Connection {
             host: hyper::Uri::default(),
             connector: "http",
             builder: Builder::new(),
+            connect: None,
         }
     }
 
@@ -59,14 +59,19 @@ impl Connection {
         self.builder = builder;
         self
     }
+
+    pub fn build(mut self) -> Self {
+        let builder = self.builder.clone().http2_only(true).to_owned();
+        let hyper_connect: HyperConnect = Connect::new(get_connector(self.connector), builder);
+        self.connect = Some(hyper_connect);
+        self
+
+    }
 }
 
-impl<ReqBody> Service<http::Request<ReqBody>> for Connection
-where
-    ReqBody: http_body::Body + Unpin + Send + 'static,
-    ReqBody::Data: Send + Unpin,
-    ReqBody::Error: Into<crate::Error>,
-{
+impl Service<http::Request<CloneBody>> for Connection {
+
+
     type Response = http::Response<crate::BoxBody>;
 
     type Error = crate::Error;
@@ -75,25 +80,36 @@ where
 
     fn poll_ready(
         &mut self,
-        _cx: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
+        match self.connect {
+            None => {
+                panic!("connection must be built before use")
+            },
+            Some(ref mut connect) => {
+                connect.poll_ready(cx).map_err(|e|e.into())
+            }
+        }
     }
 
-    fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
-        let builder = self.builder.clone().http2_only(true).to_owned();
-        let mut connector = Connect::new(get_connector(self.connector), builder);
-        let uri = self.host.clone();
-        let fut = async move {
-            debug!("send base call to {}", uri);
-            let mut con = connector.call(uri).await.unwrap();
+    fn call(&mut self, req: http::Request<CloneBody>) -> Self::Future {
+      
+        match self.connect {
+            None => {
+                panic!("connection must be built before use")
+            },
+            Some(ref mut connect) => {
+                let uri = self.host.clone();
+                let call_fut = connect.call(uri);
+                let fut = async move {
+                let mut con = call_fut.await.unwrap();
+                con.call(req).await
+                    .map_err(|err| err.into())
+                    .map(|res| res.map(boxed))
+                };
 
-            con.call(req)
-                .await
-                .map_err(|err| err.into())
-                .map(|res| res.map(boxed))
-        };
-
-        Box::pin(fut)
+                return Box::pin(fut)
+            }
+        }
     }
 }

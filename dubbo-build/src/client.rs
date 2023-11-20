@@ -65,7 +65,7 @@ pub fn generate<T: Service>(
 
             #service_doc
             #(#struct_attributes)*
-            #[derive(Debug, Clone, Default)]
+            #[derive(Clone)]
             pub struct #service_ident {
                 inner: TripleClient,
             }

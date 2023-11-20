@@ -1,8 +1,12 @@
 use futures_core::future::BoxFuture;
-use tower::{discover::ServiceList, ServiceExt};
+use tower::ServiceExt;
+use tower::discover::ServiceList;
 use tower_service::Service;
 
-use crate::{codegen::RpcInvocation, StdError, svc::NewService, param::Param};
+use crate::invoker::clone_body::CloneBody;
+use crate::{codegen::RpcInvocation, StdError, svc::NewService, param::Param, invoker::clone_invoker::CloneInvoker};
+
+use crate::protocol::triple::triple_invoker::TripleInvoker;
  
 pub struct NewLoadBalancer<N> {
     inner: N,
@@ -40,28 +44,21 @@ where
         let svc = self.inner.new_service(target);
 
         LoadBalancer {
-            inner: svc
+            inner: svc,
         }
         
     }
 }
 
-impl<N, Req, Nsv>  Service<Req> for LoadBalancer<N> 
+impl<N>  Service<http::Request<CloneBody>> for LoadBalancer<N> 
 where
-    Req: Send + 'static, 
     // Routes service
-    N: Service<(), Response = Vec<Nsv>> + Clone,
+    N: Service<(), Response = Vec<CloneInvoker<TripleInvoker>>> + Clone,
     N::Error: Into<StdError> + Send,
     N::Future: Send + 'static, 
-    // new invoker
-    Nsv: NewService<()> + Send,
-    Nsv::Service: Service<Req> + Send,
-    // invoker
-    <Nsv::Service as Service<Req>>::Error: Into<StdError> + Send,
-    <Nsv::Service as Service<Req>>::Future: Send + 'static,
 {
     
-    type Response = <Nsv::Service as Service<Req>>::Response;
+    type Response = <CloneInvoker<TripleInvoker> as Service<http::Request<CloneBody>>>::Response;
 
     type Error = StdError;
 
@@ -69,30 +66,28 @@ where
 
     fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx).map_err(Into::into)
-        
+    
     }
 
-    fn call(&mut self, req: Req) -> Self::Future {
+    fn call(&mut self, req: http::Request<CloneBody>) -> Self::Future {
         let routes  = self.inner.call(());
 
         let fut = async move {
             let routes = routes.await;
 
-            let routes: Vec<Nsv> = match routes {
+            let routes: Vec<CloneInvoker<TripleInvoker>> = match routes {
                 Err(e) => return Err(Into::<StdError>::into(e)),
                 Ok(routes) => routes
             };
-
-            let service_list: Vec<_> = routes.iter().map(|inv| {
-                let invoker = inv.new_service(());                
+  
+            let service_list: Vec<_> = routes. into_iter().map(|invoker| {            
                 tower::load::Constant::new(invoker, 1)
-                
             }).collect();
 
             let service_list = ServiceList::new(service_list);
             
             let p2c = tower::balance::p2c::Balance::new(service_list);
-
+ 
 
             p2c.oneshot(req).await
         };

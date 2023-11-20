@@ -12,6 +12,8 @@ use tower_service::Service;
 
 use crate::StdError;
 
+use super::clone_body::CloneBody;
+ 
 enum Inner<S> {
     Invalid,
     Ready(S),
@@ -149,43 +151,40 @@ impl<S> Drop for ReadyService<S> {
     }
 }
 
-pub struct CloneInvoker<Inv, Req> 
+pub struct CloneInvoker<Inv> 
 where
-    Inv: Service<Req> + Send + 'static,
+    Inv: Service<http::Request<CloneBody>> + Send + 'static,
     Inv::Error: Into<StdError> + Send + Sync + 'static,
     Inv::Future: Send,
-    Req: Send
 {
-    inner: Buffer<ReadyService<Inv>, Req>,
+    inner: Buffer<ReadyService<Inv>, http::Request<CloneBody>>,
     rx: Receiver<ObserveState>,
     poll: ReusableBoxFuture<'static, ObserveState>,
     polling: bool,
 }
 
-impl<Inv, Req> CloneInvoker<Inv, Req> 
+impl<Inv> CloneInvoker<Inv> 
 where
-    Inv: Service<Req> + Send + 'static,
+    Inv: Service<http::Request<CloneBody>> + Send + 'static,
     Inv::Error: Into<StdError> + Send + Sync + 'static,
     Inv::Future: Send,
-    Req: Send + 'static
 {
 
     pub fn new(invoker: Inv) -> Self {
         
         let (ready_service, rx) = ReadyService::new(invoker);
 
-        let buffer: Buffer<ReadyService<Inv>, Req> = Buffer::new(ready_service, 1024);
+        let buffer: Buffer<ReadyService<Inv>, http::Request<CloneBody>> = Buffer::new(ready_service, 16);
 
         Self { inner: buffer, rx, polling: false, poll: ReusableBoxFuture::new(futures::future::pending()) }
     }
 }
 
-impl<Inv, Req> Service<Req> for CloneInvoker<Inv, Req> 
+impl<Inv> Service<http::Request<CloneBody>> for CloneInvoker<Inv> 
 where
-    Inv: Service<Req> + Send + 'static,
+    Inv: Service<http::Request<CloneBody>> + Send + 'static,
     Inv::Error: Into<StdError> + Send + Sync + 'static,
     Inv::Future: Send,
-    Req: Send + 'static
 {
     type Response = Inv::Response;
  
@@ -229,18 +228,17 @@ where
         }
     }
 
-    fn call(&mut self, req: Req) -> Self::Future {
+    fn call(&mut self, req: http::Request<CloneBody>) -> Self::Future {
         Box::pin(self.inner.call(req))
     }
 }
 
 
-impl<Inv, Req> Clone for CloneInvoker<Inv, Req> 
+impl<Inv> Clone for CloneInvoker<Inv> 
 where
-    Inv: Service<Req> + Send + 'static,
+    Inv: Service<http::Request<CloneBody>> + Send + 'static,
     Inv::Error: Into<StdError> + Send + Sync + 'static,
     Inv::Future: Send,
-    Req: Send
 {
     fn clone(&self) -> Self {
         Self { inner: self.inner.clone(), rx: self.rx.clone(), polling: false, poll: ReusableBoxFuture::new(futures::future::pending())}
