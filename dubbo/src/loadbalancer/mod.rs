@@ -80,7 +80,7 @@ where
                 Ok(routes) => routes
             };
   
-            let service_list: Vec<_> = routes. into_iter().map(|invoker| {            
+            let service_list: Vec<_> = routes.into_iter().map(|invoker| {            
                 tower::load::Constant::new(invoker, 1)
             }).collect();
 
