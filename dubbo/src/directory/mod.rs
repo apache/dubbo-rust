@@ -139,12 +139,16 @@ where
 
 impl<N> NewDirectory<N> {
 
+    const MAX_DIRECTORY_BUFFER_SIZE: usize = 16;
+
     pub fn new(inner: N) -> Self {
         NewDirectory {
             inner
         }
     }
 } 
+
+
 
 impl<N, T> NewService<T> for NewDirectory<N> 
 where
@@ -153,6 +157,8 @@ where
     N: Registry + Clone + Send + Sync + 'static, 
 {
     type Service = BufferedDirectory; 
+
+    
  
     fn new_service(&self, target: T) -> Self::Service {
         
@@ -160,7 +166,7 @@ where
 
         let registry = self.inner.clone();
 
-        let (tx, rx) = channel(16);
+        let (tx, rx) = channel(Self::MAX_DIRECTORY_BUFFER_SIZE);
 
         tokio::spawn(async move {
             let receiver = registry.subscribe(service_name).await;
@@ -189,7 +195,7 @@ where
 
         }); 
 
-        Buffer::new(Directory::new(ReceiverStream::new(rx)), 16)
+        Buffer::new(Directory::new(ReceiverStream::new(rx)), Self::MAX_DIRECTORY_BUFFER_SIZE)
     } 
 
 } 

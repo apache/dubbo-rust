@@ -41,6 +41,8 @@ impl<N> NewRoutes<N> {
 }
 
 impl<N> NewRoutes<N> {
+    const MAX_ROUTE_BUFFER_SIZE: usize = 16;
+
     pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
         tower_layer::layer_fn(|inner: N| {
             NewRoutes::new(inner)
@@ -68,7 +70,7 @@ where
         Buffer::new(FutureService::new(NewRoutesFuture {
             inner: RoutesFutureInnerState::Service(inner),
             target,
-        }), 16)
+        }), Self::MAX_ROUTE_BUFFER_SIZE)
     }
 }
 

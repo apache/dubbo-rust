@@ -170,11 +170,13 @@ where
     Inv::Future: Send,
 {
 
+    const MAX_INVOKER_BUFFER_SIZE: usize = 16;
+    
     pub fn new(invoker: Inv) -> Self {
         
         let (ready_service, rx) = ReadyService::new(invoker);
 
-        let buffer: Buffer<ReadyService<Inv>, http::Request<CloneBody>> = Buffer::new(ready_service, 16);
+        let buffer: Buffer<ReadyService<Inv>, http::Request<CloneBody>> = Buffer::new(ready_service, Self::MAX_INVOKER_BUFFER_SIZE);
 
         Self { inner: buffer, rx, polling: false, poll: ReusableBoxFuture::new(futures::future::pending()) }
     }
