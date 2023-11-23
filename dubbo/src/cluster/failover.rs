@@ -2,18 +2,17 @@ use std::task::Poll;
 
 use futures_util::future;
 use http::Request;
-use tower::{ServiceExt, retry::Retry, util::Oneshot};
+use tower::{retry::Retry, util::Oneshot, ServiceExt};
 use tower_service::Service;
- 
+
 use crate::StdError;
 
 pub struct Failover<N> {
-    inner: N // loadbalancer service
+    inner: N, // loadbalancer service
 }
 
 #[derive(Clone)]
 pub struct FailoverPolicy;
- 
 
 impl<N> Failover<N> {
     pub fn new(inner: N) -> Self {
@@ -25,14 +24,13 @@ impl<B, Res, E> tower::retry::Policy<Request<B>, Res, E> for FailoverPolicy
 where
     B: http_body::Body + Clone,
 {
-    
     type Future = future::Ready<Self>;
 
     fn retry(&self, req: &Request<B>, result: Result<&Res, &E>) -> Option<Self::Future> {
         //TODO some error handling or logging
         match result {
             Ok(_) => None,
-            Err(_) => Some(future::ready(self.clone()))
+            Err(_) => Some(future::ready(self.clone())),
         }
     }
 
@@ -43,21 +41,18 @@ where
         *clone.headers_mut() = req.headers().clone();
         *clone.version_mut() = req.version();
 
-
         Some(clone)
     }
 }
 
-
-
-impl<N, B> Service<Request<B>> for Failover<N> 
+impl<N, B> Service<Request<B>> for Failover<N>
 where
     // B is CloneBody<B>
     B: http_body::Body + Clone,
     // loadbalancer service
-    N: Service<Request<B>> + Clone + 'static ,
+    N: Service<Request<B>> + Clone + 'static,
     N::Error: Into<StdError>,
-    N::Future: Send
+    N::Future: Send,
 {
     type Response = N::Response;
 
@@ -68,7 +63,7 @@ where
     fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
     }
- 
+
     fn call(&mut self, req: Request<B>) -> Self::Future {
         let retry = Retry::new(FailoverPolicy, self.inner.clone());
         retry.oneshot(req)

@@ -44,8 +44,7 @@ pub use super::{
 pub use crate::{
     filter::{service::FilterService, Filter},
     triple::{
-        client::builder::ClientBuilder,
-        server::builder::ServerBuilder,
+        client::builder::ClientBuilder, server::builder::ServerBuilder,
         transport::connection::Connection,
     },
 };

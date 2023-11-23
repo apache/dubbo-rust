@@ -1,22 +1,18 @@
-use std::{sync::Arc, pin::Pin, marker::PhantomData};
+use std::{marker::PhantomData, pin::Pin, sync::Arc};
 
 use futures_core::Future;
 use tower::ServiceExt;
 use tower_service::Service;
 
 pub trait NewService<T> {
-    
     type Service;
 
     fn new_service(&self, target: T) -> Self::Service;
-
 }
-
 
 pub struct ArcNewService<T, S> {
     inner: Arc<dyn NewService<T, Service = S> + Send + Sync>,
 }
-
 
 impl<T, S> ArcNewService<T, S> {
     pub fn layer<N>() -> impl tower_layer::Layer<N, Service = Self> + Clone + Copy
@@ -57,23 +53,19 @@ impl<T, S> NewService<T> for ArcNewService<T, S> {
 // inner: Box<dyn Service<T, Response = U, Error = E, Future = Pin<Box<dyn Future<Output = Result<U, E>> + Send>>> + Send>,
 pub struct BoxedService<N, R> {
     inner: N,
-    _mark: PhantomData<R>
+    _mark: PhantomData<R>,
 }
 
 impl<R, N> BoxedService<N, R> {
-
-    pub fn layer() -> impl tower_layer::Layer<N, Service = Self>{
-        tower_layer::layer_fn(|inner: N| {
-            Self {
-                inner,
-                _mark: PhantomData
-            }
+    pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
+        tower_layer::layer_fn(|inner: N| Self {
+            inner,
+            _mark: PhantomData,
         })
     }
 }
 
-
-// impl<T, R, N> NewService<T> for BoxedService<N, R> 
+// impl<T, R, N> NewService<T> for BoxedService<N, R>
 // where
 //     N: NewService<T>,
 //     N::Service: Service<R> + Send,

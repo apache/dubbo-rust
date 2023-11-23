@@ -16,46 +16,56 @@
  */
 
 use std::{
-    task::{Context, Poll}, collections::HashMap, sync::{Arc, Mutex}, pin::Pin,
+    collections::HashMap,
+    pin::Pin,
+    sync::{Arc, Mutex},
+    task::{Context, Poll},
 };
-    
-use crate::{StdError, codegen::{RpcInvocation, TripleInvoker}, invocation::Invocation, registry::n_registry::Registry, invoker::{NewInvoker,clone_invoker::CloneInvoker}, svc::NewService, param::Param};
+
+use crate::{
+    codegen::{RpcInvocation, TripleInvoker},
+    invocation::Invocation,
+    invoker::{clone_invoker::CloneInvoker, NewInvoker},
+    param::Param,
+    registry::n_registry::Registry,
+    svc::NewService,
+    StdError,
+};
 use dubbo_logger::tracing::debug;
 use futures_core::ready;
 use futures_util::future;
 use tokio::sync::mpsc::channel;
 use tokio_stream::wrappers::ReceiverStream;
 use tower::{
-    discover::{Change, Discover}, buffer::Buffer,
+    buffer::Buffer,
+    discover::{Change, Discover},
 };
 
 use tower_service::Service;
 
-type BufferedDirectory = Buffer<Directory<ReceiverStream<Result<Change<String, ()>, StdError>>>, ()>; 
+type BufferedDirectory =
+    Buffer<Directory<ReceiverStream<Result<Change<String, ()>, StdError>>>, ()>;
 
 pub struct NewCachedDirectory<N>
 where
     N: Registry + Clone + Send + Sync + 'static,
 {
-    inner: CachedDirectory<NewDirectory<N>, RpcInvocation>
+    inner: CachedDirectory<NewDirectory<N>, RpcInvocation>,
 }
 
-
-pub struct CachedDirectory<N, T> 
+pub struct CachedDirectory<N, T>
 where
-    // NewDirectory 
-    N: NewService<T>
+    // NewDirectory
+    N: NewService<T>,
 {
     inner: N,
-    cache: Arc<Mutex<HashMap<String, N::Service>>>
+    cache: Arc<Mutex<HashMap<String, N::Service>>>,
 }
-
 
 pub struct NewDirectory<N> {
     // registry
     inner: N,
 }
-
 
 pub struct Directory<D> {
     directory: HashMap<String, CloneInvoker<TripleInvoker>>,
@@ -63,23 +73,19 @@ pub struct Directory<D> {
     new_invoker: NewInvoker,
 }
 
-
-
-impl<N> NewCachedDirectory<N> 
+impl<N> NewCachedDirectory<N>
 where
     N: Registry + Clone + Send + Sync + 'static,
 {
-
     pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
         tower_layer::layer_fn(|inner: N| {
             NewCachedDirectory {
-                // inner is registry 
-                inner: CachedDirectory::new(NewDirectory::new(inner)), 
+                // inner is registry
+                inner: CachedDirectory::new(NewDirectory::new(inner)),
             }
         })
     }
 }
-
 
 impl<N, T> NewService<T> for NewCachedDirectory<N>
 where
@@ -87,36 +93,32 @@ where
     // service registry
     N: Registry + Clone + Send + Sync + 'static,
 {
-    type Service = BufferedDirectory; 
+    type Service = BufferedDirectory;
 
     fn new_service(&self, target: T) -> Self::Service {
-    
         self.inner.new_service(target.param())
     }
-} 
- 
- 
-impl<N, T> CachedDirectory<N, T> 
-where
-    N: NewService<T>
-{
+}
 
+impl<N, T> CachedDirectory<N, T>
+where
+    N: NewService<T>,
+{
     pub fn new(inner: N) -> Self {
         CachedDirectory {
             inner,
-            cache: Default::default()
+            cache: Default::default(),
         }
-    } 
-} 
-  
- 
-impl<N, T> NewService<T> for CachedDirectory<N, T> 
+    }
+}
+
+impl<N, T> NewService<T> for CachedDirectory<N, T>
 where
     T: Param<RpcInvocation>,
     // NewDirectory
     N: NewService<T>,
     // Buffered directory
-    N::Service: Clone
+    N::Service: Clone,
 {
     type Service = N::Service;
 
@@ -124,44 +126,35 @@ where
         let rpc_invocation = target.param();
         let service_name = rpc_invocation.get_target_service_unique_name();
         let mut cache = self.cache.lock().expect("cached directory lock failed.");
-        let value = cache.get(&service_name).map(|val|val.clone());
+        let value = cache.get(&service_name).map(|val| val.clone());
         match value {
             None => {
                 let new_service = self.inner.new_service(target);
                 cache.insert(service_name, new_service.clone());
                 new_service
-            },
-            Some(value) => value
-        } 
+            }
+            Some(value) => value,
+        }
     }
 }
 
-
 impl<N> NewDirectory<N> {
-
     const MAX_DIRECTORY_BUFFER_SIZE: usize = 16;
 
     pub fn new(inner: N) -> Self {
-        NewDirectory {
-            inner
-        }
+        NewDirectory { inner }
     }
-} 
+}
 
-
-
-impl<N, T> NewService<T> for NewDirectory<N> 
+impl<N, T> NewService<T> for NewDirectory<N>
 where
     T: Param<RpcInvocation>,
     // service registry
-    N: Registry + Clone + Send + Sync + 'static, 
+    N: Registry + Clone + Send + Sync + 'static,
 {
-    type Service = BufferedDirectory; 
+    type Service = BufferedDirectory;
 
-    
- 
     fn new_service(&self, target: T) -> Self::Service {
-        
         let service_name = target.param().get_target_service_unique_name();
 
         let registry = self.inner.clone();
@@ -175,36 +168,32 @@ where
                 Err(e) => {
                     // error!("discover stream error: {}", e);
                     debug!("discover stream error");
-                },
-                Ok(mut receiver) => {
-                    loop {
-                        let change = receiver.recv().await;
-                        debug!("receive change: {:?}", change); 
-                        match change {
-                            None => {
-                                debug!("discover stream closed.");
-                                break;
-                            },
-                            Some(change) => {
-                                let _  = tx.send(change).await;
-                            }
+                }
+                Ok(mut receiver) => loop {
+                    let change = receiver.recv().await;
+                    debug!("receive change: {:?}", change);
+                    match change {
+                        None => {
+                            debug!("discover stream closed.");
+                            break;
+                        }
+                        Some(change) => {
+                            let _ = tx.send(change).await;
                         }
                     }
-                }
+                },
             }
+        });
 
-        }); 
+        Buffer::new(
+            Directory::new(ReceiverStream::new(rx)),
+            Self::MAX_DIRECTORY_BUFFER_SIZE,
+        )
+    }
+}
 
-        Buffer::new(Directory::new(ReceiverStream::new(rx)), Self::MAX_DIRECTORY_BUFFER_SIZE)
-    } 
-
-} 
-
-
-impl<D> Directory<D> { 
-
+impl<D> Directory<D> {
     pub fn new(discover: D) -> Self {
-  
         Directory {
             directory: Default::default(),
             discover,
@@ -213,13 +202,12 @@ impl<D> Directory<D> {
     }
 }
 
-
-impl<D> Service<()> for Directory<D> 
+impl<D> Service<()> for Directory<D>
 where
     // Discover
-    D: Discover<Key = String> + Unpin + Send, 
-    D::Error: Into<StdError> 
-{ 
+    D: Discover<Key = String> + Unpin + Send,
+    D::Error: Into<StdError>,
+{
     type Response = Vec<CloneInvoker<TripleInvoker>>;
 
     type Error = StdError;
@@ -227,21 +215,22 @@ where
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        
         loop {
             let pin_discover = Pin::new(&mut self.discover);
-            let change = ready!(pin_discover.poll_discover(cx)).transpose().map_err(|e| e.into())?;
+            let change = ready!(pin_discover.poll_discover(cx))
+                .transpose()
+                .map_err(|e| e.into())?;
             match change {
                 Some(Change::Remove(key)) => {
                     debug!("remove key: {}", key);
                     self.directory.remove(&key);
-                },  
+                }
                 Some(Change::Insert(key, _)) => {
                     debug!("insert key: {}", key);
                     let invoker = self.new_invoker.new_service(key.clone());
                     self.directory.insert(key, invoker);
-                },
-                None => { 
+                }
+                None => {
                     debug!("stream closed");
                     return Poll::Ready(Ok(()));
                 }
@@ -250,7 +239,11 @@ where
     }
 
     fn call(&mut self, _: ()) -> Self::Future {
-        let vec = self.directory.values().map(|val|val.clone()).collect::<Vec<CloneInvoker<TripleInvoker>>>();
+        let vec = self
+            .directory
+            .values()
+            .map(|val| val.clone())
+            .collect::<Vec<CloneInvoker<TripleInvoker>>>();
         future::ok(vec)
     }
 }

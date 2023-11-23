@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
 use aws_smithy_http::body::SdkBody;
@@ -25,9 +24,9 @@ use tower_service::Service;
 use super::builder::{ClientBuilder, ServiceMK};
 use crate::codegen::RpcInvocation;
 
-use crate::svc::NewService;
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
+    svc::NewService,
     triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
 };
 
@@ -148,15 +147,12 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
 
-
         let mut invoker = self.mk.new_service(invocation);
-
 
         let request = http::Request::builder()
             .header("path", path.to_string())
-            .body(body).unwrap();
-
-       
+            .body(body)
+            .unwrap();
 
         let response = invoker
             .call(request)
@@ -211,14 +207,13 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
-      
-        let mut invoker = self.mk.new_service(invocation);
 
+        let mut invoker = self.mk.new_service(invocation);
 
         let request = http::Request::builder()
             .header("path", path.to_string())
-            .body(body).unwrap();
-
+            .body(body)
+            .unwrap();
 
         let response = invoker
             .call(request)
@@ -259,12 +254,10 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(en);
         let mut invoker = self.mk.new_service(invocation);
 
-
         let request = http::Request::builder()
             .header("path", path.to_string())
-            .body(body).unwrap();
-
-
+            .body(body)
+            .unwrap();
 
         // let mut conn = Connection::new().with_host(http_uri);
         let response = invoker
@@ -322,11 +315,10 @@ impl TripleClient {
         let body = hyper::Body::wrap_stream(en);
         let mut invoker = self.mk.new_service(invocation);
 
-
         let request = http::Request::builder()
             .header("path", path.to_string())
-            .body(body).unwrap();
-
+            .body(body)
+            .unwrap();
 
         let response = invoker
             .call(request)

@@ -15,9 +15,7 @@
  * limitations under the License.
  */
 
-use std::{
-    task::{Context, Poll},
-};
+use std::task::{Context, Poll};
 
 use async_trait::async_trait;
 use aws_smithy_http::body::SdkBody;

@@ -15,11 +15,18 @@
  * limitations under the License.
  */
 
-
 use std::sync::Arc;
 
 use crate::{
-    utils::boxed_clone::BoxCloneService, registry::n_registry::{RegistryComponent, StaticRegistry, ArcRegistry}, route::NewRoutes, loadbalancer::NewLoadBalancer, cluster::{NewCluster, Cluster}, directory::NewCachedDirectory, svc::{ArcNewService, NewService, BoxedService}, StdError, codegen::RpcInvocation, BoxBody,
+    cluster::{Cluster, NewCluster},
+    codegen::RpcInvocation,
+    directory::NewCachedDirectory,
+    loadbalancer::NewLoadBalancer,
+    registry::n_registry::{ArcRegistry, RegistryComponent, StaticRegistry},
+    route::NewRoutes,
+    svc::{ArcNewService, BoxedService, NewService},
+    utils::boxed_clone::BoxCloneService,
+    BoxBody, StdError,
 };
 
 use aws_smithy_http::body::SdkBody;
@@ -28,7 +35,6 @@ use tower::ServiceBuilder;
 
 pub type ClientBoxService =
     BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
-
 
 pub type ServiceMK = Arc<NewCluster<NewLoadBalancer<NewRoutes<NewCachedDirectory<ArcRegistry>>>>>;
 
@@ -56,7 +62,9 @@ impl ClientBuilder {
         Self {
             timeout: None,
             connector: "",
-            registry: Some(ArcRegistry::new(RegistryComponent::StaticRegistry(StaticRegistry::new(vec![Url::from_url(host).unwrap()])))),
+            registry: Some(ArcRegistry::new(RegistryComponent::StaticRegistry(
+                StaticRegistry::new(vec![Url::from_url(host).unwrap()]),
+            ))),
             direct: true,
             host: host.to_string(),
         }
@@ -70,24 +78,23 @@ impl ClientBuilder {
     }
 
     pub fn with_registry(self, registry: RegistryComponent) -> Self {
-        Self { 
-            registry: Some(ArcRegistry::new(registry)), 
+        Self {
+            registry: Some(ArcRegistry::new(registry)),
             ..self
         }
     }
 
     pub fn with_host(self, host: &'static str) -> Self {
         Self {
-            registry: Some(ArcRegistry::new(RegistryComponent::StaticRegistry(StaticRegistry::new(vec![Url::from_url(host).unwrap()])))),
+            registry: Some(ArcRegistry::new(RegistryComponent::StaticRegistry(
+                StaticRegistry::new(vec![Url::from_url(host).unwrap()]),
+            ))),
             ..self
         }
     }
 
     pub fn with_connector(self, connector: &'static str) -> Self {
-        Self {
-            connector,
-            ..self
-        }
+        Self { connector, ..self }
     }
 
     pub fn with_direct(self, direct: bool) -> Self {
@@ -95,16 +102,14 @@ impl ClientBuilder {
     }
 
     pub fn build(mut self) -> ServiceMK {
-  
-
         let registry = self.registry.take().expect("registry must not be empty");
 
         let mk_service = ServiceBuilder::new()
-                .layer(NewCluster::layer())
-                .layer(NewLoadBalancer::layer())
-                .layer(NewRoutes::layer())
-                .layer(NewCachedDirectory::layer())
-                .service(registry);
+            .layer(NewCluster::layer())
+            .layer(NewLoadBalancer::layer())
+            .layer(NewRoutes::layer())
+            .layer(NewCachedDirectory::layer())
+            .service(registry);
 
         Arc::new(mk_service)
     }

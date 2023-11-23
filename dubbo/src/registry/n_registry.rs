@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use dubbo_base::Url;
-use tokio::sync::mpsc::{Receiver, channel};
+use tokio::sync::mpsc::{channel, Receiver};
 use tower::discover::Change;
-
 
 use crate::StdError;
 
@@ -12,9 +11,8 @@ type DiscoverStream = Receiver<Result<Change<String, ()>, StdError>>;
 
 #[async_trait]
 pub trait Registry {
-
     async fn register(&self, url: Url) -> Result<(), StdError>;
-    
+
     async fn unregister(&self, url: Url) -> Result<(), StdError>;
 
     // todo service_name change to url
@@ -25,9 +23,8 @@ pub trait Registry {
 
 #[derive(Clone)]
 pub struct ArcRegistry {
-    inner: Arc<dyn Registry + Send + Sync + 'static>
+    inner: Arc<dyn Registry + Send + Sync + 'static>,
 }
-
 
 pub enum RegistryComponent {
     NacosRegistry,
@@ -35,21 +32,20 @@ pub enum RegistryComponent {
     StaticRegistry(StaticRegistry),
 }
 
-
 pub struct StaticRegistry {
-    urls: Vec<Url>
+    urls: Vec<Url>,
 }
 
 impl ArcRegistry {
-
     pub fn new(registry: impl Registry + Send + Sync + 'static) -> Self {
-        Self { inner: Arc::new(registry) }
+        Self {
+            inner: Arc::new(registry),
+        }
     }
 }
 
 #[async_trait]
 impl Registry for ArcRegistry {
-    
     async fn register(&self, url: Url) -> Result<(), StdError> {
         self.inner.register(url).await
     }
@@ -66,9 +62,6 @@ impl Registry for ArcRegistry {
         self.inner.unsubscribe(url).await
     }
 }
-
-
-
 
 #[async_trait]
 impl Registry for RegistryComponent {
@@ -93,16 +86,11 @@ impl Registry for RegistryComponent {
     }
 }
 
-
 impl StaticRegistry {
-
     pub fn new(urls: Vec<Url>) -> Self {
-        Self {
-            urls
-        }
+        Self { urls }
     }
 }
-
 
 #[async_trait]
 impl Registry for StaticRegistry {
@@ -119,7 +107,7 @@ impl Registry for StaticRegistry {
         for url in self.urls.iter() {
             let change = Ok(Change::Insert(url.to_url(), ()));
             tx.send(change).await?;
-        }      
+        }
 
         Ok(rx)
     }
