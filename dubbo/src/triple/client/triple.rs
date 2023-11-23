@@ -153,6 +153,7 @@ impl TripleClient {
 
 
         let request = http::Request::builder()
+            .header("path", path.to_string())
             .body(body).unwrap();
 
        
@@ -215,6 +216,7 @@ impl TripleClient {
 
 
         let request = http::Request::builder()
+            .header("path", path.to_string())
             .body(body).unwrap();
 
 
@@ -259,6 +261,7 @@ impl TripleClient {
 
 
         let request = http::Request::builder()
+            .header("path", path.to_string())
             .body(body).unwrap();
 
 
@@ -321,6 +324,7 @@ impl TripleClient {
 
 
         let request = http::Request::builder()
+            .header("path", path.to_string())
             .body(body).unwrap();
 
 

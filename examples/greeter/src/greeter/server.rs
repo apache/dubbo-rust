@@ -22,7 +22,7 @@ use futures_util::{Stream, StreamExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use dubbo::{codegen::*, Dubbo};
+use dubbo::{codegen::*, Dubbo, registry::memory_registry::MemoryRegistry};
 use dubbo_config::RootConfig;
 use dubbo_logger::{
     tracing::{info, span},
@@ -50,7 +50,7 @@ async fn main() {
     register_server(GreeterServerImpl {
         name: "greeter".to_string(),
     });
-    let zkr = ZookeeperRegistry::default();
+    // let zkr: ZookeeperRegistry = ZookeeperRegistry::default();
     let r = RootConfig::new();
     let r = match r.load() {
         Ok(config) => config,
@@ -58,7 +58,9 @@ async fn main() {
     };
     let mut f = Dubbo::new()
         .with_config(r)
-        .add_registry("zookeeper", Box::new(zkr));
+        .add_registry("memory_registry", Box::new(MemoryRegistry::new()));
+
+
     f.start().await;
 }
 

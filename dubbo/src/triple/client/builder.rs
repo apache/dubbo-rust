@@ -19,7 +19,7 @@
 use std::sync::Arc;
 
 use crate::{
-    utils::boxed_clone::BoxCloneService, registry::n_registry::{RegistryComponent, StaticRegistry, ArcRegistry}, route::{NewRoutes, NewRoutesCache}, loadbalancer::NewLoadBalancer, cluster::{NewCluster, Cluster}, directory::NewCachedDirectory, svc::{ArcNewService, NewService, BoxedService}, StdError, codegen::RpcInvocation, BoxBody,
+    utils::boxed_clone::BoxCloneService, registry::n_registry::{RegistryComponent, StaticRegistry, ArcRegistry}, route::NewRoutes, loadbalancer::NewLoadBalancer, cluster::{NewCluster, Cluster}, directory::NewCachedDirectory, svc::{ArcNewService, NewService, BoxedService}, StdError, codegen::RpcInvocation, BoxBody,
 };
 
 use aws_smithy_http::body::SdkBody;
@@ -30,7 +30,7 @@ pub type ClientBoxService =
     BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
 
 
-pub type ServiceMK = Arc<NewCluster<NewLoadBalancer<NewRoutesCache<NewRoutes<NewCachedDirectory<ArcRegistry>>>>>>;
+pub type ServiceMK = Arc<NewCluster<NewLoadBalancer<NewRoutes<NewCachedDirectory<ArcRegistry>>>>>;
 
 #[derive(Default)]
 pub struct ClientBuilder {
@@ -102,7 +102,7 @@ impl ClientBuilder {
         let mk_service = ServiceBuilder::new()
                 .layer(NewCluster::layer())
                 .layer(NewLoadBalancer::layer())
-                .layer(NewRoutesCache::layer())
+                .layer(NewRoutes::layer())
                 .layer(NewCachedDirectory::layer())
                 .service(registry);
 

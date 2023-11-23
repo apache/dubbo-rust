@@ -6,9 +6,9 @@ use tokio::sync::mpsc::{Receiver, channel};
 use tower::discover::Change;
 
 
-use crate::{StdError, invoker::NewInvoker};
+use crate::StdError;
 
-type DiscoverStream = Receiver<Result<Change<String, NewInvoker>, StdError>>;
+type DiscoverStream = Receiver<Result<Change<String, ()>, StdError>>;
 
 #[async_trait]
 pub trait Registry {
@@ -51,19 +51,19 @@ impl ArcRegistry {
 impl Registry for ArcRegistry {
     
     async fn register(&self, url: Url) -> Result<(), StdError> {
-        self.register(url).await
+        self.inner.register(url).await
     }
 
     async fn unregister(&self, url: Url) -> Result<(), StdError> {
-        self.unregister(url).await
+        self.inner.unregister(url).await
     }
 
     async fn subscribe(&self, service_name: String) -> Result<DiscoverStream, StdError> {
-        self.subscribe(service_name).await
+        self.inner.subscribe(service_name).await
     }
 
     async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
-        self.unsubscribe(url).await
+        self.inner.unsubscribe(url).await
     }
 }
 
@@ -81,7 +81,11 @@ impl Registry for RegistryComponent {
     }
 
     async fn subscribe(&self, service_name: String) -> Result<DiscoverStream, StdError> {
-        todo!()
+        match self {
+            RegistryComponent::NacosRegistry => todo!(),
+            RegistryComponent::ZookeeperRegistry => todo!(),
+            RegistryComponent::StaticRegistry(registry) => registry.subscribe(service_name).await,
+        }
     }
 
     async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
@@ -113,8 +117,7 @@ impl Registry for StaticRegistry {
     async fn subscribe(&self, service_name: String) -> Result<DiscoverStream, StdError> {
         let (tx, rx) = channel(self.urls.len());
         for url in self.urls.iter() {
-            let invoker = NewInvoker::new(url.clone());
-            let change = Ok(Change::Insert(service_name.clone(), invoker));
+            let change = Ok(Change::Insert(url.to_url(), ()));
             tx.send(change).await?;
         }      
 

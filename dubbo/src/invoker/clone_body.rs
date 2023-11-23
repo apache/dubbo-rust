@@ -14,32 +14,31 @@ use pin_project::pin_project;
 use thiserror::Error;
 
 use crate::StdError;
-
  
 #[derive(Error, Debug)]
 #[error("buffered body reach max capacity.")] 
 pub struct ReachMaxCapacityError;
 
-pub struct BufferedBody<B> {
-    shared:  Arc<Mutex<Option<OwnedBufferedBody<B>>>>,
-    owned: Option<OwnedBufferedBody<B>>,
+pub struct BufferedBody {
+    shared:  Arc<Mutex<Option<OwnedBufferedBody>>>,
+    owned: Option<OwnedBufferedBody>,
     replay_body: bool,
     replay_trailers: bool,
     is_empty: bool,
     size_hint: http_body::SizeHint,
 }
 
-pub struct OwnedBufferedBody<B> {
-    body: B,
+pub struct OwnedBufferedBody {
+    body: hyper::Body,
     trailers: Option<HeaderMap>,
     buf: InnerBuffer,
 }
 
 
 
-impl<B: http_body::Body> BufferedBody<B> {
+impl BufferedBody {
 
-    pub fn new(body: B, buf_size: usize) -> Self {
+    pub fn new(body: hyper::Body, buf_size: usize) -> Self {
         let size_hint = body.size_hint();
         let is_empty = body.is_end_stream();
         BufferedBody {
@@ -61,7 +60,7 @@ impl<B: http_body::Body> BufferedBody<B> {
 
 }
 
-impl<B> Clone for BufferedBody<B> {
+impl Clone for BufferedBody {
 
     fn clone(&self) -> Self {
         Self {
@@ -75,7 +74,7 @@ impl<B> Clone for BufferedBody<B> {
     }
 }
 
-impl<B> Drop for BufferedBody<B> {
+impl Drop for BufferedBody {
     fn drop(&mut self) {
         if let Some(owned) = self.owned.take() {
             let lock = self.shared.lock();
@@ -86,11 +85,8 @@ impl<B> Drop for BufferedBody<B> {
     }
 }
 
-impl<B> Body for BufferedBody<B> 
-where
-    B: http_body::Body + Unpin, 
-    B::Error: Into<StdError>,
-{
+impl Body for BufferedBody {
+
     type Data = BytesData;
     type Error = StdError;
 
@@ -328,24 +324,16 @@ impl Buf for BytesData {
 }
 
 #[pin_project]
-pub struct CloneBody<B>(#[pin] BufferedBody<B>);
+pub struct CloneBody(#[pin] BufferedBody);
 
-impl<B> CloneBody<B> 
-where
-    B: http_body::Body + Unpin, 
-    B::Error: Into<StdError>,
-{
-    pub fn new(inner_body: B) -> Self {
+impl CloneBody {
+    pub fn new(inner_body: hyper::Body) -> Self {
         let inner_body = BufferedBody::new(inner_body, 1024 * 64); 
         CloneBody(inner_body)
     }
 }
 
-impl<B> Body for CloneBody<B> 
-where
-    B: http_body::Body + Unpin, 
-    B::Error: Into<StdError>,
-{
+impl Body for CloneBody{
 
     type Data = BytesData;
 
@@ -371,11 +359,7 @@ where
 }
 
 
-impl<B> Clone for CloneBody<B> 
-where
-    B: http_body::Body + Unpin, 
-    B::Error: Into<StdError>,
-{
+impl Clone for CloneBody {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }

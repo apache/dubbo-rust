@@ -1,38 +1,35 @@
-use std::{sync::{Arc, Mutex}, collections::HashMap};
+use std::pin::Pin;
 
+use dubbo_logger::tracing::debug;
 use futures_core::{Future, ready};
-use futures_util::future::Ready;
-use pin_project::pin_project;
-use tokio::{sync::watch, pin};
+use futures_util::{future::Ready, FutureExt, TryFutureExt};
 use tower::{util::FutureService, buffer::Buffer};
 use tower_service::Service;
   
-use crate::{StdError, codegen::RpcInvocation, svc::NewService, param::Param, invocation::Invocation};
+use crate::{StdError, codegen::{RpcInvocation, TripleInvoker}, svc::NewService, param::Param, invoker::clone_invoker::CloneInvoker};
 
 pub struct NewRoutes<N> {
     inner: N,
 } 
 
-pub struct NewRoutesCache<N> 
-where
-    N: NewService<RpcInvocation>
-{
-    inner: N,
-    cache: Arc<Mutex<HashMap<String, N::Service>>>,
+
+pub struct NewRoutesFuture<S, T> {
+    inner: RoutesFutureInnerState<S>,
+    target: T,
 }
 
-#[pin_project]
-pub struct NewRoutesFuture<N, T> {
-    #[pin]
-    inner: N,
-    target: T,
+
+pub enum RoutesFutureInnerState<S> {
+    Service(S),
+    Future(Pin<Box<dyn Future<Output = Result<Vec<CloneInvoker<TripleInvoker>>, StdError>> + Send + 'static>>),
+    Ready(Vec<CloneInvoker<TripleInvoker>>),
 }
+
  
 #[derive(Clone)]
-pub struct Routes<Nsv, T> {
+pub struct Routes<T> {
     target: T,
-    new_invokers: Vec<Nsv>,
-    invokers_receiver: watch::Receiver<Vec<Nsv>>,
+    invokers: Vec<CloneInvoker<TripleInvoker>>
 }
 
 impl<N> NewRoutes<N> {
@@ -43,154 +40,101 @@ impl<N> NewRoutes<N> {
     }
 }
 
+impl<N> NewRoutes<N> {
+    const MAX_ROUTE_BUFFER_SIZE: usize = 16;
 
-impl<N, T, Nsv> NewService<T> for NewRoutes<N> 
+    pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
+        tower_layer::layer_fn(|inner: N| {
+            NewRoutes::new(inner)
+        })
+    }
+}
+
+
+impl<N, T> NewService<T> for NewRoutes<N> 
 where
-    T: Param<RpcInvocation> + Clone + Send + 'static, 
+    T: Param<RpcInvocation> + Clone + Send + Unpin + 'static, 
     // NewDirectory
     N: NewService<T>,
-    // Directory
-    N::Service: Service<(), Response = watch::Receiver<Vec<Nsv>>> + Unpin + Send + 'static,
-    <N::Service as Service<()>>::Error: Into<StdError>,
-    // new invoker service
-    Nsv: NewService<()> + Clone + Send + Sync + 'static,
-{
+    // Directory   
+    N::Service: Service<(), Response = Vec<CloneInvoker<TripleInvoker>>> + Unpin + Send + 'static,
+    <N::Service as Service<()>>::Error: Into<StdError>, 
+    <N::Service as Service<()>>::Future: Send + 'static,
+{ 
 
-    type Service = Buffer<FutureService<NewRoutesFuture<<N as NewService<T>>::Service, T>, Routes<Nsv, T>>, ()>;
+    type Service = Buffer<FutureService<NewRoutesFuture<<N as NewService<T>>::Service, T>, Routes<T>>, ()>;
 
     fn new_service(&self, target: T) -> Self::Service {
         let inner = self.inner.new_service(target.clone());
-        
+
         Buffer::new(FutureService::new(NewRoutesFuture {
-            inner,
+            inner: RoutesFutureInnerState::Service(inner),
             target,
-        }), 1024)
-    }
-}
-impl<N, Nsv> NewRoutesCache<N> 
-where
-    N: NewService<RpcInvocation>,
-    <N as NewService<RpcInvocation>>::Service: Service<(), Response = watch::Receiver<Vec<Nsv>>> + Unpin + Send + 'static,
-    <N::Service as Service<()>>::Error: Into<StdError>,
-    Nsv: NewService<()> + Clone + Send + Sync + 'static,
-
-{
-    pub fn layer() -> impl tower_layer::Layer<N, Service = NewRoutesCache<NewRoutes<N>>> {
-        tower_layer::layer_fn(|inner: N| {
-            NewRoutesCache::new(NewRoutes::new(inner))
-        })
-    }
-
-
-}
-
-
-impl<N> NewRoutesCache<N> 
-where
-    N: NewService<RpcInvocation>
-{
-    pub fn new(inner: N) -> Self {
-        Self {
-            inner,
-            cache: Default::default(),
-        }
-    }
-}
-
-impl<N, T> NewService<T> for NewRoutesCache<N> 
-where
-    T: Param<RpcInvocation>,
-    N: NewService<RpcInvocation>,
-    N::Service: Clone,
-{
-    type Service = N::Service;
-
-    fn new_service(&self, target: T) -> Self::Service {
-        let rpc_inv = target.param();
-        let service_name = rpc_inv.get_target_service_unique_name();
-
-        let mut cache = self.cache.lock().expect("RoutesCache get lock failed");
-
-        let service = cache.get(&service_name);
-        match service {
-            Some(service) => service.clone(),
-            None => {
-                let service = self.inner.new_service(rpc_inv);
-                cache.insert(service_name, service.clone());
-                service
-            }
-        }
+        }), Self::MAX_ROUTE_BUFFER_SIZE)
     }
 }
 
 
-impl<N, T, Nsv> Future for NewRoutesFuture<N, T> 
+impl<N, T> Future for NewRoutesFuture<N, T> 
 where
-    T: Param<RpcInvocation> + Clone, 
+    T: Param<RpcInvocation> + Clone + Unpin, 
     // Directory
-    N: Service<(), Response = watch::Receiver<Vec<Nsv>>> + Unpin,
+    N: Service<(), Response = Vec<CloneInvoker<TripleInvoker>>> + Unpin,
     N::Error: Into<StdError>,
-     // new invoker service
-    Nsv: NewService<()> + Clone,
+    N::Future: Send + 'static,
 {
-    type Output = Result<Routes<Nsv, T>, StdError>;
+    type Output = Result<Routes<T>, StdError>;
 
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
 
         let this = self.get_mut();
 
-        let target = this.target.clone();
-
-        let _ = ready!(this.inner.poll_ready(cx)).map_err(Into::into)?;
-
-
-        let call = this.inner.call(());
-        pin!(call);
-    
-        let mut invokers_receiver = ready!(call.poll(cx).map_err(Into::into))?;
-        let new_invokers = {
-            let wait_for =  invokers_receiver.wait_for(|invs|!invs.is_empty());
-            pin!(wait_for);
-    
-            let changed = ready!(wait_for.poll(cx))?;
-    
-            changed.clone()
-        };
-         
-
-        std::task::Poll::Ready(Ok(Routes {
-            invokers_receiver,
-            new_invokers,
-            target,
-        }))
+        loop {
+            match this.inner {
+                RoutesFutureInnerState::Service(ref mut service) => {
+                    debug!("RoutesFutureInnerState::Service");
+                    let _ = ready!(service.poll_ready(cx)).map_err(Into::into)?;
+                    let fut = service.call(()).map_err(|e|e.into()).boxed();
+                    this.inner = RoutesFutureInnerState::Future(fut);
+                },
+                RoutesFutureInnerState::Future(ref mut futures) => {
+                    debug!("RoutesFutureInnerState::Future");
+                    let invokers = ready!(futures.as_mut().poll(cx))?;
+                    this.inner = RoutesFutureInnerState::Ready(invokers);
+                },
+                RoutesFutureInnerState::Ready(ref invokers) => {
+                    debug!("RoutesFutureInnerState::Ready");
+                    let target = this.target.clone();
+                    return std::task::Poll::Ready(Ok(Routes {
+                        invokers: invokers.clone(),
+                        target,
+                    }));
+                },
+            }
+        }
+        
     }
 }
 
 
 
-impl<Nsv,T> Service<()> for Routes<Nsv, T> 
+impl<T> Service<()> for Routes<T> 
 where
     T: Param<RpcInvocation> + Clone, 
-     // new invoker service
-    Nsv: NewService<()> + Clone,
 { 
-    type Response = Vec<Nsv>;
+    type Response = Vec<CloneInvoker<TripleInvoker>>;
  
     type Error = StdError;
   
     type Future = Ready<Result<Self::Response, Self::Error>>; 
 
     fn poll_ready(&mut self, _: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-        let has_change = self.invokers_receiver.has_changed()?;
-        if has_change {
-            self.new_invokers = self.invokers_receiver.borrow_and_update().clone();
-        }
         std::task::Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, _: ()) -> Self::Future {
         // some router operator
         // if new_invokers changed, send new invokers to routes_rx after router operator
-        futures_util::future::ok(self.new_invokers.clone()) 
+        futures_util::future::ok(self.invokers.clone()) 
     }
 }

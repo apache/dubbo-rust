@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
- use core::panic;
 use std::{
-    hash::Hash,
-    task::{Context, Poll}, collections::HashMap, sync::{Arc, Mutex},
+    task::{Context, Poll}, collections::HashMap, sync::{Arc, Mutex}, pin::Pin,
 };
     
-use crate::{StdError, codegen::RpcInvocation, invocation::Invocation, registry::n_registry::Registry, invoker::NewInvoker, svc::NewService, param::Param};
-use futures_util::future::{poll_fn, self};
-use tokio::{sync::{watch, Notify, mpsc::channel}, select};
+use crate::{StdError, codegen::{RpcInvocation, TripleInvoker}, invocation::Invocation, registry::n_registry::Registry, invoker::{NewInvoker,clone_invoker::CloneInvoker}, svc::NewService, param::Param};
+use dubbo_logger::tracing::debug;
+use futures_core::ready;
+use futures_util::future;
+use tokio::sync::mpsc::channel;
 use tokio_stream::wrappers::ReceiverStream;
 use tower::{
     discover::{Change, Discover}, buffer::Buffer,
@@ -31,7 +31,7 @@ use tower::{
 
 use tower_service::Service;
 
-type BufferedDirectory = Buffer<Directory<ReceiverStream<Result<Change<String, NewInvoker>, StdError>>>, ()>;
+type BufferedDirectory = Buffer<Directory<ReceiverStream<Result<Change<String, ()>, StdError>>>, ()>; 
 
 pub struct NewCachedDirectory<N>
 where
@@ -57,14 +57,10 @@ pub struct NewDirectory<N> {
 }
 
 
-
-#[derive(Clone)]
-pub struct Directory<D> 
-where
-    D: Discover
-{
-    rx: watch::Receiver<Vec<D::Service>>,
-    close: Arc<Notify>
+pub struct Directory<D> {
+    directory: HashMap<String, CloneInvoker<TripleInvoker>>,
+    discover: D,
+    new_invoker: NewInvoker,
 }
 
 
@@ -143,12 +139,16 @@ where
 
 impl<N> NewDirectory<N> {
 
+    const MAX_DIRECTORY_BUFFER_SIZE: usize = 16;
+
     pub fn new(inner: N) -> Self {
         NewDirectory {
             inner
         }
     }
 } 
+
+
 
 impl<N, T> NewService<T> for NewDirectory<N> 
 where
@@ -157,6 +157,8 @@ where
     N: Registry + Clone + Send + Sync + 'static, 
 {
     type Service = BufferedDirectory; 
+
+    
  
     fn new_service(&self, target: T) -> Self::Service {
         
@@ -164,26 +166,27 @@ where
 
         let registry = self.inner.clone();
 
-        let (tx, rx) = channel(1024);
+        let (tx, rx) = channel(Self::MAX_DIRECTORY_BUFFER_SIZE);
 
         tokio::spawn(async move {
-
             let receiver = registry.subscribe(service_name).await;
+            debug!("discover start!");
             match receiver {
                 Err(e) => {
                     // error!("discover stream error: {}", e);
-                    
+                    debug!("discover stream error");
                 },
                 Ok(mut receiver) => {
                     loop {
                         let change = receiver.recv().await;
+                        debug!("receive change: {:?}", change); 
                         match change {
                             None => {
-                                // debug!("discover stream closed.");
+                                debug!("discover stream closed.");
                                 break;
                             },
                             Some(change) => {
-                                let _  = tx.send(change);
+                                let _  = tx.send(change).await;
                             }
                         }
                     }
@@ -192,71 +195,20 @@ where
 
         }); 
 
-        Buffer::new(Directory::new(ReceiverStream::new(rx)), 1024)
+        Buffer::new(Directory::new(ReceiverStream::new(rx)), Self::MAX_DIRECTORY_BUFFER_SIZE)
     } 
 
 } 
 
 
-impl<D> Directory<D> 
-where
-    // Discover
-    D: Discover + Unpin + Send + 'static,
-    // the key may be dubbo url
-    D::Key: Hash + Eq + Clone + Send,
-    // invoker new service
-    D::Service: NewService<()> + Clone + Send + Sync,
-{ 
+impl<D> Directory<D> { 
 
     pub fn new(discover: D) -> Self {
   
-        let mut discover = Box::pin(discover);
-
-        let (tx, rx) = watch::channel(Vec::new());
-        let close = Arc::new(Notify::new());
-        let close_clone = close.clone();
-     
-        tokio::spawn(async move {
-            let mut cache: HashMap<D::Key, D::Service> = HashMap::new();
-
-            loop {
-                let changed = select! {
-                    _ = close_clone.notified() => {
-                        // info!("discover stream closed.")
-                        return; 
-                    },
-                    changed = poll_fn(|cx| discover.as_mut().poll_discover(cx)) => {
-                        changed
-                    }
-                };
-                let Some(changed) = changed else {
-                    // debug!("discover stream closed.");
-                    break;
-                };
-
-                match changed {
-                    Err(e) => {
-                        // error!("discover stream error: {}", e);
-                        continue;
-                    },
-                    Ok(changed) => match changed {
-                        Change::Insert(k, v) => {
-                            cache.insert(k, v);
-                        },
-                        Change::Remove(k) => {
-                            cache.remove(&k);
-                        }
-                    }
-                }
-
-                let vec: Vec<D::Service> = cache.values().map(|v|v.clone()).collect();
-                let _ = tx.send(vec);
-            }
-            
-        });
         Directory {
-            rx,
-            close
+            directory: Default::default(),
+            discover,
+            new_invoker: NewInvoker,
         }
     }
 }
@@ -265,34 +217,40 @@ where
 impl<D> Service<()> for Directory<D> 
 where
     // Discover
-    D: Discover + Unpin + Send,
-    // the key may be dubbo url
-    D::Key: Hash + Eq + Clone + Send,
-    // invoker new service
-    D::Service: NewService<()> + Clone + Send + Sync,
+    D: Discover<Key = String> + Unpin + Send, 
+    D::Error: Into<StdError> 
 { 
-    type Response = watch::Receiver<Vec<D::Service>>;
+    type Response = Vec<CloneInvoker<TripleInvoker>>;
 
     type Error = StdError;
 
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
+        
+        loop {
+            let pin_discover = Pin::new(&mut self.discover);
+            let change = ready!(pin_discover.poll_discover(cx)).transpose().map_err(|e| e.into())?;
+            match change {
+                Some(Change::Remove(key)) => {
+                    debug!("remove key: {}", key);
+                    self.directory.remove(&key);
+                },  
+                Some(Change::Insert(key, _)) => {
+                    debug!("insert key: {}", key);
+                    let invoker = self.new_invoker.new_service(key.clone());
+                    self.directory.insert(key, invoker);
+                },
+                None => { 
+                    debug!("stream closed");
+                    return Poll::Ready(Ok(()));
+                }
+            }
+        }
     }
 
     fn call(&mut self, _: ()) -> Self::Future {
-        future::ok(self.rx.clone())
-    }
-}
-
-impl<D> Drop for Directory<D> 
-where
-    D: Discover, 
-{ 
-    fn drop(&mut self) {
-        if Arc::strong_count(&self.close) == 1 {
-            self.close.notify_one();
-        }
+        let vec = self.directory.values().map(|val|val.clone()).collect::<Vec<CloneInvoker<TripleInvoker>>>();
+        future::ok(vec)
     }
 }

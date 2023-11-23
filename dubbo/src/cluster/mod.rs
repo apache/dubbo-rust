@@ -19,12 +19,10 @@
 use http::Request;
 use tower_service::Service;
 
-use crate::{codegen::RpcInvocation, StdError, svc::NewService, param::Param};
+use crate::{codegen::RpcInvocation, svc::NewService, param::Param, invoker::clone_body::CloneBody};
 
-use self::{failover::Failover, clone_body::CloneBody};
- 
-mod clone_body;
-mod clone_invoker;
+use self::failover::Failover;
+
 mod failover;
 
 pub struct NewCluster<N> {
@@ -65,11 +63,9 @@ where
     }
 }
   
-impl<S, B> Service<Request<B>> for Cluster<S> 
+impl<S> Service<Request<hyper::Body>> for Cluster<S> 
 where
-    S: Service<Request<CloneBody<B>>>,
-    B: http_body::Body + Unpin,
-    B::Error: Into<StdError>,
+    S: Service<Request<CloneBody>>,
 {
 
     type Response = S::Response;
@@ -82,7 +78,7 @@ where
         self.inner.poll_ready(cx)
     }
  
-    fn call(&mut self, req: Request<B>) -> Self::Future {
+    fn call(&mut self, req: Request<hyper::Body>) -> Self::Future {
         let (parts, body) = req.into_parts();
         let clone_body = CloneBody::new(body);
         let req = Request::from_parts(parts, clone_body); 
