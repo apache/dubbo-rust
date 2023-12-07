@@ -165,7 +165,7 @@ where
             let receiver = registry.subscribe(service_name).await;
             debug!("discover start!");
             match receiver {
-                Err(e) => {
+                Err(_e) => {
                     // error!("discover stream error: {}", e);
                     debug!("discover stream error");
                 }

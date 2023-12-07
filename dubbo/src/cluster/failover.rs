@@ -26,7 +26,7 @@ where
 {
     type Future = future::Ready<Self>;
 
-    fn retry(&self, req: &Request<B>, result: Result<&Res, &E>) -> Option<Self::Future> {
+    fn retry(&self, _req: &Request<B>, result: Result<&Res, &E>) -> Option<Self::Future> {
         //TODO some error handling or logging
         match result {
             Ok(_) => None,

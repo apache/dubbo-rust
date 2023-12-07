@@ -18,15 +18,12 @@
 use std::sync::Arc;
 
 use crate::{
-    cluster::{Cluster, NewCluster},
-    codegen::RpcInvocation,
+    cluster::NewCluster,
     directory::NewCachedDirectory,
     loadbalancer::NewLoadBalancer,
     registry::n_registry::{ArcRegistry, RegistryComponent, StaticRegistry},
     route::NewRoutes,
-    svc::{ArcNewService, BoxedService, NewService},
     utils::boxed_clone::BoxCloneService,
-    BoxBody, StdError,
 };
 
 use aws_smithy_http::body::SdkBody;
