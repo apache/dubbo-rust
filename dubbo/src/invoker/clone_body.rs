@@ -7,20 +7,20 @@ use std::{
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures_core::ready;
- 
+
 use http::HeaderMap;
 use http_body::Body;
 use pin_project::pin_project;
 use thiserror::Error;
 
 use crate::StdError;
- 
+
 #[derive(Error, Debug)]
-#[error("buffered body reach max capacity.")] 
+#[error("buffered body reach max capacity.")]
 pub struct ReachMaxCapacityError;
 
 pub struct BufferedBody {
-    shared:  Arc<Mutex<Option<OwnedBufferedBody>>>,
+    shared: Arc<Mutex<Option<OwnedBufferedBody>>>,
     owned: Option<OwnedBufferedBody>,
     replay_body: bool,
     replay_trailers: bool,
@@ -34,10 +34,7 @@ pub struct OwnedBufferedBody {
     buf: InnerBuffer,
 }
 
-
-
 impl BufferedBody {
-
     pub fn new(body: hyper::Body, buf_size: usize) -> Self {
         let size_hint = body.size_hint();
         let is_empty = body.is_end_stream();
@@ -57,11 +54,9 @@ impl BufferedBody {
             size_hint,
         }
     }
-
 }
 
 impl Clone for BufferedBody {
-
     fn clone(&self) -> Self {
         Self {
             shared: self.shared.clone(),
@@ -86,7 +81,6 @@ impl Drop for BufferedBody {
 }
 
 impl Body for BufferedBody {
-
     type Data = BytesData;
     type Error = StdError;
 
@@ -106,14 +100,10 @@ impl Body for BufferedBody {
             data.take().expect("cannot get shared buffered body.")
         });
 
-      
-
         if mut_self.replay_body {
             mut_self.replay_body = false;
             if owned_body.buf.has_remaining() {
-                return Poll::Ready(Some(Ok(BytesData::BufferedBytes(
-                    owned_body.buf.clone(),
-                ))));
+                return Poll::Ready(Some(Ok(BytesData::BufferedBytes(owned_body.buf.clone()))));
             }
 
             if owned_body.buf.is_capped() {
@@ -150,10 +140,8 @@ impl Body for BufferedBody {
         } else {
             owned_body.buf.push_bytes(data.copy_to_bytes(len))
         };
- 
+
         Poll::Ready(Some(Ok(BytesData::OriginBytes(data))))
-
-
     }
 
     fn poll_trailers(
@@ -170,7 +158,7 @@ impl Body for BufferedBody {
 
             data.take().expect("cannot get shared buffered body.")
         });
- 
+
         if mut_self.replay_trailers {
             mut_self.replay_trailers = false;
             if let Some(ref trailers) = owned_body.trailers {
@@ -184,7 +172,7 @@ impl Body for BufferedBody {
                 owned_body.trailers = trailers.clone();
                 trailers
             });
-            return Poll::Ready(trailers.map_err(|e|e.into()));
+            return Poll::Ready(trailers.map_err(|e| e.into()));
         }
 
         Poll::Ready(Ok(None))
@@ -195,9 +183,11 @@ impl Body for BufferedBody {
             return true;
         }
 
-        let is_end = self.owned.as_ref()
-                                    .map(|owned|owned.body.is_end_stream())
-                                    .unwrap_or(false);
+        let is_end = self
+            .owned
+            .as_ref()
+            .map(|owned| owned.body.is_end_stream())
+            .unwrap_or(false);
 
         !self.replay_body && !self.replay_trailers && is_end
     }
@@ -205,11 +195,7 @@ impl Body for BufferedBody {
     fn size_hint(&self) -> http_body::SizeHint {
         self.size_hint.clone()
     }
-
-    
 }
-
-
 
 #[derive(Clone)]
 pub struct InnerBuffer {
@@ -328,13 +314,12 @@ pub struct CloneBody(#[pin] BufferedBody);
 
 impl CloneBody {
     pub fn new(inner_body: hyper::Body) -> Self {
-        let inner_body = BufferedBody::new(inner_body, 1024 * 64); 
+        let inner_body = BufferedBody::new(inner_body, 1024 * 64);
         CloneBody(inner_body)
     }
 }
 
-impl Body for CloneBody{
-
+impl Body for CloneBody {
     type Data = BytesData;
 
     type Error = StdError;
@@ -350,14 +335,13 @@ impl Body for CloneBody{
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Option<http::HeaderMap>, Self::Error>> {
-        self.project().0.poll_trailers(cx) 
+        self.project().0.poll_trailers(cx)
     }
 
     fn size_hint(&self) -> http_body::SizeHint {
         self.0.size_hint()
     }
 }
-
 
 impl Clone for CloneBody {
     fn clone(&self) -> Self {

@@ -1,13 +1,11 @@
 use dubbo_base::Url;
 
-use crate::{codegen::TripleInvoker, svc::NewService, invoker::clone_invoker::CloneInvoker};
+use crate::{codegen::TripleInvoker, invoker::clone_invoker::CloneInvoker, svc::NewService};
 
 pub mod clone_body;
 pub mod clone_invoker;
 
-
 pub struct NewInvoker;
-
 
 impl NewService<String> for NewInvoker {
     type Service = CloneInvoker<TripleInvoker>;

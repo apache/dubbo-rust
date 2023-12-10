@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-
 use http::Request;
 use tower_service::Service;
 
-use crate::{codegen::RpcInvocation, svc::NewService, param::Param, invoker::clone_body::CloneBody};
+use crate::{
+    codegen::RpcInvocation, invoker::clone_body::CloneBody, param::Param, svc::NewService,
+};
 
 use self::failover::Failover;
 
@@ -30,12 +31,10 @@ pub struct NewCluster<N> {
 }
 
 pub struct Cluster<S> {
-    inner: S // failover service
+    inner: S, // failover service
 }
 
-
 impl<N> NewCluster<N> {
- 
     pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
         tower_layer::layer_fn(|inner: N| {
             NewCluster {
@@ -43,45 +42,44 @@ impl<N> NewCluster<N> {
             }
         })
     }
+}
 
-} 
-
-impl<S, T> NewService<T> for NewCluster<S> 
+impl<S, T> NewService<T> for NewCluster<S>
 where
-    T: Param<RpcInvocation>, 
+    T: Param<RpcInvocation>,
     // new loadbalancer service
     S: NewService<T>,
-{ 
-
+{
     type Service = Cluster<Failover<S::Service>>;
- 
-    fn new_service(&self, target: T) -> Self::Service {
 
+    fn new_service(&self, target: T) -> Self::Service {
         Cluster {
-            inner: Failover::new(self.inner.new_service(target))
+            inner: Failover::new(self.inner.new_service(target)),
         }
     }
 }
-  
-impl<S> Service<Request<hyper::Body>> for Cluster<S> 
+
+impl<S> Service<Request<hyper::Body>> for Cluster<S>
 where
     S: Service<Request<CloneBody>>,
 {
-
     type Response = S::Response;
 
     type Error = S::Error;
 
     type Future = S::Future;
 
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
     }
- 
+
     fn call(&mut self, req: Request<hyper::Body>) -> Self::Future {
         let (parts, body) = req.into_parts();
         let clone_body = CloneBody::new(body);
-        let req = Request::from_parts(parts, clone_body); 
+        let req = Request::from_parts(parts, clone_body);
         self.inner.call(req)
     }
 }

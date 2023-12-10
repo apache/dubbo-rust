@@ -16,14 +16,17 @@
  */
 
 use dubbo_base::Url;
-use http::{Uri, HeaderValue};
+use http::{HeaderValue, Uri};
 use std::{
     fmt::{Debug, Formatter},
     str::FromStr,
 };
 use tower_service::Service;
 
-use crate::{triple::transport::{connection::Connection, self}, invoker::clone_body::CloneBody};
+use crate::{
+    invoker::clone_body::CloneBody,
+    triple::transport::{self, connection::Connection},
+};
 
 pub struct TripleInvoker {
     url: Url,
@@ -47,18 +50,19 @@ impl Debug for TripleInvoker {
 }
 
 impl TripleInvoker {
-    pub fn map_request(
-        &self,
-        req: http::Request<CloneBody>,
-    ) -> http::Request<CloneBody> {
-       
+    pub fn map_request(&self, req: http::Request<CloneBody>) -> http::Request<CloneBody> {
         let (parts, body) = req.into_parts();
 
         let path_and_query = parts.headers.get("path").unwrap().to_str().unwrap();
 
-        let authority  = self.url.clone().get_ip_port();
-        
-        let uri = Uri::builder().scheme("http").authority(authority).path_and_query(path_and_query).build().unwrap();
+        let authority = self.url.clone().get_ip_port();
+
+        let uri = Uri::builder()
+            .scheme("http")
+            .authority(authority)
+            .path_and_query(path_and_query)
+            .build()
+            .unwrap();
 
         let mut req = hyper::Request::builder()
             .version(http::Version::HTTP_2)
@@ -99,12 +103,12 @@ impl TripleInvoker {
             HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
         // if let Some(_encoding) = self.send_compression_encoding {
-            
+
         // }
 
         req.headers_mut()
-                .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
-            
+            .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+
         req.headers_mut().insert(
             "grpc-accept-encoding",
             http::HeaderValue::from_static("gzip"),
@@ -137,7 +141,10 @@ impl Service<http::Request<CloneBody>> for TripleInvoker {
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        <transport::connection::Connection as Service<http::Request<CloneBody>>>::poll_ready(&mut self.conn, cx)
+        <transport::connection::Connection as Service<http::Request<CloneBody>>>::poll_ready(
+            &mut self.conn,
+            cx,
+        )
     }
 
     fn call(&mut self, req: http::Request<CloneBody>) -> Self::Future {
@@ -146,4 +153,3 @@ impl Service<http::Request<CloneBody>> for TripleInvoker {
         self.conn.call(req)
     }
 }
-
