@@ -18,26 +18,24 @@
 #![allow(unused_variables, dead_code, missing_docs)]
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     env,
-    sync::{Arc, Mutex, RwLock},
+    sync::Arc,
     time::Duration,
 };
 
+use async_trait::async_trait;
 use dubbo_base::{
     constants::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY},
     Url,
 };
 use dubbo_logger::tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
-#[allow(unused_imports)]
+use tokio::{sync::mpsc, select};
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
 use dubbo::{
-    registry::{
-        memory_registry::MemoryRegistry, NotifyListener, Registry, RegistryNotifyListener,
-        ServiceEvent,
-    },
+    registry::n_registry::{ServiceChange, Registry, DiscoverStream},
     StdError,
 };
 
@@ -54,12 +52,9 @@ impl Watcher for LoggingWatcher {
     }
 }
 
-//#[derive(Debug)]
 pub struct ZookeeperRegistry {
     root_path: String,
     zk_client: Arc<ZooKeeper>,
-    listeners: RwLock<HashMap<String, RegistryNotifyListener>>,
-    memory_registry: Arc<Mutex<MemoryRegistry>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -91,24 +86,6 @@ impl ZookeeperRegistry {
         ZookeeperRegistry {
             root_path: "/services".to_string(),
             zk_client: Arc::new(zk_client),
-            listeners: RwLock::new(HashMap::new()),
-            memory_registry: Arc::new(Mutex::new(MemoryRegistry::default())),
-        }
-    }
-
-    fn create_listener(
-        &self,
-        path: String,
-        service_name: String,
-        listener: RegistryNotifyListener,
-    ) -> ServiceInstancesChangedListener {
-        let mut service_names = HashSet::new();
-        service_names.insert(service_name.clone());
-        ServiceInstancesChangedListener {
-            zk_client: Arc::clone(&self.zk_client),
-            path,
-            service_name: service_name.clone(),
-            listener,
         }
     }
 
@@ -125,10 +102,6 @@ impl ZookeeperRegistry {
             Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
         };
         s.to_string()
-    }
-
-    pub fn get_client(&self) -> Arc<ZooKeeper> {
-        self.zk_client.clone()
     }
 
     // If the parent node does not exist in the ZooKeeper, Err(ZkError::NoNode) will be returned.
@@ -154,7 +127,7 @@ impl ZookeeperRegistry {
             Ok(_) => Ok(()),
             Err(err) => {
                 error!("zk path {} parent not exists.", path);
-                Err(Box::try_from(err).unwrap())
+                Err(err.into())
             }
         }
     }
@@ -176,16 +149,13 @@ impl ZookeeperRegistry {
             current.push('/');
             current.push_str(node_key);
             if !self.exists_path(current.as_str()) {
-                let new_create_mode = match children == node_key {
-                    true => create_mode,
-                    false => CreateMode::Persistent,
+
+                let (new_create_mode, new_data) = match children == node_key {
+                    true => (create_mode, data),
+                    false => (CreateMode::Persistent, ""),
                 };
-                let new_data = match children == node_key {
-                    true => data,
-                    false => "",
-                };
-                self.create_path(current.as_str(), new_data, new_create_mode)
-                    .unwrap();
+
+                self.create_path(current.as_str(), new_data, new_create_mode)?;
             }
         }
         Ok(())
@@ -193,7 +163,7 @@ impl ZookeeperRegistry {
 
     pub fn delete_path(&self, path: &str) {
         if self.exists_path(path) {
-            self.get_client().delete(path, None).unwrap()
+            self.zk_client.delete(path, None).unwrap()
         }
     }
 
@@ -212,6 +182,60 @@ impl ZookeeperRegistry {
         } else {
             None
         }
+    }
+
+    pub fn diff<'a>(old_urls: &'a Vec<String>, new_urls: &'a Vec<String>) -> (Vec<String>, Vec<String>){
+        let old_urls_map: HashMap<String, String> = old_urls.iter().map(|url| {
+            dubbo_base::Url::from_url(url.as_str())
+        }).filter(|item|item.is_some())
+        .map(|item|item.unwrap())
+        .map(|item| {
+            let ip_port = item.get_ip_port();
+            let url = item.encoded_raw_url_string();
+            (ip_port, url)
+        }).collect();
+
+        let new_urls_map: HashMap<String, String> = new_urls.iter().map(|url| {
+            dubbo_base::Url::from_url(url.as_str())
+        }).filter(|item|item.is_some())
+        .map(|item|item.unwrap())
+        .map(|item| {
+            let ip_port = item.get_ip_port();
+            let url = item.encoded_raw_url_string();
+            (ip_port, url)
+        }).collect();
+
+
+        let mut add_hosts = Vec::new();
+        let mut removed_hosts = Vec::new();
+
+        for (key, new_host) in new_urls_map.iter() {
+            let old_host = old_urls_map.get(key);
+            match old_host {
+                None => {
+                    add_hosts.push(new_host.clone());
+                },
+                Some(old_host) => {
+                    if !old_host.eq(new_host) {
+                        removed_hosts.push(old_host.clone());
+                        add_hosts.push(new_host.clone());
+                    }
+                }
+            }
+        }
+
+        for (key, old_host) in old_urls_map.iter() {
+            let new_host = old_urls_map.get(key);
+            match new_host {
+                None => {
+                    removed_hosts.push(old_host.clone());
+                },
+                Some(_) => {}
+            }
+        }
+
+
+        (removed_hosts, add_hosts)
     }
 }
 
@@ -236,8 +260,10 @@ impl Default for ZookeeperRegistry {
     }
 }
 
+#[async_trait]
 impl Registry for ZookeeperRegistry {
-    fn register(&mut self, url: Url) -> Result<(), StdError> {
+
+    async fn register(&self, url: Url) -> Result<(), StdError> {
         debug!("register url: {}", url);
         let zk_path = format!(
             "/{}/{}/{}/{}",
@@ -250,7 +276,7 @@ impl Registry for ZookeeperRegistry {
         Ok(())
     }
 
-    fn unregister(&mut self, url: Url) -> Result<(), StdError> {
+    async fn unregister(&self, url: Url) -> Result<(), StdError> {
         let zk_path = format!(
             "/{}/{}/{}/{}",
             DUBBO_KEY,
@@ -263,194 +289,165 @@ impl Registry for ZookeeperRegistry {
     }
 
     // for consumer to find the changes of providers
-    fn subscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), StdError> {
+    async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError> {
         let service_name = url.get_service_name();
         let zk_path = format!("/{}/{}/{}", DUBBO_KEY, &service_name, PROVIDERS_KEY);
-        if self
-            .listeners
-            .read()
-            .unwrap()
-            .get(service_name.as_str())
-            .is_some()
-        {
-            return Ok(());
-        }
 
-        self.listeners
-            .write()
-            .unwrap()
-            .insert(service_name.to_string(), listener.clone());
+        debug!("subscribe service: {}", zk_path);
 
-        let zk_listener =
-            self.create_listener(zk_path.clone(), service_name.to_string(), listener.clone());
+        let (listener, mut change_rx) = ZooKeeperListener::new();
+        let arc_listener = Arc::new(listener);
 
-        let zk_changed_paths = self.zk_client.get_children_w(&zk_path, zk_listener);
-        let result = match zk_changed_paths {
-            Err(err) => {
-                error!("zk subscribe error: {}", err);
-                Vec::new()
+
+        let watcher = ZooKeeperWatcher::new(arc_listener.clone(), zk_path.clone());
+
+        let (discover_tx, discover_rx) = mpsc::channel(64);
+
+
+        let zk_client_in_task = self.zk_client.clone();
+        let zk_path_in_task = zk_path.clone();
+        let service_name_in_task = service_name.clone();
+        let arc_listener_in_task = arc_listener.clone();
+        tokio::spawn(async move {
+            let zk_client = zk_client_in_task;
+            let zk_path = zk_path_in_task;
+            let service_name = service_name_in_task;
+            let listener = arc_listener_in_task;
+
+            let mut current_urls = Vec::new();
+
+            loop {
+
+                let changed = select! {
+                    _ = discover_tx.closed() => {
+                        info!("discover task quit, discover channel closed");
+                        None
+                    },
+                    changed = change_rx.recv() => {
+                        changed
+                    }
+                };
+
+                match changed {
+                    Some(_) => {
+
+                        let zookeeper_watcher = ZooKeeperWatcher::new(listener.clone(), zk_path.clone());
+                        
+                        match zk_client.get_children_w(&zk_path, zookeeper_watcher) {
+                            Ok(children) => {
+                                let (removed, add) = ZookeeperRegistry::diff(&current_urls, &children);
+
+                                for url in removed {
+                                    match discover_tx.send(Ok(ServiceChange::Remove(url.clone()))).await {
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            error!("send service change failed: {:?}, maybe user unsubscribe", e);
+                                            break;
+                                        }
+                                    }
+                                }
+        
+                                for url in add {
+                                    match discover_tx.send(Ok(ServiceChange::Insert(url.clone(), ()))).await {
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            error!("send service change failed: {:?}, maybe user unsubscribe", e);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                current_urls = children;
+    
+                            },
+                            Err(err) => {
+                                error!("zk subscribe error: {}", err);
+                                break;
+                            }
+                        }
+                    },
+                    None => {
+                        error!("receive service change task quit, unsubscribe {}.", zk_path);
+                        break;
+                    }
+                }
+
             }
-            Ok(urls) => urls
-                .iter()
-                .map(|node_key| {
-                    let provider_url: Url = urlencoding::decode(node_key)
-                        .unwrap()
-                        .to_string()
-                        .as_str()
-                        .into();
-                    provider_url
-                })
-                .collect(),
-        };
-        info!("notifying {}->{:?}", service_name, result);
-        listener.notify(ServiceEvent {
-            key: service_name,
-            action: String::from("ADD"),
-            service: result,
+
+            debug!("unsubscribe service: {}", zk_path);
         });
+
+        arc_listener.changed(zk_path);
+
+        Ok(discover_rx)
+    }
+
+    async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
+        let service_name = url.get_service_name();
+        let zk_path = format!("/{}/{}/{}", DUBBO_KEY, &service_name, PROVIDERS_KEY);
+
+        info!("unsubscribe service: {}", zk_path);
         Ok(())
     }
-
-    fn unsubscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), StdError> {
-        todo!()
-    }
 }
 
-pub struct ServiceInstancesChangedListener {
-    zk_client: Arc<ZooKeeper>,
-    path: String,
-    service_name: String,
-    listener: RegistryNotifyListener,
+
+pub struct ZooKeeperListener {
+    tx: mpsc::Sender<String>,
 }
 
-impl Watcher for ServiceInstancesChangedListener {
-    fn handle(&self, event: WatchedEvent) {
-        if let (WatchedEventType::NodeChildrenChanged, Some(path)) = (event.event_type, event.path)
-        {
-            let event_path = path.clone();
-            let dirs = self
-                .zk_client
-                .get_children(&event_path, false)
-                .expect("msg");
-            let result: Vec<Url> = dirs
-                .iter()
-                .map(|node_key| {
-                    let provider_url: Url = node_key.as_str().into();
-                    provider_url
-                })
-                .collect();
-            let res = self.zk_client.get_children_w(
-                &path,
-                ServiceInstancesChangedListener {
-                    zk_client: Arc::clone(&self.zk_client),
-                    path: path.clone(),
-                    service_name: self.service_name.clone(),
-                    listener: Arc::clone(&self.listener),
-                },
-            );
+impl ZooKeeperListener {
 
-            info!("notify {}->{:?}", self.service_name, result);
-            self.listener.notify(ServiceEvent {
-                key: self.service_name.clone(),
-                action: String::from("ADD"),
-                service: result,
-            });
-        }
-    }
-}
-
-impl NotifyListener for ServiceInstancesChangedListener {
-    fn notify(&self, event: ServiceEvent) {
-        self.listener.notify(event);
-    }
-
-    fn notify_all(&self, event: ServiceEvent) {
-        self.listener.notify(event);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use zookeeper::{Acl, CreateMode, WatchedEvent, Watcher};
-
-    use crate::ZookeeperRegistry;
-
-    struct TestZkWatcher {
-        pub watcher: Arc<Option<TestZkWatcher>>,
-    }
-
-    impl Watcher for TestZkWatcher {
-        fn handle(&self, event: WatchedEvent) {
-            println!("event: {:?}", event);
-        }
-    }
-
-    #[test]
-    fn zk_read_write_watcher() {
-        // https://github.com/bonifaido/rust-zookeeper/blob/master/examples/zookeeper_example.rs
-        // using ENV to set zookeeper server urls
-        let zkr = ZookeeperRegistry::default();
-        let zk_client = zkr.get_client();
-        let watcher = TestZkWatcher {
-            watcher: Arc::new(None),
+    pub fn new() -> (ZooKeeperListener, mpsc::Receiver<String>) {
+        let (tx, rx) = mpsc::channel(64);
+        let this = ZooKeeperListener {
+            tx,
         };
-        if zk_client.exists("/test", true).is_err() {
-            zk_client
-                .create(
-                    "/test",
-                    vec![1, 3],
-                    Acl::open_unsafe().clone(),
-                    CreateMode::Ephemeral,
-                )
-                .unwrap();
-        }
-        let zk_res = zk_client.create(
-            "/test",
-            "hello".into(),
-            Acl::open_unsafe().clone(),
-            CreateMode::Ephemeral,
-        );
-        let result = zk_client.get_children_w("/test", watcher);
-        assert!(result.is_ok());
-        if zk_client.exists("/test/a", true).is_err() {
-            zk_client.delete("/test/a", None).unwrap();
-        }
-        if zk_client.exists("/test/a", true).is_err() {
-            zk_client.delete("/test/b", None).unwrap();
-        }
-        let zk_res = zk_client.create(
-            "/test/a",
-            "hello".into(),
-            Acl::open_unsafe().clone(),
-            CreateMode::Ephemeral,
-        );
-        let zk_res = zk_client.create(
-            "/test/b",
-            "world".into(),
-            Acl::open_unsafe().clone(),
-            CreateMode::Ephemeral,
-        );
-        let test_a_result = zk_client.get_data("/test", true);
-        assert!(test_a_result.is_ok());
-        let vec1 = test_a_result.unwrap().0;
-        // data in /test should equals to "hello"
-        assert_eq!(String::from_utf8(vec1).unwrap(), "hello");
-        zk_client.close().unwrap()
+        (this, rx)
     }
 
-    #[test]
-    fn create_path_with_parent_check() {
-        let zkr = ZookeeperRegistry::default();
-        let path = "/du1bbo/test11111";
-        let data = "hello";
-        // creating a child on a not exists parent, throw a NoNode error.
-        // let result = zkr.create_path(path, data, CreateMode::Ephemeral);
-        // assert!(result.is_err());
-        let create_with_parent_check_result =
-            zkr.create_path_with_parent_check(path, data, CreateMode::Ephemeral);
-        assert!(create_with_parent_check_result.is_ok());
-        assert_eq!(data, zkr.get_data(path, false).unwrap());
+    pub fn changed(&self, path: String) {
+
+        match self.tx.try_send(path) {
+            Ok(_) => {}
+            Err(err) => {
+                error!("send change list to listener occur an error: {}", err);
+                return;
+            }
+        }
+    } 
+
+
+}
+
+
+pub struct ZooKeeperWatcher {
+    listener: Arc<ZooKeeperListener>,
+    path: String,
+}
+
+impl ZooKeeperWatcher {
+
+    pub fn new(listener: Arc<ZooKeeperListener>, path: String,) -> ZooKeeperWatcher {
+        ZooKeeperWatcher {
+            listener,
+            path
+        }
+    }
+}
+
+impl Watcher for ZooKeeperWatcher {
+    fn handle(&self, event: WatchedEvent) {
+        info!("receive zookeeper event: {:?}", event);
+        let event_type: WatchedEventType  = event.event_type;
+        match event_type {
+            WatchedEventType::None => {
+                info!("event type is none, ignore it.");
+                return;
+            }
+            _ => {}
+        }
+
+        self.listener.changed(self.path.clone());
     }
 }

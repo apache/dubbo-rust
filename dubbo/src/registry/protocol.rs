@@ -19,11 +19,10 @@ use dubbo_base::Url;
 use dubbo_logger::tracing;
 use std::{
     collections::HashMap,
-    fmt::{Debug, Formatter},
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
 };
 
-use super::{memory_registry::MemoryRegistry, BoxRegistry};
+use super::n_registry::{ArcRegistry, StaticRegistry, Registry};
 use crate::{
     protocol::{
         triple::{triple_exporter::TripleExporter, triple_protocol::TripleProtocol},
@@ -42,18 +41,6 @@ pub struct RegistryProtocol {
     services: HashMap<String, Vec<Url>>,
 }
 
-impl Debug for RegistryProtocol {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(
-            format!(
-                "RegistryProtocol services{:#?},registries,{:#?}",
-                self.services,
-                self.registries.clone()
-            )
-            .as_str(),
-        )
-    }
-}
 
 impl RegistryProtocol {
     pub fn new() -> Self {
@@ -74,16 +61,17 @@ impl RegistryProtocol {
         self
     }
 
-    pub fn get_registry(&mut self, url: Url) -> BoxRegistry {
-        let mem = MemoryRegistry::default();
+    pub fn get_registry(&mut self, url: Url) -> ArcRegistry {
+        let mem = StaticRegistry::default();
+        let mem = ArcRegistry::new(mem);
         self.registries
             .as_ref()
             .unwrap()
             .lock()
             .unwrap()
-            .insert(url.location, Arc::new(Mutex::new(Box::new(mem.clone()))));
+            .insert(url.location, mem.clone());
 
-        Box::new(mem)
+        mem
     }
 }
 
@@ -105,8 +93,8 @@ impl Protocol for RegistryProtocol {
         if let Some(urls) = registry_url {
             for url in urls.clone().iter() {
                 if !url.service_key.is_empty() {
-                    let mut reg = self.get_registry(url.clone());
-                    reg.register(url.clone()).unwrap();
+                    let reg = self.get_registry(url.clone());
+                    let _ = reg.register(url.clone()).await;
                 }
             }
         }

@@ -59,9 +59,9 @@ impl ClientBuilder {
         Self {
             timeout: None,
             connector: "",
-            registry: Some(ArcRegistry::new(RegistryComponent::StaticRegistry(
+            registry: Some(ArcRegistry::new(
                 StaticRegistry::new(vec![Url::from_url(host).unwrap()]),
-            ))),
+            )),
             direct: true,
             host: host.to_string(),
         }
@@ -74,18 +74,18 @@ impl ClientBuilder {
         }
     }
 
-    pub fn with_registry(self, registry: RegistryComponent) -> Self {
+    pub fn with_registry(self, registry: ArcRegistry) -> Self {
         Self {
-            registry: Some(ArcRegistry::new(registry)),
+            registry: Some(registry),
             ..self
         }
     }
 
     pub fn with_host(self, host: &'static str) -> Self {
         Self {
-            registry: Some(ArcRegistry::new(RegistryComponent::StaticRegistry(
+            registry: Some(ArcRegistry::new(
                 StaticRegistry::new(vec![Url::from_url(host).unwrap()]),
-            ))),
+            )),
             ..self
         }
     }
