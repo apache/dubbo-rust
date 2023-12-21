@@ -3,7 +3,7 @@ use std::{sync::Arc, collections::{HashMap, HashSet}};
 use async_trait::async_trait;
 use dubbo_base::Url;
 use thiserror::Error;
-use tokio::sync::{mpsc::{channel, Receiver}, Mutex, watch::{Sender, self}};
+use tokio::sync::{mpsc::{Receiver, self}, Mutex};
 use tower::discover::Change;
 
 use crate::StdError;
@@ -36,7 +36,7 @@ pub enum RegistryComponent {
 
 
 pub struct StaticServiceValues {
-    sender: Sender<ServiceChange>,
+    listeners: Vec<mpsc::Sender<Result<ServiceChange, StdError>>>,
     urls: HashSet<String>,
 }
 
@@ -103,15 +103,13 @@ impl StaticRegistry {
         for url in urls {
             let service_name = url.get_service_name();
             let static_values = map.entry(service_name).or_insert_with(|| {
-                let (tx, _) = watch::channel(ServiceChange::Insert(String::default(), ()));
                 StaticServiceValues {
-                    sender: tx,
+                    listeners: Vec::new(),
                     urls: HashSet::new(),
                 }
             });
             let url = url.to_string();
             static_values.urls.insert(url.clone());
-            let _ = static_values.sender.send(ServiceChange::Insert(url, ()));
         }
 
         Self { 
@@ -127,15 +125,18 @@ impl Registry for StaticRegistry {
         let mut lock = self.urls.lock().await;
 
         let static_values = lock.entry(service_name).or_insert_with(|| {
-            let (tx, _) = watch::channel(ServiceChange::Insert(String::default(), ()));
             StaticServiceValues {
-                sender: tx,
+                listeners: Vec::new(),
                 urls: HashSet::new(),
             }
         });
         let url = url.to_string();
         static_values.urls.insert(url.clone());
-        let _ = static_values.sender.send(ServiceChange::Insert(url, ()));
+
+        static_values.listeners.retain(|listener| {
+            let ret = listener.try_send(Ok(ServiceChange::Insert(url.clone(), ())));
+            ret.is_ok()
+        });
 
         Ok(())
     }
@@ -149,7 +150,11 @@ impl Registry for StaticRegistry {
             Some(static_values) => {
                 let url = url.to_string();
                 static_values.urls.remove(&url);
-                let _ = static_values.sender.send(ServiceChange::Remove(url));
+                static_values.listeners.retain(|listener| { 
+                    let ret = listener.try_send(Ok(ServiceChange::Remove(url.clone())));
+                    ret.is_ok()
+                
+                });
                 if static_values.urls.is_empty() {
                     lock.remove(&service_name);
                 }
@@ -162,49 +167,29 @@ impl Registry for StaticRegistry {
     async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError> {
         let service_name = url.get_service_name();
 
-        let mut change_rx = {
+        let change_rx = {
             let mut lock = self.urls.lock().await;
             let static_values = lock.entry(service_name).or_insert_with(||{
-                let (tx, _) = watch::channel(ServiceChange::Insert(String::default(), ()));
                 StaticServiceValues {
-                    sender: tx,
+                    listeners: Vec::new(),
                     urls: HashSet::new(),
                 }
             });
+
+            let (tx, change_rx) = mpsc::channel(64);
+            static_values.listeners.push(tx);
+
             for url in static_values.urls.iter() {
-                let _ = static_values.sender.send(ServiceChange::Insert(url.clone(), ()));
+                static_values.listeners.retain(|listener| {
+                    let ret = listener.try_send(Ok(ServiceChange::Insert(url.clone(), ())));
+                    ret.is_ok()
+                });
+
             }
-            static_values.sender.subscribe()
+            change_rx
         };
 
-      
-        let (tx, rx) = channel(64);
-
-
-        tokio::spawn(async move {
-            
-            loop {
-                let _ = change_rx.changed().await;
-       
-                let change = match &*change_rx.borrow_and_update() {
-                    ServiceChange::Insert(service_url, _) => {
-                        Change::Insert(service_url.clone(), ())
-                    },
-                    ServiceChange::Remove(service_url) => {
-                        Change::Remove(service_url.clone())
-                    },
-                };
-               let ret = tx.send(Ok(change)).await;
-               match ret {
-                     Ok(_) => {},
-                     Err(_) => {
-                          break;
-                     }
-               }
-               
-            }
-        });
-        Ok(rx)
+        Ok(change_rx)
 
     }
 
