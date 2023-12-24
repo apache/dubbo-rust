@@ -1,9 +1,15 @@
-use std::{sync::Arc, collections::{HashMap, HashSet}};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use async_trait::async_trait;
 use dubbo_base::Url;
 use thiserror::Error;
-use tokio::sync::{mpsc::{Receiver, self}, Mutex};
+use tokio::sync::{
+    mpsc::{self, Receiver},
+    Mutex,
+};
 use tower::discover::Change;
 
 use crate::StdError;
@@ -34,7 +40,6 @@ pub enum RegistryComponent {
     StaticRegistry(StaticRegistry),
 }
 
-
 pub struct StaticServiceValues {
     listeners: Vec<mpsc::Sender<Result<ServiceChange, StdError>>>,
     urls: HashSet<String>,
@@ -44,7 +49,6 @@ pub struct StaticServiceValues {
 pub struct StaticRegistry {
     urls: Mutex<HashMap<String, StaticServiceValues>>,
 }
-
 
 impl ArcRegistry {
     pub fn new(registry: impl Registry + Send + Sync + 'static) -> Self {
@@ -99,22 +103,22 @@ impl Registry for RegistryComponent {
 impl StaticRegistry {
     pub fn new(urls: Vec<Url>) -> Self {
         let mut map = HashMap::with_capacity(urls.len());
-        
+
         for url in urls {
             let service_name = url.get_service_name();
-            let static_values = map.entry(service_name).or_insert_with(|| {
-                StaticServiceValues {
+            let static_values = map
+                .entry(service_name)
+                .or_insert_with(|| StaticServiceValues {
                     listeners: Vec::new(),
                     urls: HashSet::new(),
-                }
-            });
+                });
             let url = url.to_string();
             static_values.urls.insert(url.clone());
         }
 
-        Self { 
+        Self {
             urls: Mutex::new(map),
-         }
+        }
     }
 }
 
@@ -124,12 +128,12 @@ impl Registry for StaticRegistry {
         let service_name = url.get_service_name();
         let mut lock = self.urls.lock().await;
 
-        let static_values = lock.entry(service_name).or_insert_with(|| {
-            StaticServiceValues {
+        let static_values = lock
+            .entry(service_name)
+            .or_insert_with(|| StaticServiceValues {
                 listeners: Vec::new(),
                 urls: HashSet::new(),
-            }
-        });
+            });
         let url = url.to_string();
         static_values.urls.insert(url.clone());
 
@@ -150,10 +154,9 @@ impl Registry for StaticRegistry {
             Some(static_values) => {
                 let url = url.to_string();
                 static_values.urls.remove(&url);
-                static_values.listeners.retain(|listener| { 
+                static_values.listeners.retain(|listener| {
                     let ret = listener.try_send(Ok(ServiceChange::Remove(url.clone())));
                     ret.is_ok()
-                
                 });
                 if static_values.urls.is_empty() {
                     lock.remove(&service_name);
@@ -161,7 +164,6 @@ impl Registry for StaticRegistry {
                 Ok(())
             }
         }
-        
     }
 
     async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError> {
@@ -169,12 +171,12 @@ impl Registry for StaticRegistry {
 
         let change_rx = {
             let mut lock = self.urls.lock().await;
-            let static_values = lock.entry(service_name).or_insert_with(||{
-                StaticServiceValues {
+            let static_values = lock
+                .entry(service_name)
+                .or_insert_with(|| StaticServiceValues {
                     listeners: Vec::new(),
                     urls: HashSet::new(),
-                }
-            });
+                });
 
             let (tx, change_rx) = mpsc::channel(64);
             static_values.listeners.push(tx);
@@ -184,13 +186,11 @@ impl Registry for StaticRegistry {
                     let ret = listener.try_send(Ok(ServiceChange::Insert(url.clone(), ())));
                     ret.is_ok()
                 });
-
             }
             change_rx
         };
 
         Ok(change_rx)
-
     }
 
     async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {

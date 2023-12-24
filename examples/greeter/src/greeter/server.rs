@@ -24,7 +24,7 @@ use registry_nacos::NacosRegistry;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use dubbo::{codegen::*, Dubbo, registry::n_registry::ArcRegistry};
+use dubbo::{codegen::*, registry::n_registry::ArcRegistry, Dubbo};
 use dubbo_config::RootConfig;
 use dubbo_logger::{
     tracing::{info, span},
@@ -57,13 +57,12 @@ async fn main() {
     let r = match r.load() {
         Ok(config) => config,
         Err(_err) => panic!("err: {:?}", _err), // response was droped
-    }; 
+    };
 
     let nacos_registry = NacosRegistry::new(Url::from_url("nacos://127.0.0.1:8848").unwrap());
     let mut f = Dubbo::new()
         .with_config(r)
         .add_registry("nacos-registry", ArcRegistry::new(nacos_registry));
-
 
     f.start().await;
 }

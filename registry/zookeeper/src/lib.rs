@@ -17,12 +17,7 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 
-use std::{
-    collections::HashMap,
-    env,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, env, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use dubbo_base::{
@@ -31,11 +26,11 @@ use dubbo_base::{
 };
 use dubbo_logger::tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
-use tokio::{sync::mpsc, select};
+use tokio::{select, sync::mpsc};
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
 use dubbo::{
-    registry::n_registry::{ServiceChange, Registry, DiscoverStream},
+    registry::n_registry::{DiscoverStream, Registry, ServiceChange},
     StdError,
 };
 
@@ -149,7 +144,6 @@ impl ZookeeperRegistry {
             current.push('/');
             current.push_str(node_key);
             if !self.exists_path(current.as_str()) {
-
                 let (new_create_mode, new_data) = match children == node_key {
                     true => (create_mode, data),
                     false => (CreateMode::Persistent, ""),
@@ -184,27 +178,33 @@ impl ZookeeperRegistry {
         }
     }
 
-    pub fn diff<'a>(old_urls: &'a Vec<String>, new_urls: &'a Vec<String>) -> (Vec<String>, Vec<String>){
-        let old_urls_map: HashMap<String, String> = old_urls.iter().map(|url| {
-            dubbo_base::Url::from_url(url.as_str())
-        }).filter(|item|item.is_some())
-        .map(|item|item.unwrap())
-        .map(|item| {
-            let ip_port = item.get_ip_port();
-            let url = item.encoded_raw_url_string();
-            (ip_port, url)
-        }).collect();
+    pub fn diff<'a>(
+        old_urls: &'a Vec<String>,
+        new_urls: &'a Vec<String>,
+    ) -> (Vec<String>, Vec<String>) {
+        let old_urls_map: HashMap<String, String> = old_urls
+            .iter()
+            .map(|url| dubbo_base::Url::from_url(url.as_str()))
+            .filter(|item| item.is_some())
+            .map(|item| item.unwrap())
+            .map(|item| {
+                let ip_port = item.get_ip_port();
+                let url = item.encoded_raw_url_string();
+                (ip_port, url)
+            })
+            .collect();
 
-        let new_urls_map: HashMap<String, String> = new_urls.iter().map(|url| {
-            dubbo_base::Url::from_url(url.as_str())
-        }).filter(|item|item.is_some())
-        .map(|item|item.unwrap())
-        .map(|item| {
-            let ip_port = item.get_ip_port();
-            let url = item.encoded_raw_url_string();
-            (ip_port, url)
-        }).collect();
-
+        let new_urls_map: HashMap<String, String> = new_urls
+            .iter()
+            .map(|url| dubbo_base::Url::from_url(url.as_str()))
+            .filter(|item| item.is_some())
+            .map(|item| item.unwrap())
+            .map(|item| {
+                let ip_port = item.get_ip_port();
+                let url = item.encoded_raw_url_string();
+                (ip_port, url)
+            })
+            .collect();
 
         let mut add_hosts = Vec::new();
         let mut removed_hosts = Vec::new();
@@ -214,7 +214,7 @@ impl ZookeeperRegistry {
             match old_host {
                 None => {
                     add_hosts.push(new_host.clone());
-                },
+                }
                 Some(old_host) => {
                     if !old_host.eq(new_host) {
                         removed_hosts.push(old_host.clone());
@@ -229,11 +229,10 @@ impl ZookeeperRegistry {
             match new_host {
                 None => {
                     removed_hosts.push(old_host.clone());
-                },
+                }
                 Some(_) => {}
             }
         }
-
 
         (removed_hosts, add_hosts)
     }
@@ -262,7 +261,6 @@ impl Default for ZookeeperRegistry {
 
 #[async_trait]
 impl Registry for ZookeeperRegistry {
-
     async fn register(&self, url: Url) -> Result<(), StdError> {
         debug!("register url: {}", url);
         let zk_path = format!(
@@ -298,11 +296,9 @@ impl Registry for ZookeeperRegistry {
         let (listener, mut change_rx) = ZooKeeperListener::new();
         let arc_listener = Arc::new(listener);
 
-
         let watcher = ZooKeeperWatcher::new(arc_listener.clone(), zk_path.clone());
 
         let (discover_tx, discover_rx) = mpsc::channel(64);
-
 
         let zk_client_in_task = self.zk_client.clone();
         let zk_path_in_task = zk_path.clone();
@@ -317,7 +313,6 @@ impl Registry for ZookeeperRegistry {
             let mut current_urls = Vec::new();
 
             loop {
-
                 let changed = select! {
                     _ = discover_tx.closed() => {
                         info!("discover task quit, discover channel closed");
@@ -330,15 +325,19 @@ impl Registry for ZookeeperRegistry {
 
                 match changed {
                     Some(_) => {
+                        let zookeeper_watcher =
+                            ZooKeeperWatcher::new(listener.clone(), zk_path.clone());
 
-                        let zookeeper_watcher = ZooKeeperWatcher::new(listener.clone(), zk_path.clone());
-                        
                         match zk_client.get_children_w(&zk_path, zookeeper_watcher) {
                             Ok(children) => {
-                                let (removed, add) = ZookeeperRegistry::diff(&current_urls, &children);
+                                let (removed, add) =
+                                    ZookeeperRegistry::diff(&current_urls, &children);
 
                                 for url in removed {
-                                    match discover_tx.send(Ok(ServiceChange::Remove(url.clone()))).await {
+                                    match discover_tx
+                                        .send(Ok(ServiceChange::Remove(url.clone())))
+                                        .await
+                                    {
                                         Ok(_) => {}
                                         Err(e) => {
                                             error!("send service change failed: {:?}, maybe user unsubscribe", e);
@@ -346,9 +345,12 @@ impl Registry for ZookeeperRegistry {
                                         }
                                     }
                                 }
-        
+
                                 for url in add {
-                                    match discover_tx.send(Ok(ServiceChange::Insert(url.clone(), ()))).await {
+                                    match discover_tx
+                                        .send(Ok(ServiceChange::Insert(url.clone(), ())))
+                                        .await
+                                    {
                                         Ok(_) => {}
                                         Err(e) => {
                                             error!("send service change failed: {:?}, maybe user unsubscribe", e);
@@ -358,20 +360,18 @@ impl Registry for ZookeeperRegistry {
                                 }
 
                                 current_urls = children;
-    
-                            },
+                            }
                             Err(err) => {
                                 error!("zk subscribe error: {}", err);
                                 break;
                             }
                         }
-                    },
+                    }
                     None => {
                         error!("receive service change task quit, unsubscribe {}.", zk_path);
                         break;
                     }
                 }
-
             }
 
             debug!("unsubscribe service: {}", zk_path);
@@ -391,23 +391,18 @@ impl Registry for ZookeeperRegistry {
     }
 }
 
-
 pub struct ZooKeeperListener {
     tx: mpsc::Sender<String>,
 }
 
 impl ZooKeeperListener {
-
     pub fn new() -> (ZooKeeperListener, mpsc::Receiver<String>) {
         let (tx, rx) = mpsc::channel(64);
-        let this = ZooKeeperListener {
-            tx,
-        };
+        let this = ZooKeeperListener { tx };
         (this, rx)
     }
 
     pub fn changed(&self, path: String) {
-
         match self.tx.try_send(path) {
             Ok(_) => {}
             Err(err) => {
@@ -415,11 +410,8 @@ impl ZooKeeperListener {
                 return;
             }
         }
-    } 
-
-
+    }
 }
-
 
 pub struct ZooKeeperWatcher {
     listener: Arc<ZooKeeperListener>,
@@ -427,19 +419,15 @@ pub struct ZooKeeperWatcher {
 }
 
 impl ZooKeeperWatcher {
-
-    pub fn new(listener: Arc<ZooKeeperListener>, path: String,) -> ZooKeeperWatcher {
-        ZooKeeperWatcher {
-            listener,
-            path
-        }
+    pub fn new(listener: Arc<ZooKeeperListener>, path: String) -> ZooKeeperWatcher {
+        ZooKeeperWatcher { listener, path }
     }
 }
 
 impl Watcher for ZooKeeperWatcher {
     fn handle(&self, event: WatchedEvent) {
         info!("receive zookeeper event: {:?}", event);
-        let event_type: WatchedEventType  = event.event_type;
+        let event_type: WatchedEventType = event.event_type;
         match event_type {
             WatchedEventType::None => {
                 info!("event type is none, ignore it.");

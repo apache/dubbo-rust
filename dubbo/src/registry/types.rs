@@ -20,12 +20,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-
 use itertools::Itertools;
 
 use super::n_registry::ArcRegistry;
-
-
 
 pub type Registries = Arc<Mutex<HashMap<String, ArcRegistry>>>;
 

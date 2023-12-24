@@ -25,9 +25,9 @@ use std::{
 use crate::{
     protocol::{BoxExporter, Protocol},
     registry::{
+        n_registry::{ArcRegistry, Registry},
         protocol::RegistryProtocol,
         types::{Registries, RegistriesOperation},
-        n_registry::{Registry, ArcRegistry},
     },
 };
 use dubbo_base::Url;
@@ -130,7 +130,8 @@ impl Dubbo {
                 async_vec.push(exporter);
                 //TODO multiple registry
                 if self.registries.is_some() {
-                    let _ = self.registries
+                    let _ = self
+                        .registries
                         .as_ref()
                         .unwrap()
                         .default_registry()

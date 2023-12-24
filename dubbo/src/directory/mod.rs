@@ -164,7 +164,7 @@ where
 
         tokio::spawn(async move {
             // todo use dubbo url model generate subscribe url
-            // category:serviceInterface:version:group 
+            // category:serviceInterface:version:group
             let consumer_url = format!("consumer://{}/{}", "127.0.0.1:8888", service_name);
             let subscribe_url = Url::from_url(&consumer_url).unwrap();
             let receiver = registry.subscribe(subscribe_url).await;
@@ -222,7 +222,7 @@ where
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         loop {
             let pin_discover = Pin::new(&mut self.discover);
-  
+
             match pin_discover.poll_discover(cx) {
                 Poll::Pending => {
                     if self.directory.is_empty() {
@@ -230,7 +230,7 @@ where
                     } else {
                         return Poll::Ready(Ok(()));
                     }
-                },
+                }
                 Poll::Ready(change) => {
                     let change = change.transpose().map_err(|e| e.into())?;
                     match change {
@@ -248,8 +248,7 @@ where
                             return Poll::Ready(Ok(()));
                         }
                     }
-                },
-
+                }
             }
         }
     }

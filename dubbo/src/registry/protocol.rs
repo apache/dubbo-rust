@@ -22,7 +22,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use super::n_registry::{ArcRegistry, StaticRegistry, Registry};
+use super::n_registry::{ArcRegistry, Registry, StaticRegistry};
 use crate::{
     protocol::{
         triple::{triple_exporter::TripleExporter, triple_protocol::TripleProtocol},
@@ -40,7 +40,6 @@ pub struct RegistryProtocol {
     // serviceName: registryUrls
     services: HashMap<String, Vec<Url>>,
 }
-
 
 impl RegistryProtocol {
     pub fn new() -> Self {
