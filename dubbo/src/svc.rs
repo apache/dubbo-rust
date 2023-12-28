@@ -1,9 +1,5 @@
 use std::{marker::PhantomData, sync::Arc};
 
-
-
-
-
 pub trait NewService<T> {
     type Service;
 

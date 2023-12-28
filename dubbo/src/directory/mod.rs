@@ -31,6 +31,7 @@ use crate::{
     svc::NewService,
     StdError,
 };
+use dubbo_base::Url;
 use dubbo_logger::tracing::debug;
 use futures_core::ready;
 use futures_util::future;
@@ -162,7 +163,11 @@ where
         let (tx, rx) = channel(Self::MAX_DIRECTORY_BUFFER_SIZE);
 
         tokio::spawn(async move {
-            let receiver = registry.subscribe(service_name).await;
+            // todo use dubbo url model generate subscribe url
+            // category:serviceInterface:version:group
+            let consumer_url = format!("consumer://{}/{}", "127.0.0.1:8888", service_name);
+            let subscribe_url = Url::from_url(&consumer_url).unwrap();
+            let receiver = registry.subscribe(subscribe_url).await;
             debug!("discover start!");
             match receiver {
                 Err(_e) => {
@@ -217,22 +222,32 @@ where
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         loop {
             let pin_discover = Pin::new(&mut self.discover);
-            let change = ready!(pin_discover.poll_discover(cx))
-                .transpose()
-                .map_err(|e| e.into())?;
-            match change {
-                Some(Change::Remove(key)) => {
-                    debug!("remove key: {}", key);
-                    self.directory.remove(&key);
+
+            match pin_discover.poll_discover(cx) {
+                Poll::Pending => {
+                    if self.directory.is_empty() {
+                        return Poll::Pending;
+                    } else {
+                        return Poll::Ready(Ok(()));
+                    }
                 }
-                Some(Change::Insert(key, _)) => {
-                    debug!("insert key: {}", key);
-                    let invoker = self.new_invoker.new_service(key.clone());
-                    self.directory.insert(key, invoker);
-                }
-                None => {
-                    debug!("stream closed");
-                    return Poll::Ready(Ok(()));
+                Poll::Ready(change) => {
+                    let change = change.transpose().map_err(|e| e.into())?;
+                    match change {
+                        Some(Change::Remove(key)) => {
+                            debug!("remove key: {}", key);
+                            self.directory.remove(&key);
+                        }
+                        Some(Change::Insert(key, _)) => {
+                            debug!("insert key: {}", key);
+                            let invoker = self.new_invoker.new_service(key.clone());
+                            self.directory.insert(key, invoker);
+                        }
+                        None => {
+                            debug!("stream closed");
+                            return Poll::Ready(Ok(()));
+                        }
+                    }
                 }
             }
         }

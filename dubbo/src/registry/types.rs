@@ -20,30 +20,22 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use dubbo_base::Url;
-use dubbo_logger::tracing::info;
 use itertools::Itertools;
 
-use crate::{
-    registry::{BoxRegistry, Registry},
-    StdError,
-};
+use super::n_registry::ArcRegistry;
 
-use super::RegistryNotifyListener;
-
-pub type SafeRegistry = Arc<Mutex<BoxRegistry>>;
-pub type Registries = Arc<Mutex<HashMap<String, SafeRegistry>>>;
+pub type Registries = Arc<Mutex<HashMap<String, ArcRegistry>>>;
 
 pub const DEFAULT_REGISTRY_KEY: &str = "default";
 
 pub trait RegistriesOperation {
-    fn get(&self, registry_key: &str) -> SafeRegistry;
-    fn insert(&self, registry_key: String, registry: SafeRegistry);
-    fn default_registry(&self) -> SafeRegistry;
+    fn get(&self, registry_key: &str) -> ArcRegistry;
+    fn insert(&self, registry_key: String, registry: ArcRegistry);
+    fn default_registry(&self) -> ArcRegistry;
 }
 
 impl RegistriesOperation for Registries {
-    fn get(&self, registry_key: &str) -> SafeRegistry {
+    fn get(&self, registry_key: &str) -> ArcRegistry {
         self.as_ref()
             .lock()
             .unwrap()
@@ -52,11 +44,11 @@ impl RegistriesOperation for Registries {
             .clone()
     }
 
-    fn insert(&self, registry_key: String, registry: SafeRegistry) {
+    fn insert(&self, registry_key: String, registry: ArcRegistry) {
         self.as_ref().lock().unwrap().insert(registry_key, registry);
     }
 
-    fn default_registry(&self) -> SafeRegistry {
+    fn default_registry(&self) -> ArcRegistry {
         let guard = self.as_ref().lock().unwrap();
         let (_, result) = guard
             .iter()
@@ -64,28 +56,5 @@ impl RegistriesOperation for Registries {
             .unwrap()
             .to_owned();
         result.clone()
-    }
-}
-
-impl Registry for SafeRegistry {
-    fn register(&mut self, url: Url) -> Result<(), StdError> {
-        info!("register {}.", url);
-        self.lock().unwrap().register(url).expect("registry err.");
-        Ok(())
-    }
-
-    fn unregister(&mut self, url: Url) -> Result<(), StdError> {
-        self.lock().unwrap().register(url).expect("registry err.");
-        Ok(())
-    }
-
-    fn subscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), StdError> {
-        self.lock().unwrap().register(url).expect("registry err.");
-        Ok(())
-    }
-
-    fn unsubscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), StdError> {
-        self.lock().unwrap().register(url).expect("registry err.");
-        Ok(())
     }
 }
