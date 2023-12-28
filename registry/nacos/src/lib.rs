@@ -16,16 +16,20 @@
  */
 mod utils;
 
+use async_trait::async_trait;
 use dubbo_base::Url;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
+use tokio::{select, sync::mpsc};
 
 use anyhow::anyhow;
-use dubbo::registry::{NotifyListener, Registry, RegistryNotifyListener, ServiceEvent};
-use dubbo_logger::tracing::{error, info, warn};
-use nacos_sdk::api::naming::{NamingService, NamingServiceBuilder, ServiceInstance};
+use dubbo::{
+    registry::n_registry::{DiscoverStream, Registry, ServiceChange},
+    StdError,
+};
+use dubbo_logger::tracing::{debug, error, info};
+use nacos_sdk::api::naming::{
+    NamingEventListener, NamingService, NamingServiceBuilder, ServiceInstance,
+};
 
 use crate::utils::{build_nacos_client_props, is_concrete_str, is_wildcard_str, match_range};
 
@@ -60,7 +64,6 @@ const INNERCLASS_COMPATIBLE_SYMBOL: &str = "___";
 
 pub struct NacosRegistry {
     nacos_naming_service: Arc<dyn NamingService + Sync + Send + 'static>,
-    listeners: Mutex<HashMap<String, HashSet<Arc<NotifyListenerWrapper>>>>,
 }
 
 impl NacosRegistry {
@@ -77,49 +80,6 @@ impl NacosRegistry {
 
         Self {
             nacos_naming_service: Arc::new(nacos_naming_service),
-            listeners: Mutex::new(HashMap::new()),
-        }
-    }
-
-    #[allow(dead_code)]
-    fn get_subscribe_service_names(&self, service_name: &NacosServiceName) -> HashSet<String> {
-        if service_name.is_concrete() {
-            let mut set = HashSet::new();
-            let service_subscribe_name = service_name.to_subscriber_str();
-            let service_subscriber_legacy_name = service_name.to_subscriber_legacy_string();
-            if service_subscribe_name.eq(&service_subscriber_legacy_name) {
-                set.insert(service_subscribe_name);
-            } else {
-                set.insert(service_subscribe_name);
-                set.insert(service_subscriber_legacy_name);
-            }
-
-            set
-        } else {
-            let list_view = self.nacos_naming_service.get_service_list(
-                1,
-                i32::MAX,
-                Some(
-                    service_name
-                        .get_group_with_default(DEFAULT_GROUP)
-                        .to_string(),
-                ),
-            );
-            if let Err(e) = list_view {
-                error!("list service instances occur an error: {:?}", e);
-                return HashSet::default();
-            }
-
-            let list_view = list_view.unwrap();
-            let set: HashSet<String> = list_view
-                .0
-                .into_iter()
-                .filter(|service_name| service_name.split(SERVICE_NAME_SEPARATOR).count() == 4)
-                .map(|service_name| NacosServiceName::from_service_name_str(&service_name))
-                .filter(|other_service_name| service_name.is_compatible(other_service_name))
-                .map(|service_name| service_name.to_subscriber_str())
-                .collect();
-            set
         }
     }
 }
@@ -135,20 +95,66 @@ impl NacosRegistry {
             ..Default::default()
         }
     }
+
+    fn diff<'a>(
+        old_service: &'a Vec<ServiceInstance>,
+        new_services: &'a Vec<ServiceInstance>,
+    ) -> (Vec<&'a ServiceInstance>, Vec<&'a ServiceInstance>) {
+        let new_hosts_map: HashMap<String, &ServiceInstance> = new_services
+            .iter()
+            .map(|hosts| (hosts.ip_and_port(), hosts))
+            .collect();
+
+        let old_hosts_map: HashMap<String, &ServiceInstance> = old_service
+            .iter()
+            .map(|hosts| (hosts.ip_and_port(), hosts))
+            .collect();
+
+        let mut add_hosts = Vec::<&ServiceInstance>::new();
+        let mut removed_hosts = Vec::<&ServiceInstance>::new();
+
+        for (key, new_host) in new_hosts_map.iter() {
+            let old_host = old_hosts_map.get(key);
+            match old_host {
+                None => {
+                    add_hosts.push(*new_host);
+                }
+                Some(old_host) => {
+                    if !old_host.is_same_instance(new_host) {
+                        removed_hosts.push(*old_host);
+                        add_hosts.push(*new_host);
+                    }
+                }
+            }
+        }
+
+        for (key, old_host) in old_hosts_map.iter() {
+            let new_host = new_hosts_map.get(key);
+            match new_host {
+                None => {
+                    removed_hosts.push(*old_host);
+                }
+                Some(_) => {}
+            }
+        }
+
+        (removed_hosts, add_hosts)
+    }
 }
 
+#[async_trait]
 impl Registry for NacosRegistry {
-    fn register(&mut self, url: Url) -> Result<(), dubbo::StdError> {
-        let side = url.get_param(SIDE_KEY).unwrap_or_default();
-        let register_consumer = url
-            .get_param(REGISTER_CONSUMER_URL_KEY)
-            .unwrap_or_else(|| false.to_string())
-            .parse::<bool>()
-            .unwrap_or(false);
-        if side.ne(PROVIDER_SIDE) && !register_consumer {
-            warn!("Please set 'dubbo.registry.parameters.register-consumer-url=true' to turn on consumer url registration.");
-            return Ok(());
-        }
+    async fn register(&self, url: Url) -> Result<(), dubbo::StdError> {
+        // let side = url.get_param(SIDE_KEY).unwrap_or_default();
+        // let register_consumer = url
+        //     .get_param(REGISTER_CONSUMER_URL_KEY)
+        //     .unwrap_or_else(|| false.to_string())
+        //     .parse::<bool>()
+        //     .unwrap_or(false);
+        // if side.ne(PROVIDER_SIDE) && !register_consumer {
+        //     warn!("Please set 'dubbo.registry.parameters.register-consumer-url=true' to turn on consumer url registration.");
+        //     return Ok(());
+        // }
 
         let nacos_service_name = NacosServiceName::new(&url);
 
@@ -162,11 +168,10 @@ impl Registry for NacosRegistry {
         let nacos_service_instance = Self::create_nacos_service_instance(url);
 
         info!("register service: {}", nacos_service_name);
-        let ret = self.nacos_naming_service.register_instance(
-            nacos_service_name,
-            group_name,
-            nacos_service_instance,
-        );
+        let ret = self
+            .nacos_naming_service
+            .register_instance(nacos_service_name, group_name, nacos_service_instance)
+            .await;
         if let Err(e) = ret {
             error!("register to nacos occur an error: {:?}", e);
             return Err(anyhow!("register to nacos occur an error: {:?}", e).into());
@@ -175,7 +180,7 @@ impl Registry for NacosRegistry {
         Ok(())
     }
 
-    fn unregister(&mut self, url: Url) -> Result<(), dubbo::StdError> {
+    async fn unregister(&self, url: Url) -> Result<(), dubbo::StdError> {
         let nacos_service_name = NacosServiceName::new(&url);
 
         let group_name = Some(
@@ -189,11 +194,10 @@ impl Registry for NacosRegistry {
 
         info!("deregister service: {}", nacos_service_name);
 
-        let ret = self.nacos_naming_service.deregister_instance(
-            nacos_service_name,
-            group_name,
-            nacos_service_instance,
-        );
+        let ret = self
+            .nacos_naming_service
+            .deregister_instance(nacos_service_name, group_name, nacos_service_instance)
+            .await;
         if let Err(e) = ret {
             error!("deregister service from nacos occur an error: {:?}", e);
             return Err(anyhow!("deregister service from nacos occur an error: {:?}", e).into());
@@ -201,101 +205,161 @@ impl Registry for NacosRegistry {
         Ok(())
     }
 
-    fn subscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), dubbo::StdError> {
+    async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError> {
         let service_name = NacosServiceName::new(&url);
-        let url_str = url.to_url();
+        let service_group = service_name
+            .get_group_with_default(DEFAULT_GROUP)
+            .to_string();
+        let subscriber_url = service_name.to_subscriber_str();
+        info!("subscribe: {}", subscriber_url);
 
-        info!("subscribe: {}", &url_str);
+        let (listener, mut change_receiver) = ServiceChangeListener::new();
+        let arc_listener = Arc::new(listener);
 
-        let nacos_listener: Arc<NotifyListenerWrapper> = {
-            let listeners = self.listeners.lock();
-            if let Err(e) = listeners {
+        let (discover_tx, discover_rx) = mpsc::channel(64);
+
+        let nacos_naming_service = self.nacos_naming_service.clone();
+
+        let listener_in_task = arc_listener.clone();
+        let service_group_in_task = service_group.clone();
+        let subscriber_url_in_task = subscriber_url.clone();
+        tokio::spawn(async move {
+            let listener = listener_in_task;
+            let service_group = service_group_in_task;
+            let subscriber_url = subscriber_url_in_task;
+
+            let mut current_instances = Vec::new();
+            loop {
+                let change = select! {
+                    _ = discover_tx.closed() => {
+                        debug!("service {} change task quit, unsubscribe.", subscriber_url);
+                        None
+                    },
+                    change = change_receiver.recv() => change
+                };
+
+                match change {
+                    Some(instances) => {
+                        debug!("service {} changed", subscriber_url);
+                        let (remove_instances, add_instances) =
+                            NacosRegistry::diff(&current_instances, &instances);
+
+                        for instance in remove_instances {
+                            let service_name = instance.service_name.as_ref();
+                            let url = match service_name {
+                                None => {
+                                    format!("triple://{}:{}", instance.ip(), instance.port())
+                                }
+                                Some(service_name) => {
+                                    format!(
+                                        "triple://{}:{}/{}",
+                                        instance.ip(),
+                                        instance.port(),
+                                        service_name
+                                    )
+                                }
+                            };
+
+                            match discover_tx.send(Ok(ServiceChange::Remove(url))).await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error!(
+                                        "send service change failed: {:?}, maybe user unsubscribe",
+                                        e
+                                    );
+                                    break;
+                                }
+                            }
+                        }
+
+                        for instance in add_instances {
+                            let service_name = instance.service_name.as_ref();
+                            let url = match service_name {
+                                None => {
+                                    format!("triple://{}:{}", instance.ip(), instance.port())
+                                }
+                                Some(service_name) => {
+                                    format!(
+                                        "triple://{}:{}/{}",
+                                        instance.ip(),
+                                        instance.port(),
+                                        service_name
+                                    )
+                                }
+                            };
+
+                            match discover_tx.send(Ok(ServiceChange::Insert(url, ()))).await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error!(
+                                        "send service change failed: {:?}, maybe user unsubscribe",
+                                        e
+                                    );
+                                    break;
+                                }
+                            }
+                        }
+                        current_instances = instances;
+                    }
+                    None => {
+                        error!(
+                            "receive service change task quit, unsubscribe {}.",
+                            subscriber_url
+                        );
+                        break;
+                    }
+                }
+            }
+
+            debug!("unsubscribe service: {}", subscriber_url);
+            // unsubscribe
+            let unsubscribe = nacos_naming_service
+                .unsubscribe(subscriber_url, Some(service_group), Vec::new(), listener)
+                .await;
+
+            match unsubscribe {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("unsubscribe service failed: {:?}", e);
+                }
+            }
+        });
+
+        let all_instance = self
+            .nacos_naming_service
+            .get_all_instances(
+                subscriber_url.clone(),
+                Some(service_group.clone()),
+                Vec::new(),
+                false,
+            )
+            .await?;
+        let _ = arc_listener.changed(all_instance);
+
+        match self
+            .nacos_naming_service
+            .subscribe(
+                subscriber_url.clone(),
+                Some(service_group.clone()),
+                Vec::new(),
+                arc_listener,
+            )
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
                 error!("subscribe service failed: {:?}", e);
                 return Err(anyhow!("subscribe service failed: {:?}", e).into());
             }
-
-            let mut listeners = listeners.unwrap();
-            let listener_set = listeners.get_mut(url_str.as_str());
-
-            let wrapper = Arc::new(NotifyListenerWrapper(listener));
-            if let Some(listener_set) = listener_set {
-                listener_set.insert(wrapper.clone());
-            } else {
-                let mut hash_set = HashSet::new();
-                hash_set.insert(wrapper.clone());
-                listeners.insert(url_str, hash_set);
-            }
-
-            wrapper
-        };
-
-        let ret = self.nacos_naming_service.subscribe(
-            service_name.to_subscriber_str(),
-            Some(
-                service_name
-                    .get_group_with_default(DEFAULT_GROUP)
-                    .to_string(),
-            ),
-            Vec::new(),
-            nacos_listener,
-        );
-
-        if let Err(e) = ret {
-            error!("subscribe service failed: {:?}", e);
-            return Err(anyhow!("subscribe service failed: {:?}", e).into());
         }
 
-        Ok(())
+        Ok(discover_rx)
     }
 
-    fn unsubscribe(
-        &self,
-        url: Url,
-        listener: RegistryNotifyListener,
-    ) -> Result<(), dubbo::StdError> {
+    async fn unsubscribe(&self, url: Url) -> Result<(), dubbo::StdError> {
         let service_name = NacosServiceName::new(&url);
-        let url_str = url.to_url();
-        info!("unsubscribe: {}", &url_str);
-
-        let nacos_listener: Arc<NotifyListenerWrapper> = {
-            let listeners = self.listeners.lock();
-            if let Err(e) = listeners {
-                error!("unsubscribe service failed: {:?}", e);
-                return Err(anyhow!("unsubscribe service failed: {:?}", e).into());
-            }
-
-            let mut listeners = listeners.unwrap();
-            let listener_set = listeners.get_mut(url_str.as_str());
-            if listener_set.is_none() {
-                return Ok(());
-            }
-
-            let listener_set = listener_set.unwrap();
-
-            let listener = Arc::new(NotifyListenerWrapper(listener));
-            let listener = listener_set.take(&listener);
-            if listener.is_none() {
-                return Ok(());
-            }
-
-            listener.unwrap()
-        };
-
-        let ret = self.nacos_naming_service.unsubscribe(
-            service_name.to_subscriber_str(),
-            Some(
-                service_name
-                    .get_group_with_default(DEFAULT_GROUP)
-                    .to_string(),
-            ),
-            Vec::new(),
-            nacos_listener,
-        );
-
-        if let Err(e) = ret {
-            error!("unsubscribe service failed: {:?}", e);
-            return Err(anyhow!("unsubscribe service failed: {:?}", e).into());
-        }
+        let subscriber_url = service_name.to_subscriber_str();
+        info!("unsubscribe: {}", &subscriber_url);
 
         Ok(())
     }
@@ -484,52 +548,43 @@ impl NacosServiceName {
     }
 }
 
-struct NotifyListenerWrapper(Arc<dyn NotifyListener + Sync + Send + 'static>);
-
-impl std::hash::Hash for NotifyListenerWrapper {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let ptr = self.0.as_ref();
-        std::ptr::hash(ptr, state);
-    }
+struct ServiceChangeListener {
+    tx: mpsc::Sender<Vec<ServiceInstance>>,
 }
 
-impl PartialEq for NotifyListenerWrapper {
-    fn eq(&self, other: &Self) -> bool {
-        let self_ptr = self.0.as_ref() as *const dyn NotifyListener;
-        let other_ptr = other.0.as_ref() as *const dyn NotifyListener;
+impl ServiceChangeListener {
+    pub fn new() -> (Self, mpsc::Receiver<Vec<ServiceInstance>>) {
+        let (tx, rx) = mpsc::channel(64);
+        let this = Self { tx };
 
-        let (self_data_ptr, _): (*const u8, *const u8) = unsafe { std::mem::transmute(self_ptr) };
-
-        let (other_data_ptr, _): (*const u8, *const u8) = unsafe { std::mem::transmute(other_ptr) };
-        self_data_ptr == other_data_ptr
+        (this, rx)
     }
-}
 
-impl Eq for NotifyListenerWrapper {}
-
-impl nacos_sdk::api::naming::NamingEventListener for NotifyListenerWrapper {
-    fn event(&self, event: Arc<nacos_sdk::api::naming::NamingChangeEvent>) {
-        let service_name = event.service_name.clone();
-        let instances = event.instances.as_ref();
-        let urls: Vec<Url>;
-        if let Some(instances) = instances {
-            urls = instances
-                .iter()
-                .filter_map(|data| {
-                    let url_str =
-                        format!("triple://{}:{}/{}", data.ip(), data.port(), service_name);
-                    Url::from_url(&url_str)
-                })
-                .collect();
-        } else {
-            urls = Vec::new();
+    pub fn changed(&self, instances: Vec<ServiceInstance>) -> Result<(), dubbo::StdError> {
+        match self.tx.try_send(instances) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                error!("send service change failed: {:?}", e);
+                Err(anyhow!("send service change failed: {:?}", e).into())
+            }
         }
-        let notify_event = ServiceEvent {
-            key: service_name,
-            action: String::from("CHANGE"),
-            service: urls,
-        };
-        self.0.notify(notify_event);
+    }
+}
+
+impl NamingEventListener for ServiceChangeListener {
+    fn event(&self, event: Arc<nacos_sdk::api::naming::NamingChangeEvent>) {
+        debug!("service change {}", event.service_name.clone());
+        debug!("nacos event: {:?}", event);
+
+        let instances = event.instances.as_ref();
+        match instances {
+            None => {
+                let _ = self.changed(Vec::default());
+            }
+            Some(instances) => {
+                let _ = self.changed(instances.clone());
+            }
+        }
     }
 }
 
@@ -543,9 +598,9 @@ pub mod tests {
 
     use super::*;
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    pub fn test_register_to_nacos() {
+    pub async fn test_register_to_nacos() {
         tracing_subscriber::fmt()
             .with_thread_names(true)
             .with_file(true)
@@ -556,14 +611,14 @@ pub mod tests {
             .init();
 
         let nacos_registry_url = Url::from_url("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015").unwrap();
-        let mut registry = NacosRegistry::new(nacos_registry_url);
+        let registry = NacosRegistry::new(nacos_registry_url);
 
         let mut service_url = Url::from_url("tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807").unwrap();
         service_url
             .params
             .insert(SIDE_KEY.to_owned(), PROVIDER_SIDE.to_owned());
 
-        let ret = registry.register(service_url);
+        let ret = registry.register(service_url).await;
 
         info!("register result: {:?}", ret);
 
@@ -571,9 +626,9 @@ pub mod tests {
         thread::sleep(sleep_millis);
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    pub fn test_register_and_unregister() {
+    pub async fn test_register_and_unregister() {
         tracing_subscriber::fmt()
             .with_thread_names(true)
             .with_file(true)
@@ -584,14 +639,14 @@ pub mod tests {
             .init();
 
         let nacos_registry_url = Url::from_url("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015").unwrap();
-        let mut registry = NacosRegistry::new(nacos_registry_url);
+        let registry = NacosRegistry::new(nacos_registry_url);
 
         let mut service_url = Url::from_url("tri://127.0.0.1:9090/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807").unwrap();
         service_url
             .params
             .insert(SIDE_KEY.to_owned(), PROVIDER_SIDE.to_owned());
 
-        let ret = registry.register(service_url);
+        let ret = registry.register(service_url).await;
 
         info!("register result: {:?}", ret);
 
@@ -599,7 +654,7 @@ pub mod tests {
         thread::sleep(sleep_millis);
 
         let unregister_url = Url::from_url("tri://127.0.0.1:9090/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807").unwrap();
-        let ret = registry.unregister(unregister_url);
+        let ret = registry.unregister(unregister_url).await;
 
         info!("deregister result: {:?}", ret);
 
@@ -607,20 +662,9 @@ pub mod tests {
         thread::sleep(sleep_millis);
     }
 
-    struct TestNotifyListener;
-    impl NotifyListener for TestNotifyListener {
-        fn notify(&self, event: ServiceEvent) {
-            info!("notified: {:?}", event.key);
-        }
-
-        fn notify_all(&self, event: ServiceEvent) {
-            info!("notify_all: {:?}", event.key);
-        }
-    }
-
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn test_subscribe() {
+    pub async fn test_subscribe() {
         tracing_subscriber::fmt()
             .with_thread_names(true)
             .with_file(true)
@@ -631,33 +675,36 @@ pub mod tests {
             .init();
 
         let nacos_registry_url = Url::from_url("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015").unwrap();
-        let mut registry = NacosRegistry::new(nacos_registry_url);
+        let registry = NacosRegistry::new(nacos_registry_url);
 
         let mut service_url = Url::from_url("tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807").unwrap();
         service_url
             .params
             .insert(SIDE_KEY.to_owned(), PROVIDER_SIDE.to_owned());
 
-        let ret = registry.register(service_url);
+        let ret = registry.register(service_url).await;
 
         info!("register result: {:?}", ret);
 
-        let subscribe_url = Url::from_url("provider://192.168.0.102:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&bind.ip=192.168.0.102&bind.port=50052&category=configurators&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&ipv6=fd00:6cb1:58a2:8ddf:0:0:0:1000&methods=sayHello,sayHelloAsync&pid=44270&service-name-mapping=true&side=provider").unwrap();
+        let subscribe_url = Url::from_url("consumer://192.168.0.102:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&bind.ip=192.168.0.102&bind.port=50052&category=configurators&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&ipv6=fd00:6cb1:58a2:8ddf:0:0:0:1000&methods=sayHello,sayHelloAsync&pid=44270&service-name-mapping=true&side=provider").unwrap();
+        let subscribe_ret = registry.subscribe(subscribe_url).await;
 
-        let ret = registry.subscribe(subscribe_url, Arc::new(TestNotifyListener));
-
-        if let Err(e) = ret {
+        if let Err(e) = subscribe_ret {
             error!("error message: {:?}", e);
             return;
         }
+
+        let mut rx = subscribe_ret.unwrap();
+        let change = rx.recv().await;
+        info!("receive change: {:?}", change);
 
         let sleep_millis = time::Duration::from_secs(300);
         thread::sleep(sleep_millis);
     }
 
-    #[test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     #[ignore]
-    fn test_unsubscribe() {
+    pub async fn test_unsubscribe() {
         tracing_subscriber::fmt()
             .with_thread_names(true)
             .with_file(true)
@@ -668,33 +715,35 @@ pub mod tests {
             .init();
 
         let nacos_registry_url = Url::from_url("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015").unwrap();
-        let mut registry = NacosRegistry::new(nacos_registry_url);
+        let registry = NacosRegistry::new(nacos_registry_url);
 
         let mut service_url = Url::from_url("tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807").unwrap();
         service_url
             .params
             .insert(SIDE_KEY.to_owned(), PROVIDER_SIDE.to_owned());
 
-        let ret = registry.register(service_url);
+        let ret = registry.register(service_url).await;
 
         info!("register result: {:?}", ret);
 
         let subscribe_url = Url::from_url("provider://192.168.0.102:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&bind.ip=192.168.0.102&bind.port=50052&category=configurators&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&ipv6=fd00:6cb1:58a2:8ddf:0:0:0:1000&methods=sayHello,sayHelloAsync&pid=44270&service-name-mapping=true&side=provider").unwrap();
 
-        let listener = Arc::new(TestNotifyListener);
-
-        let ret = registry.subscribe(subscribe_url, listener.clone());
+        let ret = registry.subscribe(subscribe_url).await;
 
         if let Err(e) = ret {
             error!("error message: {:?}", e);
             return;
         }
 
+        let mut rx = ret.unwrap();
+        let change = rx.recv().await;
+        info!("receive change: {:?}", change);
+
         let sleep_millis = time::Duration::from_secs(40);
         thread::sleep(sleep_millis);
 
         let unsubscribe_url = Url::from_url("provider://192.168.0.102:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&bind.ip=192.168.0.102&bind.port=50052&category=configurators&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&ipv6=fd00:6cb1:58a2:8ddf:0:0:0:1000&methods=sayHello,sayHelloAsync&pid=44270&service-name-mapping=true&side=provider").unwrap();
-        let ret = registry.unsubscribe(unsubscribe_url, listener.clone());
+        let ret = registry.unsubscribe(unsubscribe_url).await;
 
         if let Err(e) = ret {
             error!("error message: {:?}", e);

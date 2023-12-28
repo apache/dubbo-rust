@@ -25,9 +25,9 @@ use std::{
 use crate::{
     protocol::{BoxExporter, Protocol},
     registry::{
+        n_registry::{ArcRegistry, Registry},
         protocol::RegistryProtocol,
         types::{Registries, RegistriesOperation},
-        BoxRegistry, Registry,
     },
 };
 use dubbo_base::Url;
@@ -60,14 +60,14 @@ impl Dubbo {
         self
     }
 
-    pub fn add_registry(mut self, registry_key: &str, registry: BoxRegistry) -> Self {
+    pub fn add_registry(mut self, registry_key: &str, registry: ArcRegistry) -> Self {
         if self.registries.is_none() {
             self.registries = Some(Arc::new(Mutex::new(HashMap::new())));
         }
         self.registries
             .as_ref()
             .unwrap()
-            .insert(registry_key.to_string(), Arc::new(Mutex::new(registry)));
+            .insert(registry_key.to_string(), registry);
         self
     }
 
@@ -130,12 +130,13 @@ impl Dubbo {
                 async_vec.push(exporter);
                 //TODO multiple registry
                 if self.registries.is_some() {
-                    self.registries
+                    let _ = self
+                        .registries
                         .as_ref()
                         .unwrap()
                         .default_registry()
                         .register(url.clone())
-                        .unwrap();
+                        .await;
                 }
             }
         }

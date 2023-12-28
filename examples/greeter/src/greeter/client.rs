@@ -21,17 +21,21 @@ pub mod protos {
 }
 
 use std::env;
- 
-use dubbo::codegen::*;
 
+use dubbo::{codegen::*, registry::n_registry::ArcRegistry};
+
+use dubbo_base::Url;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
+use registry_nacos::NacosRegistry;
 
 #[tokio::main]
 async fn main() {
     dubbo_logger::init();
- 
-    let builder = ClientBuilder::new().with_host("http://127.0.0.1:8888");
+
+    let builder = ClientBuilder::new().with_registry(ArcRegistry::new(NacosRegistry::new(
+        Url::from_url("nacos://127.0.0.1:8848").unwrap(),
+    )));
 
     let mut cli = GreeterClient::new(builder);
 
