@@ -25,7 +25,7 @@ use std::{
 };
 
 use crate::{
-    cluster::loadbalance::types::{LoadBalance, Metadata},
+    cluster::loadbalance::types::{AbstractLoadBalance, Metadata},
     codegen::RpcInvocation,
 };
 
@@ -61,16 +61,13 @@ impl RoundRobinLoadBalance {
     }
 }
 
-impl LoadBalance for RoundRobinLoadBalance {
-    fn select(
+impl AbstractLoadBalance for RoundRobinLoadBalance {
+    fn do_select(
         &self,
         invokers: Arc<Vec<Url>>,
         _url: Option<Url>,
         invocation: Arc<RpcInvocation>,
     ) -> Option<Url> {
-        if invokers.is_empty() {
-            return None;
-        }
         let fingerprint = invocation.unique_fingerprint();
         self.guarantee_counter_key(fingerprint.as_str());
         let index = self
