@@ -17,6 +17,8 @@
 pub const REGISTRY_PROTOCOL: &str = "registry_protocol";
 pub const PROTOCOL: &str = "protocol";
 pub const REGISTRY: &str = "registry";
+pub const INVOKE: &str = "$invoke";
+pub const INVOKE_ASYNC: &str = "$invokeAsync";
 
 // URL key
 pub const DUBBO_KEY: &str = "dubbo";

@@ -21,7 +21,7 @@ use std::{
 };
 
 use crate::{
-    cluster::loadbalance::types::{LoadBalance, Metadata},
+    cluster::loadbalance::types::{AbstractLoadBalance, Metadata},
     codegen::RpcInvocation,
 };
 
@@ -43,16 +43,13 @@ impl Debug for RandomLoadBalance {
     }
 }
 
-impl LoadBalance for RandomLoadBalance {
-    fn select(
+impl AbstractLoadBalance for RandomLoadBalance {
+    fn do_select(
         &self,
         invokers: Arc<Vec<Url>>,
         _url: Option<Url>,
         _invocation: Arc<RpcInvocation>,
     ) -> Option<Url> {
-        if invokers.is_empty() {
-            return None;
-        }
         let index = rand::random::<usize>() % invokers.len();
         Some(invokers[index].clone())
     }

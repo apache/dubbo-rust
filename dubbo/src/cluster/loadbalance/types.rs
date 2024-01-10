@@ -31,6 +31,32 @@ pub trait LoadBalance: Debug {
     ) -> Option<Url>;
 }
 
+pub trait AbstractLoadBalance: LoadBalance {
+    fn do_select(
+        &self,
+        invokers: Arc<Vec<Url>>,
+        url: Option<Url>,
+        invocation: Arc<RpcInvocation>,
+    ) -> Option<Url>;
+}
+
+impl<AbstractLoadBalanceImpl: AbstractLoadBalance> LoadBalance for AbstractLoadBalanceImpl {
+    fn select(
+        &self,
+        invokers: Arc<Vec<Url>>,
+        url: Option<Url>,
+        invocation: Arc<RpcInvocation>,
+    ) -> Option<Url> {
+        if invokers.is_empty() {
+            return None;
+        }
+        if invokers.len() == 1 {
+            return Some(invokers[0].clone());
+        }
+        self.do_select(invokers, url, invocation)
+    }
+}
+
 pub struct Metadata {
     pub name: &'static str,
 }
