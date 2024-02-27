@@ -1,9 +1,11 @@
 [workspace]
+resolver = "2"
 members = [
   "common/logger",
   "common/utils",
   "common/extention",
   "common/base",
+  "common/macro",
   "registry/zookeeper",
   "registry/nacos",
   "metadata",
@@ -11,6 +13,7 @@ members = [
   "dubbo",
   "examples/echo",
   "examples/greeter",
+  "examples/interface",
   "dubbo-build",
   "remoting/net",
   "remoting/http",
@@ -57,7 +60,6 @@ serde_yaml = "0.9.4" # yaml file parser
 once_cell = "1.16.0"
 itertools = "0.10.1"
 bytes = "1.0"
-prost-serde = "0.3.0"
-prost-serde-derive = "0.1.2"
+
 
 

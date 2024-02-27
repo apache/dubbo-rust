@@ -93,8 +93,6 @@ impl Builder {
             PathBuf::from(std::env::var("OUT_DIR").unwrap())
         };
         config.out_dir(out_dir);
-        config.type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]");
-        config.message_attribute(".", "#[serde(default)]");
 
         if self.compile_well_known_types {
             config.compile_well_known_types();

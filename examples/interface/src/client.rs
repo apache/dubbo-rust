@@ -14,5 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-pub mod random;
-pub mod roundrobin;
+
+use dubbo::codegen::ClientBuilder;
+use dubbo::registry::n_registry::ArcRegistry;
+use example_interface::{DemoServiceRpc, ReqDto};
+use registry_zookeeper::ZookeeperRegistry;
+
+#[tokio::main]
+async fn main() {
+    // dubbo_logger::init();
+    let builder = ClientBuilder::new()
+        .with_registry(ArcRegistry::new(ZookeeperRegistry::new("127.0.0.1:2181")));
+    let mut client = DemoServiceRpc::new(builder);
+    let res = client.sayHello("world1".to_string()).await;
+    println!("server response : {:?}", res);
+    let res = client
+        .sayHelloV2(
+            ReqDto {
+                str: "world2".to_string(),
+            },
+            ReqDto {
+                str: "world3".to_string(),
+            },
+        )
+        .await;
+    println!("server response : {:?}", res);
+}

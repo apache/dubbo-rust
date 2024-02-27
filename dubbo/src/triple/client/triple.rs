@@ -15,49 +15,42 @@
  * limitations under the License.
  */
 
-use std::str::FromStr;
-
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 
 use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
-use prost::Message;
-use serde::{Deserialize, Serialize};
+use tower_service::Service;
 
-use super::builder::ClientBuilder;
-use crate::codegen::{ProstCodec, RpcInvocation, SerdeCodec};
+use super::builder::{ClientBuilder, ServiceMK};
+use crate::codegen::RpcInvocation;
 
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
-    protocol::BoxInvoker,
-    status::Status,
-    triple::{
-        codec::{Codec, Decoder, Encoder},
-        compression::CompressionEncoding,
-        decode::Decoding,
-        encode::encode,
-    },
+    svc::NewService,
+    triple::{codec::Codec, compression::CompressionEncoding, decode::Decoding, encode::encode},
 };
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone)]
 pub struct TripleClient {
     pub(crate) send_compression_encoding: Option<CompressionEncoding>,
-    pub(crate) builder: Option<ClientBuilder>,
-    pub invoker: Option<BoxInvoker>,
+    pub(crate) mk: ServiceMK,
 }
 
 impl TripleClient {
     pub fn connect(host: String) -> Self {
         let builder = ClientBuilder::from_static(&host).with_direct(true);
+        let mk = builder.build();
 
-        builder.direct_build()
+        TripleClient {
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
+            mk,
+        }
     }
 
     pub fn new(builder: ClientBuilder) -> Self {
         TripleClient {
             send_compression_encoding: Some(CompressionEncoding::Gzip),
-            builder: Some(builder),
-            invoker: None,
+            mk: builder.build(),
         }
     }
 
@@ -112,11 +105,12 @@ impl TripleClient {
         if let Some(_encoding) = self.send_compression_encoding {
             req.headers_mut()
                 .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
-            req.headers_mut().insert(
-                "grpc-accept-encoding",
-                http::HeaderValue::from_static("gzip"),
-            );
         }
+        req.headers_mut().insert(
+            "grpc-accept-encoding",
+            http::HeaderValue::from_static("gzip"),
+        );
+
         // const (
         //     TripleContentType    = "application/grpc+proto"
         //     TripleUserAgent      = "grpc-go/1.35.0-dev"
@@ -132,54 +126,44 @@ impl TripleClient {
         req
     }
 
-    pub async fn unary<M1, M2>(
+    pub async fn unary<C, M1, M2>(
         &mut self,
         req: Request<M1>,
+        mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
-        M1: Message + Send + Sync + 'static + Serialize,
-        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
     {
-        let (decoder, encoder): (
-            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
-            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec("application/grpc+proto");
         let req = req.map(|m| stream::once(future::ready(m)));
         let body_stream = encode(
-            encoder,
+            codec.encoder(),
             req.into_inner().map(Ok),
             self.send_compression_encoding,
-            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
-        let bytes = hyper::body::to_bytes(body).await.unwrap();
-        let sdk_body = SdkBody::from(bytes);
 
-        let mut conn = match self.invoker.clone() {
-            Some(v) => v,
-            None => self
-                .builder
-                .clone()
-                .unwrap()
-                .build(invocation.into())
-                .unwrap(),
-        };
+        let mut invoker = self.mk.new_service(invocation);
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let request = http::Request::builder()
+            .header("path", path.to_string())
+            .body(body)
+            .unwrap();
 
-        let response = conn
-            .call(req)
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
-                let resp = v
-                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
+                let resp = v.map(|body| {
+                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
+                });
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -203,53 +187,44 @@ impl TripleClient {
         }
     }
 
-    pub async fn bidi_streaming<M1, M2>(
+    pub async fn bidi_streaming<C, M1, M2>(
         &mut self,
         req: impl IntoStreamingRequest<Message = M1>,
+        mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
-        M1: Message + Send + Sync + 'static + Serialize,
-        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
     {
-        let (decoder, encoder): (
-            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
-            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec("application/grpc+proto");
         let req = req.into_streaming_request();
         let en = encode(
-            encoder,
+            codec.encoder(),
             req.into_inner().map(Ok),
             self.send_compression_encoding,
-            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
-        let sdk_body = SdkBody::from(body);
 
-        let mut conn = match self.invoker.clone() {
-            Some(v) => v,
-            None => self
-                .builder
-                .clone()
-                .unwrap()
-                .build(invocation.into())
-                .unwrap(),
-        };
+        let mut invoker = self.mk.new_service(invocation);
 
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let request = http::Request::builder()
+            .header("path", path.to_string())
+            .body(body)
+            .unwrap();
 
-        let response = conn
-            .call(req)
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
-                let resp = v
-                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
+                let resp = v.map(|body| {
+                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
+                });
 
                 Ok(Response::from_http(resp))
             }
@@ -257,54 +232,44 @@ impl TripleClient {
         }
     }
 
-    pub async fn client_streaming<M1, M2>(
+    pub async fn client_streaming<C, M1, M2>(
         &mut self,
         req: impl IntoStreamingRequest<Message = M1>,
+        mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
-        M1: Message + Send + Sync + 'static + Serialize,
-        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
     {
-        let (decoder, encoder): (
-            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
-            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec("application/grpc+proto");
         let req = req.into_streaming_request();
         let en = encode(
-            encoder,
+            codec.encoder(),
             req.into_inner().map(Ok),
             self.send_compression_encoding,
-            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
-        let sdk_body = SdkBody::from(body);
+        let mut invoker = self.mk.new_service(invocation);
 
-        let mut conn = match self.invoker.clone() {
-            Some(v) => v,
-            None => self
-                .builder
-                .clone()
-                .unwrap()
-                .build(invocation.into())
-                .unwrap(),
-        };
-
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let request = http::Request::builder()
+            .header("path", path.to_string())
+            .body(body)
+            .unwrap();
 
         // let mut conn = Connection::new().with_host(http_uri);
-        let response = conn
-            .call(req)
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
-                let resp = v
-                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
+                let resp = v.map(|body| {
+                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
+                });
                 let (mut parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
@@ -328,79 +293,47 @@ impl TripleClient {
         }
     }
 
-    pub async fn server_streaming<M1, M2>(
+    pub async fn server_streaming<C, M1, M2>(
         &mut self,
         req: Request<M1>,
+        mut codec: C,
         path: http::uri::PathAndQuery,
         invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
-        M1: Message + Send + Sync + 'static + Serialize,
-        M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
+        C: Codec<Encode = M1, Decode = M2>,
+        M1: Send + Sync + 'static,
+        M2: Send + Sync + 'static,
     {
-        let (decoder, encoder): (
-            Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
-            Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-        ) = get_codec("application/grpc+proto");
         let req = req.map(|m| stream::once(future::ready(m)));
         let en = encode(
-            encoder,
+            codec.encoder(),
             req.into_inner().map(Ok),
             self.send_compression_encoding,
-            true,
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
-        let sdk_body = SdkBody::from(body);
+        let mut invoker = self.mk.new_service(invocation);
 
-        let mut conn = match self.invoker.clone() {
-            Some(v) => v,
-            None => self
-                .builder
-                .clone()
-                .unwrap()
-                .build(invocation.into())
-                .unwrap(),
-        };
-        let http_uri = http::Uri::from_str(&conn.get_url().to_url()).unwrap();
-        let req = self.map_request(http_uri.clone(), path, sdk_body);
+        let request = http::Request::builder()
+            .header("path", path.to_string())
+            .body(body)
+            .unwrap();
 
-        let response = conn
-            .call(req)
+        let response = invoker
+            .call(request)
             .await
             .map_err(|err| crate::status::Status::from_error(err.into()));
 
         match response {
             Ok(v) => {
-                let resp = v
-                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
+                let resp = v.map(|body| {
+                    Decoding::new(body, codec.decoder(), self.send_compression_encoding)
+                });
 
                 Ok(Response::from_http(resp))
             }
             Err(err) => Err(err),
-        }
-    }
-}
-
-pub fn get_codec<M1, M2>(
-    content_type: &str,
-) -> (
-    Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
-    Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
-)
-where
-    M1: Message + Send + Sync + 'static + Serialize,
-    M2: Message + Send + Sync + 'static + for<'a> Deserialize<'a> + Default,
-{
-    //Determine whether to use JSON as the serialization method.
-    match content_type.ends_with("json") {
-        true => {
-            let mut codec = SerdeCodec::<M1, M2>::default();
-            (Box::new(codec.decoder()), Box::new(codec.encoder()))
-        }
-        false => {
-            let mut codec = ProstCodec::<M1, M2>::default();
-            (Box::new(codec.decoder()), Box::new(codec.encoder()))
         }
     }
 }

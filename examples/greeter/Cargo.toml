@@ -24,11 +24,8 @@ http = "0.2"
 http-body = "0.4.4"
 futures-util = { version = "0.3", default-features = false }
 tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net", "signal"] }
-prost-derive = { version = "0.11.9", optional = true }
-prost = "0.11.9"
-serde = { version = "1.0.171",features = ["derive"]  }
-prost-serde = "0.3.0"
-prost-serde-derive = "0.1.2"
+prost-derive = { version = "0.10", optional = true }
+prost = "0.10.4"
 async-trait = "0.1.56"
 tokio-stream = "0.1"
 dubbo-logger = { path = "../../common/logger" }

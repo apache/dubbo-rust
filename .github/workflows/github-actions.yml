@@ -6,9 +6,10 @@ on:
   push:
     branches: ["*"]
   pull_request:
-    branches: ["*"]
+    branches:
+    - '*'
+    - 'refact/*'
 
-  workflow_dispatch:
 
 jobs:
   check:

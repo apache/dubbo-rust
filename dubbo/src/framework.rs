@@ -22,13 +22,15 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::triple::server::support::RpcServer;
 use crate::{
     protocol::{BoxExporter, Protocol},
     registry::{
+        n_registry::{ArcRegistry, Registry},
         protocol::RegistryProtocol,
         types::{Registries, RegistriesOperation},
-        BoxRegistry, Registry,
     },
+    triple::server::support::RpcHttp2Server,
 };
 use dubbo_base::Url;
 use dubbo_config::{get_global_config, protocol::ProtocolRetrieve, RootConfig};
@@ -60,14 +62,28 @@ impl Dubbo {
         self
     }
 
-    pub fn add_registry(mut self, registry_key: &str, registry: BoxRegistry) -> Self {
+    pub fn add_registry(mut self, registry_key: &str, registry: ArcRegistry) -> Self {
         if self.registries.is_none() {
             self.registries = Some(Arc::new(Mutex::new(HashMap::new())));
         }
         self.registries
             .as_ref()
             .unwrap()
-            .insert(registry_key.to_string(), Arc::new(Mutex::new(registry)));
+            .insert(registry_key.to_string(), registry);
+        self
+    }
+
+    pub fn register_server<T: RpcServer>(self, server: T) -> Self {
+        let info = server.get_info();
+        let server_name = info.0.to_owned() + "." + info.1;
+        let s: RpcHttp2Server<T> = RpcHttp2Server::new(server);
+        crate::protocol::triple::TRIPLE_SERVICES
+            .write()
+            .unwrap()
+            .insert(
+                server_name,
+                crate::utils::boxed_clone::BoxCloneService::new(s),
+            );
         self
     }
 
@@ -88,8 +104,12 @@ impl Dubbo {
                 let protocol = root_config
                     .protocols
                     .get_protocol_or_default(service_config.protocol.as_str());
-                let protocol_url =
-                    format!("{}/{}", protocol.to_url(), service_config.interface.clone(),);
+                let mut protocol_url =
+                    format!("{}/{}", protocol.to_url(), service_config.interface.clone());
+                if let Some(serialization) = &service_config.serialization {
+                    protocol_url.push_str(&format!("?serialization={}", serialization));
+                }
+
                 tracing::info!("protocol_url: {:?}", protocol_url);
                 Url::from_url(&protocol_url)
             } else {
@@ -130,12 +150,13 @@ impl Dubbo {
                 async_vec.push(exporter);
                 //TODO multiple registry
                 if self.registries.is_some() {
-                    self.registries
+                    let _ = self
+                        .registries
                         .as_ref()
                         .unwrap()
                         .default_registry()
                         .register(url.clone())
-                        .unwrap();
+                        .await;
                 }
             }
         }

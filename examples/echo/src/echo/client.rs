@@ -71,7 +71,7 @@ async fn main() {
     };
     let (_parts, resp_body) = client_streaming_resp.into_parts();
     println!("client streaming, Response: {:?}", resp_body);
-    //
+
     let data = vec![
         EchoRequest {
             message: "msg1 from client".to_string(),

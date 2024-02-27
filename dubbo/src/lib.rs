@@ -18,12 +18,18 @@
 pub mod cluster;
 pub mod codegen;
 pub mod context;
+pub mod directory;
 pub mod filter;
 mod framework;
 pub mod invocation;
+pub mod invoker;
+pub mod loadbalancer;
+pub mod param;
 pub mod protocol;
 pub mod registry;
+pub mod route;
 pub mod status;
+pub mod svc;
 pub mod triple;
 pub mod utils;
 

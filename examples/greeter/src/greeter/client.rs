@@ -22,33 +22,20 @@ pub mod protos {
 
 use std::env;
 
-use dubbo::codegen::*;
+use dubbo::{codegen::*, registry::n_registry::ArcRegistry};
 
 use dubbo_base::Url;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
 use registry_nacos::NacosRegistry;
-use registry_zookeeper::ZookeeperRegistry;
 
 #[tokio::main]
 async fn main() {
     dubbo_logger::init();
 
-    let mut builder = ClientBuilder::new();
-
-    if let Ok(zk_servers) = env::var("ZOOKEEPER_SERVERS") {
-        let zkr = ZookeeperRegistry::new(&zk_servers);
-        let directory = RegistryDirectory::new(Box::new(zkr));
-        builder = builder.with_directory(Box::new(directory));
-    } else if let Ok(nacos_url_str) = env::var("NACOS_URL") {
-        // NACOS_URL=nacos://mse-96efa264-p.nacos-ans.mse.aliyuncs.com
-        let nacos_url = Url::from_url(&nacos_url_str).unwrap();
-        let registry = NacosRegistry::new(nacos_url);
-        let directory = RegistryDirectory::new(Box::new(registry));
-        builder = builder.with_directory(Box::new(directory));
-    } else {
-        builder = builder.with_host("http://127.0.0.1:8888");
-    }
+    let builder = ClientBuilder::new().with_registry(ArcRegistry::new(NacosRegistry::new(
+        Url::from_url("nacos://127.0.0.1:8848").unwrap(),
+    )));
 
     let mut cli = GreeterClient::new(builder);
 
@@ -60,7 +47,7 @@ async fn main() {
         .await;
     let resp = match resp {
         Ok(resp) => resp,
-        Err(err) => return println!("{:?}", err),
+        Err(err) => return println!("response error: {:?}", err),
     };
     let (_parts, body) = resp.into_parts();
     println!("Response: {:?}", body);

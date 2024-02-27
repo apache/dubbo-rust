@@ -38,29 +38,22 @@ pub struct Decoding<T> {
     trailers: Option<Metadata>,
     compress: Option<CompressionEncoding>,
     decompress_buf: BytesMut,
-    decode_as_grpc: bool,
 }
 
 #[derive(PartialEq)]
 enum State {
     ReadHeader,
-    ReadHttpBody,
     ReadBody { len: usize, is_compressed: bool },
     Error,
 }
 
 impl<T> Decoding<T> {
-    pub fn new<B>(
-        body: B,
-        decoder: Box<dyn Decoder<Item = T, Error = crate::status::Status> + Send + 'static>,
-        compress: Option<CompressionEncoding>,
-        decode_as_grpc: bool,
-    ) -> Self
+    pub fn new<B, D>(body: B, decoder: D, compress: Option<CompressionEncoding>) -> Self
     where
         B: Body + Send + 'static,
         B::Error: Into<crate::Error>,
+        D: Decoder<Item = T, Error = crate::status::Status> + Send + 'static,
     {
-        //Determine whether to use the gRPC mode to handle request data
         Self {
             state: State::ReadHeader,
             body: body
@@ -72,12 +65,11 @@ impl<T> Decoding<T> {
                     )
                 })
                 .boxed_unsync(),
-            decoder,
+            decoder: Box::new(decoder),
             buf: BytesMut::with_capacity(super::consts::BUFFER_SIZE),
             trailers: None,
             compress,
             decompress_buf: BytesMut::new(),
-            decode_as_grpc,
         }
     }
 
@@ -99,47 +91,7 @@ impl<T> Decoding<T> {
         trailer.map(|data| data.map(Metadata::from_headers))
     }
 
-    pub fn decode_http(&mut self) -> Result<Option<T>, crate::status::Status> {
-        if self.state == State::ReadHeader {
-            self.state = State::ReadHttpBody;
-            return Ok(None);
-        }
-        if let State::ReadHttpBody = self.state {
-            if self.buf.is_empty() {
-                return Ok(None);
-            }
-            match self.compress {
-                None => self.decompress_buf = self.buf.clone(),
-                Some(compress) => {
-                    let len = self.buf.len();
-                    if let Err(err) =
-                        decompress(compress, &mut self.buf, &mut self.decompress_buf, len)
-                    {
-                        return Err(crate::status::Status::new(
-                            crate::status::Code::Internal,
-                            err.to_string(),
-                        ));
-                    }
-                }
-            }
-            let len = self.decompress_buf.len();
-            let decoding_result = self
-                .decoder
-                .decode(&mut DecodeBuf::new(&mut self.decompress_buf, len));
-
-            return match decoding_result {
-                Ok(Some(r)) => {
-                    self.state = State::ReadHeader;
-                    Ok(Some(r))
-                }
-                Ok(None) => Ok(None),
-                Err(err) => Err(err),
-            };
-        }
-        Ok(None)
-    }
-
-    pub fn decode_grpc(&mut self) -> Result<Option<T>, crate::status::Status> {
+    pub fn decode_chunk(&mut self) -> Result<Option<T>, crate::status::Status> {
         if self.state == State::ReadHeader {
             // buffer is full
             if self.buf.remaining() < super::consts::HEADER_SIZE {
@@ -213,14 +165,6 @@ impl<T> Decoding<T> {
         }
 
         Ok(None)
-    }
-
-    pub fn decode_chunk(&mut self) -> Result<Option<T>, crate::status::Status> {
-        if self.decode_as_grpc {
-            self.decode_grpc()
-        } else {
-            self.decode_http()
-        }
     }
 }
 

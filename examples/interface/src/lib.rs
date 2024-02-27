@@ -14,29 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use std::collections::HashMap;
 
-use lazy_static::lazy_static;
+use dubbo_macro::rpc_trait;
+use serde::{Deserialize, Serialize};
 
-use crate::cluster::loadbalance::{
-    impls::{random::RandomLoadBalance, roundrobin::RoundRobinLoadBalance},
-    types::BoxLoadBalance,
-};
-
-pub mod impls;
-pub mod types;
-
-lazy_static! {
-    pub static ref LOAD_BALANCE_EXTENSIONS: HashMap<String, BoxLoadBalance> =
-        init_loadbalance_extensions();
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ReqDto {
+    pub str: String,
 }
 
-fn init_loadbalance_extensions() -> HashMap<String, BoxLoadBalance> {
-    let mut loadbalance_map: HashMap<String, BoxLoadBalance> = HashMap::new();
-    loadbalance_map.insert("random".to_string(), Box::new(RandomLoadBalance::default()));
-    loadbalance_map.insert(
-        "roundrobin".to_string(),
-        Box::new(RoundRobinLoadBalance::default()),
-    );
-    loadbalance_map
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ResDto {
+    pub str: String,
+}
+
+#[rpc_trait(package = "org.apache.dubbo.springboot.demo")]
+pub trait DemoService {
+    async fn sayHello(&self, name: String) -> String;
+
+    async fn sayHelloV2(&self, name: ReqDto, name2: ReqDto) -> ResDto;
 }
