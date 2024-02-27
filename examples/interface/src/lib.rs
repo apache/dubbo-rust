@@ -15,12 +15,22 @@
  * limitations under the License.
  */
 
-pub mod client;
-pub mod codec;
-pub mod compression;
-pub mod consts;
-pub mod decode;
-pub mod encode;
-pub mod server;
-pub mod transport;
-pub mod triple_wrapper;
+use dubbo_macro::rpc_trait;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ReqDto {
+    pub str: String,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ResDto {
+    pub str: String,
+}
+
+#[rpc_trait(package = "org.apache.dubbo.springboot.demo")]
+pub trait DemoService {
+    async fn sayHello(&self, name: String) -> String;
+
+    async fn sayHelloV2(&self, name: ReqDto, name2: ReqDto) -> ResDto;
+}

@@ -22,6 +22,7 @@ pub struct ServiceConfig {
     pub version: String,
     pub group: String,
     pub protocol: String,
+    pub serialization: Option<String>,
     pub interface: String,
 }
 
