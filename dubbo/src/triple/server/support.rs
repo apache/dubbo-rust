@@ -20,11 +20,10 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::status::Code;
-use crate::triple::triple_wrapper::{TripleRequestWrapper, TripleResponseWrapper};
 use crate::{
     codegen::{Request, Response, UnarySvc},
-    status::Status,
+    status::{Code, Status},
+    triple::triple_wrapper::{TripleRequestWrapper, TripleResponseWrapper},
     BoxBody, BoxFuture, StdError,
 };
 use http_body::Body;
