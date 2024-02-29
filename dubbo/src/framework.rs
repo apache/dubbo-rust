@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-use crate::triple::server::support::RpcServer;
 use crate::{
     protocol::{BoxExporter, Protocol},
     registry::{
@@ -23,7 +22,7 @@ use crate::{
         types::{Registries, RegistriesOperation},
         BoxRegistry, Registry,
     },
-    triple::server::support::RpcHttp2Server,
+    triple::server::support::{RpcHttp2Server, RpcServer},
 };
 use dubbo_base::Url;
 use dubbo_config::{get_global_config, protocol::ProtocolRetrieve, RootConfig};
