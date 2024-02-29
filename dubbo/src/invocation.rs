@@ -79,6 +79,7 @@ impl<T> Request<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct Response<T> {
     message: T,
     metadata: Metadata,
