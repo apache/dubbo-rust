@@ -18,7 +18,7 @@
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use std::collections::HashMap;
-use syn::{self, parse_macro_input, FnArg, ImplItem, ItemImpl, ItemTrait, ReturnType, TraitItem};
+use syn::{parse_macro_input, FnArg, ImplItem, ItemImpl, ItemTrait, ReturnType, TraitItem};
 
 #[proc_macro_attribute]
 pub fn rpc_trait(attr: TokenStream, item: TokenStream) -> TokenStream {
