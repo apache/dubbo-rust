@@ -168,12 +168,22 @@ impl TripleClient {
 
                 futures_util::pin_mut!(body);
 
-                let message = body.try_next().await?.ok_or_else(|| {
-                    crate::status::Status::new(
-                        crate::status::Code::Internal,
-                        "Missing response message.".to_string(),
-                    )
-                })?;
+                let message = match body.try_next().await? {
+                    Some(message) => message,
+                    None => {
+                        let header = parts;
+                        let code = header
+                            .get("grpc-status")
+                            .map(|e| crate::status::Code::from(e.as_bytes()))
+                            .map_or(crate::status::Code::Internal, |e| e);
+
+                        let message = header
+                            .get("grpc-message")
+                            .map(|e| e.to_string())
+                            .map_or(code.to_string(), |e| e);
+                        return Err(crate::status::Status::new(code, message));
+                    }
+                };
 
                 if let Some(trailers) = body.trailer().await? {
                     let mut h = parts.into_headers();

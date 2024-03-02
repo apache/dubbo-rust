@@ -189,6 +189,10 @@ impl Metadata {
 
         header
     }
+
+    pub fn get(&self, key: &str) -> Option<&String> {
+        self.inner.get(key)
+    }
 }
 
 pub trait Invocation {
