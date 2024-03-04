@@ -35,7 +35,7 @@ pub struct TripleInvoker {
 
 impl TripleInvoker {
     pub fn new(url: Url) -> TripleInvoker {
-        let uri = http::Uri::from_str(&url.to_url()).unwrap();
+        let uri = http::Uri::from_str(url.as_str()).unwrap();
         Self {
             url,
             conn: Connection::new().with_host(uri).build(),
@@ -55,7 +55,7 @@ impl TripleInvoker {
 
         let path_and_query = parts.headers.get("path").unwrap().to_str().unwrap();
 
-        let authority = self.url.clone().get_ip_port();
+        let authority = self.url.authority();
 
         let uri = Uri::builder()
             .scheme("http")

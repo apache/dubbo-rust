@@ -1,10 +1,21 @@
+use std::borrow::Cow;
+use std::convert::Infallible;
+use std::str::FromStr;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
 
+use crate::extension::registry_extension::proxy::RegistryProxy;
+use crate::extension::registry_extension::{InterfaceName, RegistryUrl};
+use crate::extension::{
+    ExtensionLoaderName, ExtensionName, ExtensionType, RegistryExtensionLoader,
+};
+use crate::param::Param;
 use async_trait::async_trait;
+use dubbo_base::url::UrlParam;
 use dubbo_base::Url;
+use itertools::Itertools;
 use thiserror::Error;
 use tokio::sync::{
     mpsc::{self, Receiver},
@@ -27,17 +38,61 @@ pub trait Registry {
     async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError>;
 
     async fn unsubscribe(&self, url: Url) -> Result<(), StdError>;
+
+    fn url(&self) -> &Url;
 }
 
-#[derive(Clone)]
-pub struct ArcRegistry {
-    inner: Arc<dyn Registry + Send + Sync + 'static>,
+pub(crate) struct StaticRegistryExtensionLoader;
+
+impl StaticRegistryExtensionLoader {
+    pub const NAME: &'static str = "static";
 }
 
-pub enum RegistryComponent {
-    NacosRegistry(ArcRegistry),
-    ZookeeperRegistry,
-    StaticRegistry(StaticRegistry),
+impl StaticRegistryExtensionLoader {
+    pub fn to_extension_url(static_invoker_urls: Vec<Url>) -> Url {
+        let static_invoker_urls: StaticInvokerUrls =
+            static_invoker_urls.iter().join(",").parse().unwrap();
+        let mut static_registry_extension_loader_url: Url =
+            "extension://127.0.0.1".parse().unwrap();
+
+        static_registry_extension_loader_url.add_query_param(ExtensionType::Registry);
+        static_registry_extension_loader_url.add_query_param(ExtensionLoaderName::new(
+            StaticRegistryExtensionLoader::NAME,
+        ));
+        static_registry_extension_loader_url
+            .add_query_param(ExtensionName::new("static://127.0.0.1"));
+        static_registry_extension_loader_url
+            .add_query_param(RegistryUrl::new("static://127.0.0.1".parse().unwrap()));
+        static_registry_extension_loader_url.add_query_param(static_invoker_urls);
+
+        static_registry_extension_loader_url
+    }
+}
+
+#[async_trait::async_trait]
+impl RegistryExtensionLoader for StaticRegistryExtensionLoader {
+    fn name(&self) -> String {
+        Self::NAME.to_string()
+    }
+
+    async fn load(&mut self, url: &Url) -> Result<RegistryProxy, StdError> {
+        // url example:
+        // extension://127.0.0.1?extension-type=registry&extension-loader-name=static&extension-name=static://127.0.0.1&registry=static://127.0.0.1
+        let static_invoker_urls = url.query::<StaticInvokerUrls>();
+
+        let registry_url = url.query::<RegistryUrl>().unwrap();
+        let mut registry_url = registry_url.value();
+
+        if let Some(static_invoker_urls) = static_invoker_urls {
+            registry_url.add_query_param(static_invoker_urls);
+        }
+
+        let static_registry = StaticRegistry::new(registry_url);
+
+        Ok(RegistryProxy::from(
+            Box::new(static_registry) as Box<dyn Registry + Send>
+        ))
+    }
 }
 
 pub struct StaticServiceValues {
@@ -45,67 +100,25 @@ pub struct StaticServiceValues {
     urls: HashSet<String>,
 }
 
-#[derive(Default)]
 pub struct StaticRegistry {
     urls: Mutex<HashMap<String, StaticServiceValues>>,
-}
-
-impl ArcRegistry {
-    pub fn new(registry: impl Registry + Send + Sync + 'static) -> Self {
-        Self {
-            inner: Arc::new(registry),
-        }
-    }
-}
-
-#[async_trait]
-impl Registry for ArcRegistry {
-    async fn register(&self, url: Url) -> Result<(), StdError> {
-        self.inner.register(url).await
-    }
-
-    async fn unregister(&self, url: Url) -> Result<(), StdError> {
-        self.inner.unregister(url).await
-    }
-
-    async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError> {
-        self.inner.subscribe(url).await
-    }
-
-    async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
-        self.inner.unsubscribe(url).await
-    }
-}
-
-#[async_trait]
-impl Registry for RegistryComponent {
-    async fn register(&self, url: Url) -> Result<(), StdError> {
-        todo!()
-    }
-
-    async fn unregister(&self, url: Url) -> Result<(), StdError> {
-        todo!()
-    }
-
-    async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError> {
-        match self {
-            RegistryComponent::NacosRegistry(registry) => registry.subscribe(url).await,
-            RegistryComponent::ZookeeperRegistry => todo!(),
-            RegistryComponent::StaticRegistry(registry) => registry.subscribe(url).await,
-        }
-    }
-
-    async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
-        todo!()
-    }
+    self_url: Url,
 }
 
 impl StaticRegistry {
-    pub fn new(urls: Vec<Url>) -> Self {
-        let mut map = HashMap::with_capacity(urls.len());
+    pub fn new(url: Url) -> Self {
+        let static_urls = url.query::<StaticInvokerUrls>();
+        let static_urls = match static_urls {
+            None => Vec::default(),
+            Some(static_urls) => static_urls.value(),
+        };
 
-        for url in urls {
-            let service_name = url.get_service_name();
+        let mut map = HashMap::with_capacity(static_urls.len());
+
+        for url in static_urls {
+            let service_name = url.query::<InterfaceName>().unwrap();
+            let service_name = service_name.value();
+
             let static_values = map
                 .entry(service_name)
                 .or_insert_with(|| StaticServiceValues {
@@ -116,16 +129,31 @@ impl StaticRegistry {
             static_values.urls.insert(url.clone());
         }
 
+        let self_url = "static://0.0.0.0".parse().unwrap();
+
         Self {
             urls: Mutex::new(map),
+            self_url,
         }
     }
 }
 
+impl Default for StaticRegistry {
+    fn default() -> Self {
+        let self_url = "static://0.0.0.0".parse().unwrap();
+
+        Self {
+            self_url,
+            urls: Mutex::new(HashMap::new()),
+        }
+    }
+}
 #[async_trait]
 impl Registry for StaticRegistry {
     async fn register(&self, url: Url) -> Result<(), StdError> {
-        let service_name = url.get_service_name();
+        let service_name = url.query::<InterfaceName>().unwrap();
+        let service_name = service_name.value();
+
         let mut lock = self.urls.lock().await;
 
         let static_values = lock
@@ -146,7 +174,9 @@ impl Registry for StaticRegistry {
     }
 
     async fn unregister(&self, url: Url) -> Result<(), StdError> {
-        let service_name = url.get_service_name();
+        let service_name = url.query::<InterfaceName>().unwrap();
+        let service_name = service_name.value();
+
         let mut lock = self.urls.lock().await;
 
         match lock.get_mut(&service_name) {
@@ -167,7 +197,8 @@ impl Registry for StaticRegistry {
     }
 
     async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError> {
-        let service_name = url.get_service_name();
+        let service_name = url.query::<InterfaceName>().unwrap();
+        let service_name = service_name.value();
 
         let change_rx = {
             let mut lock = self.urls.lock().await;
@@ -181,12 +212,14 @@ impl Registry for StaticRegistry {
             let (tx, change_rx) = mpsc::channel(64);
             static_values.listeners.push(tx);
 
-            for url in static_values.urls.iter() {
-                static_values.listeners.retain(|listener| {
-                    let ret = listener.try_send(Ok(ServiceChange::Insert(url.clone(), ())));
-                    ret.is_ok()
-                });
+            for listener in &static_values.listeners {
+                for url in &static_values.urls {
+                    let _ = listener
+                        .send(Ok(ServiceChange::Insert(url.clone(), ())))
+                        .await;
+                }
             }
+
             change_rx
         };
 
@@ -196,8 +229,44 @@ impl Registry for StaticRegistry {
     async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
         Ok(())
     }
+
+    fn url(&self) -> &Url {
+        &self.self_url
+    }
 }
 
 #[derive(Error, Debug)]
 #[error("static registry error: {0}")]
 struct StaticRegistryError(String);
+
+pub(crate) struct StaticInvokerUrls(String);
+
+impl UrlParam for StaticInvokerUrls {
+    type TargetType = Vec<Url>;
+
+    fn name() -> &'static str {
+        "static-invoker-urls"
+    }
+
+    fn value(&self) -> Self::TargetType {
+        self.0.split(",").map(|url| url.parse().unwrap()).collect()
+    }
+
+    fn as_str<'a>(&'a self) -> Cow<'a, str> {
+        Cow::Borrowed(&self.0)
+    }
+}
+
+impl FromStr for StaticInvokerUrls {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.to_string()))
+    }
+}
+
+impl Default for StaticInvokerUrls {
+    fn default() -> Self {
+        Self(String::default())
+    }
+}

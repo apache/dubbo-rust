@@ -22,39 +22,38 @@ use std::{
 
 use itertools::Itertools;
 
-use super::n_registry::ArcRegistry;
-
-pub type Registries = Arc<Mutex<HashMap<String, ArcRegistry>>>;
-
-pub const DEFAULT_REGISTRY_KEY: &str = "default";
-
-pub trait RegistriesOperation {
-    fn get(&self, registry_key: &str) -> ArcRegistry;
-    fn insert(&self, registry_key: String, registry: ArcRegistry);
-    fn default_registry(&self) -> ArcRegistry;
-}
-
-impl RegistriesOperation for Registries {
-    fn get(&self, registry_key: &str) -> ArcRegistry {
-        self.as_ref()
-            .lock()
-            .unwrap()
-            .get(registry_key)
-            .unwrap()
-            .clone()
-    }
-
-    fn insert(&self, registry_key: String, registry: ArcRegistry) {
-        self.as_ref().lock().unwrap().insert(registry_key, registry);
-    }
-
-    fn default_registry(&self) -> ArcRegistry {
-        let guard = self.as_ref().lock().unwrap();
-        let (_, result) = guard
-            .iter()
-            .find_or_first(|e| e.0 == DEFAULT_REGISTRY_KEY)
-            .unwrap()
-            .to_owned();
-        result.clone()
-    }
-}
+//
+// pub type Registries = Arc<Mutex<HashMap<String, ArcRegistry>>>;
+//
+// pub const DEFAULT_REGISTRY_KEY: &str = "default";
+//
+// pub trait RegistriesOperation {
+//     fn get(&self, registry_key: &str) -> ArcRegistry;
+//     fn insert(&self, registry_key: String, registry: ArcRegistry);
+//     fn default_registry(&self) -> ArcRegistry;
+// }
+//
+// impl RegistriesOperation for Registries {
+//     fn get(&self, registry_key: &str) -> ArcRegistry {
+//         self.as_ref()
+//             .lock()
+//             .unwrap()
+//             .get(registry_key)
+//             .unwrap()
+//             .clone()
+//     }
+//
+//     fn insert(&self, registry_key: String, registry: ArcRegistry) {
+//         self.as_ref().lock().unwrap().insert(registry_key, registry);
+//     }
+//
+//     fn default_registry(&self) -> ArcRegistry {
+//         let guard = self.as_ref().lock().unwrap();
+//         let (_, result) = guard
+//             .iter()
+//             .find_or_first(|e| e.0 == DEFAULT_REGISTRY_KEY)
+//             .unwrap()
+//             .to_owned();
+//         result.clone()
+//     }
+// }

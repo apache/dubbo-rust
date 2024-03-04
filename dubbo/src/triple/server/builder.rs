@@ -21,6 +21,7 @@ use std::{
     str::FromStr,
 };
 
+use dubbo_base::url::UrlParam;
 use dubbo_base::Url;
 use dubbo_logger::tracing;
 use http::{Request, Response, Uri};
@@ -28,6 +29,7 @@ use hyper::body::Body;
 use tokio_rustls::rustls::{Certificate, PrivateKey};
 use tower_service::Service;
 
+use crate::extension::registry_extension::InterfaceName;
 use crate::{triple::transport::DubboServer, utils, BoxBody};
 
 #[derive(Clone, Default, Debug)]
@@ -132,7 +134,7 @@ impl ServerBuilder {
 
 impl From<Url> for ServerBuilder {
     fn from(u: Url) -> Self {
-        let uri = match http::Uri::from_str(&u.raw_url_string()) {
+        let uri = match http::Uri::from_str(&u.as_str()) {
             Ok(v) => v,
             Err(err) => {
                 tracing::error!("http uri parse error: {}, url: {:?}", err, &u);
@@ -142,10 +144,12 @@ impl From<Url> for ServerBuilder {
 
         let authority = uri.authority().unwrap();
 
+        let service_name = u.query::<InterfaceName>().unwrap().value();
+
         Self {
-            listener: u.get_param("listener").unwrap_or("tcp".to_string()),
+            listener: u.query_param_by_kv("listener").unwrap_or("tcp".to_string()),
             addr: authority.to_string().to_socket_addrs().unwrap().next(),
-            service_names: vec![u.service_name],
+            service_names: vec![service_name],
             server: DubboServer::default(),
             certs: Vec::new(),
             keys: Vec::new(),

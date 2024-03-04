@@ -13,7 +13,7 @@ impl NewService<String> for NewInvoker {
     fn new_service(&self, url: String) -> Self::Service {
         // todo create another invoker by url protocol
 
-        let url = Url::from_url(&url).unwrap();
+        let url = url.parse().unwrap();
         CloneInvoker::new(TripleInvoker::new(url))
     }
 }

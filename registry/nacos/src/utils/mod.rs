@@ -37,10 +37,10 @@ const WILDCARD: &str = "*";
 const RANGE_STR_SEPARATOR: &str = ",";
 
 pub(crate) fn build_nacos_client_props(url: &Url) -> (nacos_sdk::api::props::ClientProps, bool) {
-    let host = &url.ip;
-    let port = &url.port;
+    let host = url.host().unwrap();
+    let port = url.port().unwrap();
     let backup = url
-        .get_param(BACKUP_KEY)
+        .query_param_by_kv(BACKUP_KEY)
         .map(|mut data| {
             data.insert(0, ',');
             data
@@ -49,13 +49,13 @@ pub(crate) fn build_nacos_client_props(url: &Url) -> (nacos_sdk::api::props::Cli
     let server_addr = format!("{}:{}{}", host, port, backup);
 
     let namespace = url
-        .get_param(NAMESPACE_KEY)
+        .query_param_by_kv(NAMESPACE_KEY)
         .unwrap_or_else(|| DEFAULT_NAMESPACE.to_string());
     let app_name = url
-        .get_param(APP_NAME_KEY)
+        .query_param_by_kv(APP_NAME_KEY)
         .unwrap_or_else(|| UNKNOWN_APP.to_string());
-    let username = url.get_param(USERNAME_KEY).unwrap_or_default();
-    let password = url.get_param(PASSWORD_KEY).unwrap_or_default();
+    let username = url.query_param_by_kv(USERNAME_KEY).unwrap_or_default();
+    let password = url.query_param_by_kv(PASSWORD_KEY).unwrap_or_default();
 
     let enable_auth = !password.is_empty() && !username.is_empty();
 
