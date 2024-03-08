@@ -29,8 +29,8 @@ use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc};
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
-use dubbo::extension::registry_extension::InterfaceName;
 use dubbo::{
+    extension::registry_extension::InterfaceName,
     registry::n_registry::{DiscoverStream, Registry, ServiceChange},
     StdError,
 };

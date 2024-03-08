@@ -1,20 +1,20 @@
-use std::borrow::Cow;
-use std::convert::Infallible;
-use std::str::FromStr;
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
+    convert::Infallible,
+    str::FromStr,
     sync::Arc,
 };
 
-use crate::extension::registry_extension::proxy::RegistryProxy;
-use crate::extension::registry_extension::{InterfaceName, RegistryUrl};
-use crate::extension::{
-    ExtensionLoaderName, ExtensionName, ExtensionType, RegistryExtensionLoader,
+use crate::{
+    extension::{
+        registry_extension::{proxy::RegistryProxy, InterfaceName, RegistryUrl},
+        ExtensionLoaderName, ExtensionName, ExtensionType, RegistryExtensionLoader,
+    },
+    param::Param,
 };
-use crate::param::Param;
 use async_trait::async_trait;
-use dubbo_base::url::UrlParam;
-use dubbo_base::Url;
+use dubbo_base::{url::UrlParam, Url};
 use itertools::Itertools;
 use thiserror::Error;
 use tokio::sync::{

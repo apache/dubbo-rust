@@ -1,10 +1,9 @@
-use crate::extension::{ExtensionLoaderName, ExtensionName, ExtensionType};
-use crate::StdError;
-use dubbo_base::url::UrlParam;
-use dubbo_base::Url;
-use std::borrow::Cow;
-use std::convert::Infallible;
-use std::str::FromStr;
+use crate::{
+    extension::{ExtensionLoaderName, ExtensionName, ExtensionType},
+    StdError,
+};
+use dubbo_base::{url::UrlParam, Url};
+use std::{borrow::Cow, convert::Infallible, str::FromStr};
 
 pub fn to_extension_url(registry_url: Url) -> Url {
     let mut registry_extension_loader_url: Url = "extension://127.0.0.1".parse().unwrap();
@@ -22,8 +21,10 @@ pub fn to_extension_url(registry_url: Url) -> Url {
 }
 
 pub mod proxy {
-    use crate::registry::n_registry::{DiscoverStream, Registry};
-    use crate::StdError;
+    use crate::{
+        registry::n_registry::{DiscoverStream, Registry},
+        StdError,
+    };
     use async_trait::async_trait;
     use dubbo_base::Url;
     use dubbo_logger::tracing::error;

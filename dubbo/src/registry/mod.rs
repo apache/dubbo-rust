@@ -17,12 +17,13 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 
-use crate::extension::registry_extension::proxy::RegistryProxy;
-use crate::{extension, StdError};
+use crate::{extension, extension::registry_extension::proxy::RegistryProxy, StdError};
 use dubbo_base::Url;
-use std::future::Future;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
 use tower_service::Service;
 
 pub mod integration;

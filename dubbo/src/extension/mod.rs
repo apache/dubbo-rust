@@ -1,16 +1,13 @@
 pub mod registry_extension;
 
-use crate::extension::registry_extension::proxy::RegistryProxy;
-use crate::extension::registry_extension::RegistryUrl;
-use crate::registry::n_registry::{Registry, StaticInvokerUrls, StaticRegistryExtensionLoader};
-use crate::StdError;
-use dubbo_base::url::UrlParam;
-use dubbo_base::Url;
+use crate::{
+    extension::registry_extension::{proxy::RegistryProxy, RegistryUrl},
+    registry::n_registry::{Registry, StaticInvokerUrls, StaticRegistryExtensionLoader},
+    StdError,
+};
+use dubbo_base::{url::UrlParam, Url};
 use dubbo_logger::tracing::{debug, error};
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::str::FromStr;
+use std::{borrow::Cow, collections::HashMap, convert::Infallible, str::FromStr};
 use thiserror::Error;
 use tokio::sync::oneshot;
 

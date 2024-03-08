@@ -22,8 +22,7 @@ use crate::{
     route::NewRoutes, utils::boxed_clone::BoxCloneService,
 };
 
-use crate::registry::n_registry::StaticRegistryExtensionLoader;
-use crate::registry::MkRegistryService;
+use crate::registry::{n_registry::StaticRegistryExtensionLoader, MkRegistryService};
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
 use tower::ServiceBuilder;

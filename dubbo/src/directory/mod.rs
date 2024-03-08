@@ -43,8 +43,7 @@ use tower::{
     ServiceExt,
 };
 
-use crate::extension::registry_extension::proxy::RegistryProxy;
-use crate::extension::registry_extension::InterfaceName;
+use crate::extension::registry_extension::{proxy::RegistryProxy, InterfaceName};
 use tower_service::Service;
 
 type BufferedDirectory =

@@ -22,21 +22,23 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::{select, sync::mpsc};
 
 use anyhow::anyhow;
-use dubbo::extension::registry_extension::proxy::RegistryProxy;
-use dubbo::extension::registry_extension::{
-    AppName, Category, Group, InterfaceName, RegistryUrl, ServiceNamespace, Version,
-};
-use dubbo::extension::RegistryExtensionLoader;
 use dubbo::{
+    extension::{
+        registry_extension::{
+            proxy::RegistryProxy, AppName, Category, Group, InterfaceName, RegistryUrl,
+            ServiceNamespace, Version,
+        },
+        RegistryExtensionLoader,
+    },
     registry::n_registry::{DiscoverStream, Registry, ServiceChange},
     StdError,
 };
 use dubbo_base::url::UrlParam;
 use dubbo_logger::tracing::{debug, error, info};
-use nacos_sdk::api::naming::{
-    NamingEventListener, NamingService, NamingServiceBuilder, ServiceInstance,
+use nacos_sdk::api::{
+    naming::{NamingEventListener, NamingService, NamingServiceBuilder, ServiceInstance},
+    props::ClientProps,
 };
-use nacos_sdk::api::props::ClientProps;
 use tokio::sync::{watch, Notify};
 
 use crate::utils::{build_nacos_client_props, is_concrete_str, is_wildcard_str, match_range};
@@ -422,8 +424,7 @@ pub mod tests {
     use core::time;
     use std::thread;
 
-    use dubbo::extension::registry_extension::Side;
-    use dubbo::extension::ExtensionName;
+    use dubbo::extension::{registry_extension::Side, ExtensionName};
     use tracing::metadata::LevelFilter;
 
     use super::*;

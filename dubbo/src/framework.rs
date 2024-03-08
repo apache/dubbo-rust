@@ -22,9 +22,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::extension::RegistryExtensionLoader;
 use crate::{
     extension,
+    extension::RegistryExtensionLoader,
     protocol::{BoxExporter, Protocol},
     registry::{n_registry::Registry, protocol::RegistryProtocol},
 };

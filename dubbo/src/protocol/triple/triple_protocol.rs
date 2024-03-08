@@ -19,8 +19,7 @@ use std::{boxed::Box, collections::HashMap};
 
 use crate::extension::registry_extension::InterfaceName;
 use async_trait::async_trait;
-use dubbo_base::url::UrlParam;
-use dubbo_base::Url;
+use dubbo_base::{url::UrlParam, Url};
 
 use super::{
     triple_exporter::TripleExporter, triple_invoker::TripleInvoker, triple_server::TripleServer,
