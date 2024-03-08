@@ -37,7 +37,7 @@ async fn main() {
         .add_registry_extension_loader(Box::new(NacosRegistryExtensionLoader))
         .await;
 
-    let builder = ClientBuilder::new().with_registry("nacos://172.20.69.109:8848".parse().unwrap());
+    let builder = ClientBuilder::new().with_registry("nacos://127.0.0.1:8848".parse().unwrap());
 
     let mut cli = GreeterClient::new(builder);
 

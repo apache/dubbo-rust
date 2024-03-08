@@ -65,7 +65,7 @@ async fn main() {
 
     let mut f = Dubbo::new()
         .with_config(r)
-        .add_registry("nacos://172.20.69.109:8848/");
+        .add_registry("nacos://127.0.0.1:8848/");
 
     f.start().await;
 }
