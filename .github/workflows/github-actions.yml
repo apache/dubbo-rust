@@ -61,7 +61,7 @@ jobs:
         env:
           ZOO_MY_ID: 1
       nacos:
-        image: nacos/nacos-server:V2.3.1
+        image: nacos/nacos-server:v2.3.1
         ports:
           - 8848:8848
         env:
