@@ -24,7 +24,7 @@ use registry_nacos::{NacosRegistry, NacosRegistryExtensionLoader};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use dubbo::{codegen::*, Dubbo};
+use dubbo::{codegen::*, extension, Dubbo};
 use dubbo_config::RootConfig;
 use dubbo_logger::{
     tracing::{info, span},
@@ -59,10 +59,7 @@ async fn main() {
         Err(_err) => panic!("err: {:?}", _err), // response was droped
     };
 
-    let _ = dubbo::extension::INSTANCE
-        .add_registry_extension_loader(Box::new(NacosRegistryExtensionLoader))
-        .await;
-
+    let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
     let mut f = Dubbo::new()
         .with_config(r)
         .add_registry("nacos://127.0.0.1:8848/");

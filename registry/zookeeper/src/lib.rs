@@ -30,8 +30,7 @@ use tokio::{select, sync::mpsc};
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
 use dubbo::{
-    extension::registry_extension::InterfaceName,
-    registry::n_registry::{DiscoverStream, Registry, ServiceChange},
+    extension::registry_extension::{DiscoverStream, InterfaceName, Registry, ServiceChange},
     StdError,
 };
 use dubbo_base::url::UrlParam;

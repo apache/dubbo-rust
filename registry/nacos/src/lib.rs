@@ -25,12 +25,11 @@ use anyhow::anyhow;
 use dubbo::{
     extension::{
         registry_extension::{
-            proxy::RegistryProxy, AppName, Category, Group, InterfaceName, RegistryUrl,
-            ServiceNamespace, Version,
+            proxy::RegistryProxy, AppName, Category, DiscoverStream, Group, InterfaceName,
+            Registry, RegistryUrl, ServiceChange, ServiceNamespace, Version,
         },
-        RegistryExtensionLoader,
+        Extension,
     },
-    registry::n_registry::{DiscoverStream, Registry, ServiceChange},
     StdError,
 };
 use dubbo_base::url::UrlParam;
@@ -44,59 +43,6 @@ use tokio::sync::{watch, Notify};
 use crate::utils::{build_nacos_client_props, is_concrete_str, is_wildcard_str, match_range};
 
 pub struct NacosRegistryExtensionLoader;
-
-impl NacosRegistryExtensionLoader {
-    pub const NAME: &'static str = "nacos";
-}
-
-#[async_trait::async_trait]
-impl RegistryExtensionLoader for NacosRegistryExtensionLoader {
-    fn name(&self) -> String {
-        Self::NAME.to_string()
-    }
-
-    async fn load(&mut self, url: &Url) -> Result<RegistryProxy, StdError> {
-        // url example:
-        // extension://127.0.0.1?extension-type=registry&extension-loader-name=nacos-registry-extension-loader&extension-name=nacos://127.0.0.1:8848&registry=nacos://127.0.0.1:8848
-        let registry_url = url.query::<RegistryUrl>().unwrap();
-        let registry_url = registry_url.value();
-
-        let host = registry_url.host().unwrap();
-        let port = registry_url.port().unwrap_or(8848);
-
-        let nacos_server_addr = format!("{}:{}", host, port);
-
-        let namespace = registry_url.query::<ServiceNamespace>().unwrap_or_default();
-        let namespace = namespace.value();
-
-        let app_name = registry_url.query::<AppName>().unwrap_or_default();
-        let app_name = app_name.value();
-
-        let user_name = registry_url.username();
-        let password = registry_url.password().unwrap_or_default();
-
-        let nacos_client_props = ClientProps::new()
-            .server_addr(nacos_server_addr)
-            .namespace(namespace)
-            .app_name(app_name)
-            .auth_username(user_name)
-            .auth_password(password);
-
-        let mut nacos_naming_builder = NamingServiceBuilder::new(nacos_client_props);
-
-        if !user_name.is_empty() {
-            nacos_naming_builder = nacos_naming_builder.enable_auth_plugin_http();
-        }
-
-        let nacos_naming_service = nacos_naming_builder.build().unwrap();
-
-        let nacos_registry = NacosRegistry::new(registry_url, Arc::new(nacos_naming_service));
-
-        Ok(RegistryProxy::from(
-            Box::new(nacos_registry) as Box<dyn Registry + Send>
-        ))
-    }
-}
 
 pub struct NacosRegistry {
     url: Url,
@@ -309,6 +255,55 @@ impl Registry for NacosRegistry {
     }
 }
 
+#[async_trait]
+impl Extension for NacosRegistry {
+    type Target = Box<dyn Registry + Send + 'static>;
+
+    fn name() -> String {
+        "nacos".to_string()
+    }
+
+    async fn create(url: &Url) -> Result<Self::Target, StdError> {
+        // url example:
+        // extension://0.0.0.0?extension-type=registry&extension-name=nacos&registry=nacos://127.0.0.1:8848
+        let registry_url = url.query::<RegistryUrl>().unwrap();
+        let registry_url = registry_url.value();
+
+        let host = registry_url.host().unwrap();
+        let port = registry_url.port().unwrap_or(8848);
+
+        let nacos_server_addr = format!("{}:{}", host, port);
+
+        let namespace = registry_url.query::<ServiceNamespace>().unwrap_or_default();
+        let namespace = namespace.value();
+
+        let app_name = registry_url.query::<AppName>().unwrap_or_default();
+        let app_name = app_name.value();
+
+        let user_name = registry_url.username();
+        let password = registry_url.password().unwrap_or_default();
+
+        let nacos_client_props = ClientProps::new()
+            .server_addr(nacos_server_addr)
+            .namespace(namespace)
+            .app_name(app_name)
+            .auth_username(user_name)
+            .auth_password(password);
+
+        let mut nacos_naming_builder = NamingServiceBuilder::new(nacos_client_props);
+
+        if !user_name.is_empty() {
+            nacos_naming_builder = nacos_naming_builder.enable_auth_plugin_http();
+        }
+
+        let nacos_naming_service = nacos_naming_builder.build().unwrap();
+
+        let nacos_registry = NacosRegistry::new(registry_url, Arc::new(nacos_naming_service));
+
+        Ok(Box::new(nacos_registry))
+    }
+}
+
 fn instance_to_url(instance: &ServiceInstance) -> Url {
     let mut url = Url::empty();
     url.set_protocol("provider");
@@ -441,12 +436,13 @@ pub mod tests {
             .with_max_level(LevelFilter::DEBUG)
             .init();
 
-        let mut extension_url: Url = "extension://127.0.0.1?extension-type=registry-extension&extension-loader-name=nacos-registry-loader".parse().unwrap();
-        extension_url.add_query_param(ExtensionName::new("nacos://127.0.0.1"));
+        let mut extension_url: Url = "extension://0.0.0.0?extension-type=registry"
+            .parse()
+            .unwrap();
+        extension_url.add_query_param(ExtensionName::new("nacos".to_string()));
         extension_url.add_query_param(RegistryUrl::new("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015".parse().unwrap()));
 
-        let mut nacos_registry_loader = NacosRegistryExtensionLoader;
-        let registry = nacos_registry_loader.load(&extension_url).await.unwrap();
+        let registry = NacosRegistry::create(&extension_url).await.unwrap();
 
         let mut service_url: Url = "tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807".parse().unwrap();
 
@@ -472,12 +468,13 @@ pub mod tests {
             .with_max_level(LevelFilter::DEBUG)
             .init();
 
-        let mut extension_url: Url = "extension://127.0.0.1?extension-type=registry-extension&extension-loader-name=nacos-registry-loader".parse().unwrap();
-        extension_url.add_query_param(ExtensionName::new("nacos://127.0.0.1"));
+        let mut extension_url: Url = "extension://0.0.0.0?extension-type=registry"
+            .parse()
+            .unwrap();
+        extension_url.add_query_param(ExtensionName::new("nacos".to_string()));
         extension_url.add_query_param(RegistryUrl::new("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015".parse().unwrap()));
 
-        let mut nacos_registry_loader = NacosRegistryExtensionLoader;
-        let registry = nacos_registry_loader.load(&extension_url).await.unwrap();
+        let registry = NacosRegistry::create(&extension_url).await.unwrap();
 
         let mut service_url: Url = "tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807".parse().unwrap();
 
@@ -511,12 +508,13 @@ pub mod tests {
             .with_max_level(LevelFilter::DEBUG)
             .init();
 
-        let mut extension_url: Url = "extension://127.0.0.1?extension-type=registry-extension&extension-loader-name=nacos-registry-loader".parse().unwrap();
-        extension_url.add_query_param(ExtensionName::new("nacos://127.0.0.1"));
+        let mut extension_url: Url = "extension://0.0.0.0?extension-type=registry"
+            .parse()
+            .unwrap();
+        extension_url.add_query_param(ExtensionName::new("nacos".to_string()));
         extension_url.add_query_param(RegistryUrl::new("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015".parse().unwrap()));
 
-        let mut nacos_registry_loader = NacosRegistryExtensionLoader;
-        let registry = nacos_registry_loader.load(&extension_url).await.unwrap();
+        let registry = NacosRegistry::create(&extension_url).await.unwrap();
 
         let mut service_url: Url = "tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807".parse().unwrap();
 
@@ -554,12 +552,13 @@ pub mod tests {
             .with_max_level(LevelFilter::DEBUG)
             .init();
 
-        let mut extension_url: Url = "extension://127.0.0.1?extension-type=registry-extension&extension-loader-name=nacos-registry-loader".parse().unwrap();
-        extension_url.add_query_param(ExtensionName::new("nacos://127.0.0.1"));
+        let mut extension_url: Url = "extension://0.0.0.0?extension-type=registry"
+            .parse()
+            .unwrap();
+        extension_url.add_query_param(ExtensionName::new("nacos".to_string()));
         extension_url.add_query_param(RegistryUrl::new("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015".parse().unwrap()));
 
-        let mut nacos_registry_loader = NacosRegistryExtensionLoader;
-        let registry = nacos_registry_loader.load(&extension_url).await.unwrap();
+        let registry = NacosRegistry::create(&extension_url).await.unwrap();
 
         let mut service_url: Url = "tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807".parse().unwrap();
 

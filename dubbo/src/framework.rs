@@ -24,9 +24,9 @@ use std::{
 
 use crate::{
     extension,
-    extension::RegistryExtensionLoader,
+    extension::registry_extension::{proxy::RegistryProxy, Registry},
     protocol::{BoxExporter, Protocol},
-    registry::{n_registry::Registry, protocol::RegistryProtocol},
+    registry::protocol::RegistryProtocol,
 };
 use dubbo_base::Url;
 use dubbo_config::{get_global_config, protocol::ProtocolRetrieve, RootConfig};
@@ -121,9 +121,7 @@ impl Dubbo {
 
         for registry_url in &self.registries {
             let registry_url = registry_url.clone();
-            let registry_extension = extension::INSTANCE
-                .load_registry_extension(registry_url)
-                .await;
+            let registry_extension = extension::EXTENSIONS.load_registry(registry_url).await;
             if let Ok(registry_extension) = registry_extension {
                 registry_extensions.push(registry_extension);
             }

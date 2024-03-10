@@ -20,22 +20,18 @@ pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
 }
 
-use std::env;
-
 use dubbo::codegen::*;
 
-use dubbo_base::Url;
+use dubbo::extension;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
-use registry_nacos::{NacosRegistry, NacosRegistryExtensionLoader};
+use registry_nacos::NacosRegistry;
 
 #[tokio::main]
 async fn main() {
     dubbo_logger::init();
 
-    let _ = dubbo::extension::INSTANCE
-        .add_registry_extension_loader(Box::new(NacosRegistryExtensionLoader))
-        .await;
+    let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
 
     let builder = ClientBuilder::new().with_registry("nacos://127.0.0.1:8848".parse().unwrap());
 

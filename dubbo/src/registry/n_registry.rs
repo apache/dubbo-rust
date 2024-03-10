@@ -3,97 +3,25 @@ use std::{
     collections::{HashMap, HashSet},
     convert::Infallible,
     str::FromStr,
-    sync::Arc,
 };
 
-use crate::{
-    extension::{
-        registry_extension::{proxy::RegistryProxy, InterfaceName, RegistryUrl},
-        ExtensionLoaderName, ExtensionName, ExtensionType, RegistryExtensionLoader,
-    },
-    param::Param,
-};
 use async_trait::async_trait;
-use dubbo_base::{url::UrlParam, Url};
 use itertools::Itertools;
 use thiserror::Error;
 use tokio::sync::{
-    mpsc::{self, Receiver},
+    mpsc::{self},
     Mutex,
 };
-use tower::discover::Change;
 
-use crate::StdError;
+use dubbo_base::{url::UrlParam, Url};
 
-pub type ServiceChange = Change<String, ()>;
-pub type DiscoverStream = Receiver<Result<ServiceChange, StdError>>;
-pub type BoxRegistry = Box<dyn Registry + Send + Sync>;
-
-#[async_trait]
-pub trait Registry {
-    async fn register(&self, url: Url) -> Result<(), StdError>;
-
-    async fn unregister(&self, url: Url) -> Result<(), StdError>;
-
-    async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError>;
-
-    async fn unsubscribe(&self, url: Url) -> Result<(), StdError>;
-
-    fn url(&self) -> &Url;
-}
-
-pub(crate) struct StaticRegistryExtensionLoader;
-
-impl StaticRegistryExtensionLoader {
-    pub const NAME: &'static str = "static";
-}
-
-impl StaticRegistryExtensionLoader {
-    pub fn to_extension_url(static_invoker_urls: Vec<Url>) -> Url {
-        let static_invoker_urls: StaticInvokerUrls =
-            static_invoker_urls.iter().join(",").parse().unwrap();
-        let mut static_registry_extension_loader_url: Url =
-            "extension://127.0.0.1".parse().unwrap();
-
-        static_registry_extension_loader_url.add_query_param(ExtensionType::Registry);
-        static_registry_extension_loader_url.add_query_param(ExtensionLoaderName::new(
-            StaticRegistryExtensionLoader::NAME,
-        ));
-        static_registry_extension_loader_url
-            .add_query_param(ExtensionName::new("static://127.0.0.1"));
-        static_registry_extension_loader_url
-            .add_query_param(RegistryUrl::new("static://127.0.0.1".parse().unwrap()));
-        static_registry_extension_loader_url.add_query_param(static_invoker_urls);
-
-        static_registry_extension_loader_url
-    }
-}
-
-#[async_trait::async_trait]
-impl RegistryExtensionLoader for StaticRegistryExtensionLoader {
-    fn name(&self) -> String {
-        Self::NAME.to_string()
-    }
-
-    async fn load(&mut self, url: &Url) -> Result<RegistryProxy, StdError> {
-        // url example:
-        // extension://127.0.0.1?extension-type=registry&extension-loader-name=static&extension-name=static://127.0.0.1&registry=static://127.0.0.1
-        let static_invoker_urls = url.query::<StaticInvokerUrls>();
-
-        let registry_url = url.query::<RegistryUrl>().unwrap();
-        let mut registry_url = registry_url.value();
-
-        if let Some(static_invoker_urls) = static_invoker_urls {
-            registry_url.add_query_param(static_invoker_urls);
-        }
-
-        let static_registry = StaticRegistry::new(registry_url);
-
-        Ok(RegistryProxy::from(
-            Box::new(static_registry) as Box<dyn Registry + Send>
-        ))
-    }
-}
+use crate::{
+    extension::{
+        registry_extension::{DiscoverStream, InterfaceName, Registry, RegistryUrl, ServiceChange},
+        Extension, ExtensionName, ExtensionType,
+    },
+    StdError,
+};
 
 pub struct StaticServiceValues {
     listeners: Vec<mpsc::Sender<Result<ServiceChange, StdError>>>,
@@ -103,6 +31,22 @@ pub struct StaticServiceValues {
 pub struct StaticRegistry {
     urls: Mutex<HashMap<String, StaticServiceValues>>,
     self_url: Url,
+}
+
+impl StaticRegistry {
+    pub fn to_extension_url(static_invoker_urls: Vec<Url>) -> Url {
+        let static_invoker_urls: StaticInvokerUrls =
+            static_invoker_urls.iter().join(",").parse().unwrap();
+        let mut static_registry_extension_loader_url: Url = "extension://0.0.0.0".parse().unwrap();
+
+        static_registry_extension_loader_url.add_query_param(ExtensionType::Registry);
+        static_registry_extension_loader_url.add_query_param(ExtensionName::new(Self::name()));
+        static_registry_extension_loader_url
+            .add_query_param(RegistryUrl::new("static://127.0.0.1".parse().unwrap()));
+        static_registry_extension_loader_url.add_query_param(static_invoker_urls);
+
+        static_registry_extension_loader_url
+    }
 }
 
 impl StaticRegistry {
@@ -235,6 +179,31 @@ impl Registry for StaticRegistry {
     }
 }
 
+#[async_trait::async_trait]
+impl Extension for StaticRegistry {
+    type Target = Box<dyn Registry + Send + 'static>;
+
+    fn name() -> String {
+        "static".to_string()
+    }
+
+    async fn create(url: &Url) -> Result<Self::Target, StdError> {
+        // url example:
+        // extension://0.0.0.0?extension-type=registry&extension-name=static&registry=static://127.0.0.1
+        let static_invoker_urls = url.query::<StaticInvokerUrls>();
+
+        let registry_url = url.query::<RegistryUrl>().unwrap();
+        let mut registry_url = registry_url.value();
+
+        if let Some(static_invoker_urls) = static_invoker_urls {
+            registry_url.add_query_param(static_invoker_urls);
+        }
+
+        let static_registry = StaticRegistry::new(registry_url);
+
+        Ok(Box::new(static_registry))
+    }
+}
 #[derive(Error, Debug)]
 #[error("static registry error: {0}")]
 struct StaticRegistryError(String);
@@ -252,7 +221,7 @@ impl UrlParam for StaticInvokerUrls {
         self.0.split(",").map(|url| url.parse().unwrap()).collect()
     }
 
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
+    fn as_str(&self) -> Cow<str> {
         Cow::Borrowed(&self.0)
     }
 }

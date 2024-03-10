@@ -1,37 +1,195 @@
+use std::{
+    borrow::Cow, collections::HashMap, convert::Infallible, future::Future, pin::Pin, str::FromStr,
+};
+
+use async_trait::async_trait;
+use thiserror::Error;
+use tokio::sync::mpsc::Receiver;
+use tower::discover::Change;
+
+use dubbo_base::{url::UrlParam, Url};
+use proxy::RegistryProxy;
+
 use crate::{
-    extension::{ExtensionLoaderName, ExtensionName, ExtensionType},
+    extension::{
+        ConvertToExtensionFactories, Extension, ExtensionFactories, ExtensionMetaInfo,
+        ExtensionName, ExtensionType,
+    },
     StdError,
 };
-use dubbo_base::{url::UrlParam, Url};
-use std::{borrow::Cow, convert::Infallible, str::FromStr};
 
+// extension://0.0.0.0/?extension-type=registry&extension-name=nacos&registry-url=nacos://127.0.0.1:8848
 pub fn to_extension_url(registry_url: Url) -> Url {
-    let mut registry_extension_loader_url: Url = "extension://127.0.0.1".parse().unwrap();
+    let mut registry_extension_loader_url: Url = "extension://0.0.0.0".parse().unwrap();
 
     let protocol = registry_url.protocol();
 
     registry_extension_loader_url.add_query_param(ExtensionType::Registry);
-    registry_extension_loader_url.add_query_param(ExtensionLoaderName::new(protocol));
-    registry_extension_loader_url.add_query_param(ExtensionName::new(
-        registry_url.short_url_without_query().as_str(),
-    ));
+    registry_extension_loader_url.add_query_param(ExtensionName::new(protocol.to_string()));
     registry_extension_loader_url.add_query_param(RegistryUrl::new(registry_url));
 
     registry_extension_loader_url
 }
 
+pub type ServiceChange = Change<String, ()>;
+pub type DiscoverStream = Receiver<Result<ServiceChange, StdError>>;
+
+#[async_trait]
+pub trait Registry {
+    async fn register(&self, url: Url) -> Result<(), StdError>;
+
+    async fn unregister(&self, url: Url) -> Result<(), StdError>;
+
+    async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError>;
+
+    async fn unsubscribe(&self, url: Url) -> Result<(), StdError>;
+
+    fn url(&self) -> &Url;
+}
+
+impl<T> crate::extension::Sealed for T where T: Registry + Send + 'static {}
+
+impl<T> ExtensionMetaInfo for T
+where
+    T: Registry + Send + 'static,
+    T: Extension<Target = Box<dyn Registry + Send + 'static>>,
+{
+    fn extension_type() -> ExtensionType {
+        ExtensionType::Registry
+    }
+}
+
+impl<T> ConvertToExtensionFactories for T
+where
+    T: Registry + Send + 'static,
+    T: Extension<Target = Box<dyn Registry + Send + 'static>>,
+{
+    fn convert_to_extension_factories() -> ExtensionFactories {
+        fn constrain<F>(f: F) -> F
+        where
+            F: for<'a> Fn(
+                &'a Url,
+            ) -> Pin<
+                Box<
+                    dyn Future<Output = Result<Box<dyn Registry + Send + 'static>, StdError>>
+                        + Send
+                        + 'a,
+                >,
+            >,
+        {
+            f
+        }
+
+        let constructor = constrain(|url: &Url| {
+            let f = <T as Extension>::create(url);
+            Box::pin(f)
+        });
+
+        ExtensionFactories::RegistryExtensionFactory(RegistryExtensionFactory::new(constructor))
+    }
+}
+
+#[derive(Default)]
+pub(super) struct RegistryExtensionLoader {
+    factories: HashMap<String, RegistryExtensionFactory>,
+}
+
+impl RegistryExtensionLoader {
+    pub(super) fn new() -> Self {
+        Self {
+            factories: HashMap::new(),
+        }
+    }
+
+    pub(crate) async fn register(
+        &mut self,
+        extension_name: String,
+        factory: RegistryExtensionFactory,
+    ) {
+        self.factories.insert(extension_name, factory);
+    }
+
+    pub(crate) async fn remove(&mut self, extension_name: String) {
+        self.factories.remove(&extension_name);
+    }
+
+    pub(crate) async fn load(&mut self, url: &Url) -> Result<RegistryProxy, StdError> {
+        let extension_name = url.query::<ExtensionName>().unwrap();
+        let extension_name = extension_name.value();
+        let factory = self.factories.get_mut(&extension_name).ok_or_else(|| {
+            RegistryExtensionLoaderError::new(format!(
+                "registry extension loader error: extension name {} not found",
+                extension_name
+            ))
+        })?;
+        factory.create(url).await
+    }
+}
+
+type RegistryConstructor = for<'a> fn(
+    &'a Url,
+) -> Pin<
+    Box<dyn Future<Output = Result<Box<dyn Registry + Send + 'static>, StdError>> + Send + 'a>,
+>;
+pub(super) struct RegistryExtensionFactory {
+    constructor: RegistryConstructor,
+    instances: HashMap<String, RegistryProxy>,
+}
+
+impl RegistryExtensionFactory {
+    pub(super) fn new(constructor: RegistryConstructor) -> Self {
+        Self {
+            constructor,
+            instances: HashMap::new(),
+        }
+    }
+}
+
+impl RegistryExtensionFactory {
+    pub(super) async fn create(&mut self, url: &Url) -> Result<RegistryProxy, StdError> {
+        let registry_url = url.query::<RegistryUrl>().unwrap();
+        let registry_url = registry_url.value();
+        let url_str = registry_url.as_str().to_string();
+        match self.instances.get(&url_str) {
+            Some(proxy) => {
+                let proxy = proxy.clone();
+                Ok(proxy)
+            }
+            None => {
+                let registry = (self.constructor)(url).await?;
+                let proxy = <RegistryProxy as From<Box<dyn Registry + Send>>>::from(registry);
+                self.instances.insert(url_str, proxy.clone());
+                Ok(proxy)
+            }
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+#[error("{0}")]
+pub(crate) struct RegistryExtensionLoaderError(String);
+
+impl RegistryExtensionLoaderError {
+    pub(crate) fn new(msg: String) -> Self {
+        RegistryExtensionLoaderError(msg)
+    }
+}
+
 pub mod proxy {
-    use crate::{
-        registry::n_registry::{DiscoverStream, Registry},
-        StdError,
-    };
     use async_trait::async_trait;
-    use dubbo_base::Url;
-    use dubbo_logger::tracing::error;
     use thiserror::Error;
     use tokio::sync::oneshot;
 
-    pub enum RegistryOpt {
+    use crate::extension::Extension;
+    use dubbo_base::Url;
+    use dubbo_logger::tracing::error;
+
+    use crate::{
+        extension::registry_extension::{DiscoverStream, Registry},
+        StdError,
+    };
+
+    pub(super) enum RegistryOpt {
         Register(Url, oneshot::Sender<Result<(), StdError>>),
         Unregister(Url, oneshot::Sender<Result<(), StdError>>),
         Subscribe(Url, oneshot::Sender<Result<DiscoverStream, StdError>>),
@@ -240,7 +398,7 @@ impl UrlParam for RegistryUrl {
         self.0.clone()
     }
 
-    fn as_str<'a>(&'a self) -> std::borrow::Cow<'a, str> {
+    fn as_str<'a>(&'a self) -> Cow<'a, str> {
         self.0.as_str().into()
     }
 }
@@ -272,7 +430,7 @@ impl UrlParam for ServiceNamespace {
         self.0.clone()
     }
 
-    fn as_str<'a>(&'a self) -> std::borrow::Cow<'a, str> {
+    fn as_str<'a>(&'a self) -> Cow<'a, str> {
         self.0.as_str().into()
     }
 }
@@ -310,7 +468,7 @@ impl UrlParam for AppName {
         self.0.clone()
     }
 
-    fn as_str<'a>(&'a self) -> std::borrow::Cow<'a, str> {
+    fn as_str<'a>(&'a self) -> Cow<'a, str> {
         self.0.as_str().into()
     }
 }
@@ -348,7 +506,7 @@ impl UrlParam for InterfaceName {
         self.0.clone()
     }
 
-    fn as_str<'a>(&'a self) -> std::borrow::Cow<'a, str> {
+    fn as_str<'a>(&'a self) -> Cow<'a, str> {
         self.0.as_str().into()
     }
 }
@@ -386,7 +544,7 @@ impl UrlParam for Category {
         self.0.clone()
     }
 
-    fn as_str<'a>(&'a self) -> std::borrow::Cow<'a, str> {
+    fn as_str<'a>(&'a self) -> Cow<'a, str> {
         self.0.as_str().into()
     }
 }
@@ -424,7 +582,7 @@ impl UrlParam for Version {
         self.0.clone()
     }
 
-    fn as_str<'a>(&'a self) -> std::borrow::Cow<'a, str> {
+    fn as_str<'a>(&'a self) -> Cow<'a, str> {
         self.0.as_str().into()
     }
 }
@@ -462,7 +620,7 @@ impl UrlParam for Group {
         self.0.clone()
     }
 
-    fn as_str<'a>(&'a self) -> std::borrow::Cow<'a, str> {
+    fn as_str<'a>(&'a self) -> Cow<'a, str> {
         self.0.as_str().into()
     }
 }

@@ -1,103 +1,115 @@
 pub mod registry_extension;
 
 use crate::{
-    extension::registry_extension::{proxy::RegistryProxy, RegistryUrl},
-    registry::n_registry::{Registry, StaticInvokerUrls, StaticRegistryExtensionLoader},
+    extension::registry_extension::proxy::RegistryProxy, registry::n_registry::StaticRegistry,
     StdError,
 };
 use dubbo_base::{url::UrlParam, Url};
-use dubbo_logger::tracing::{debug, error};
-use std::{borrow::Cow, collections::HashMap, convert::Infallible, str::FromStr};
+use dubbo_logger::tracing::{error, info};
+use std::{borrow::Cow, convert::Infallible, str::FromStr};
 use thiserror::Error;
 use tokio::sync::oneshot;
 
-pub static INSTANCE: once_cell::sync::Lazy<ExtensionDirectoryCommander> =
+pub static EXTENSIONS: once_cell::sync::Lazy<ExtensionDirectoryCommander> =
     once_cell::sync::Lazy::new(|| ExtensionDirectory::init());
 
 #[derive(Default)]
 struct ExtensionDirectory {
-    registry_extension_loaders: HashMap<String, RegistryExtensionLoaderWrapper>,
+    registry_extension_loader: registry_extension::RegistryExtensionLoader,
 }
 
 impl ExtensionDirectory {
     fn init() -> ExtensionDirectoryCommander {
-        let (tx, rx) = tokio::sync::mpsc::channel::<ExtensionOpt>(64);
-
-        let mut directory = ExtensionDirectory::default();
-
-        let static_registry_extension_loader = StaticRegistryExtensionLoader;
-
-        directory.add_registry_extension_loader(Box::new(static_registry_extension_loader));
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<ExtensionOpt>(64);
 
         tokio::spawn(async move {
-            directory.run(rx).await;
+            let mut extension_directory = ExtensionDirectory::default();
+
+            // register static registry extension
+            let _ = extension_directory
+                .register(
+                    StaticRegistry::name(),
+                    StaticRegistry::convert_to_extension_factories(),
+                    ExtensionType::Registry,
+                )
+                .await;
+
+            while let Some(extension_opt) = rx.recv().await {
+                match extension_opt {
+                    ExtensionOpt::Register(
+                        extension_name,
+                        extension_factories,
+                        extension_type,
+                        tx,
+                    ) => {
+                        let result = extension_directory
+                            .register(extension_name, extension_factories, extension_type)
+                            .await;
+                        let _ = tx.send(result);
+                    }
+                    ExtensionOpt::Remove(extension_name, extension_type, tx) => {
+                        let result = extension_directory
+                            .remove(extension_name, extension_type)
+                            .await;
+                        let _ = tx.send(result);
+                    }
+                    ExtensionOpt::Load(url, extension_type, tx) => {
+                        let result = extension_directory.load(url, extension_type).await;
+                        let _ = tx.send(result);
+                    }
+                }
+            }
         });
 
-        ExtensionDirectoryCommander::new(tx)
+        ExtensionDirectoryCommander { sender: tx }
     }
 
-    async fn run(mut self, mut rx: tokio::sync::mpsc::Receiver<ExtensionOpt>) {
-        while let Some(opt) = rx.recv().await {
-            match opt {
-                ExtensionOpt::AddRegistryExtensionLoader(loader) => {
-                    self.add_registry_extension_loader(loader)
+    async fn register(
+        &mut self,
+        extension_name: String,
+        extension_factories: ExtensionFactories,
+        extension_type: ExtensionType,
+    ) -> Result<(), StdError> {
+        match extension_type {
+            ExtensionType::Registry => match extension_factories {
+                ExtensionFactories::RegistryExtensionFactory(registry_extension_factory) => {
+                    self.registry_extension_loader
+                        .register(extension_name, registry_extension_factory)
+                        .await;
+                    Ok(())
                 }
+            },
+        }
+    }
 
-                ExtensionOpt::RemoveRegistryExtensionLoader(name) => {
-                    self.remove_registry_extension_loader(&name)
-                }
-
-                ExtensionOpt::LoadRegistryExtension(url, tx) => {
-                    self.load_registry_extension(url, tx).await
-                }
+    async fn remove(
+        &mut self,
+        extension_name: String,
+        extension_type: ExtensionType,
+    ) -> Result<(), StdError> {
+        match extension_type {
+            ExtensionType::Registry => {
+                self.registry_extension_loader.remove(extension_name).await;
+                Ok(())
             }
         }
     }
 
-    fn add_registry_extension_loader(&mut self, loader: Box<dyn RegistryExtensionLoader + Send>) {
-        let name = loader.name();
-        debug!("add registry extension loader, name: {}", name);
-        self.registry_extension_loaders
-            .insert(name, RegistryExtensionLoaderWrapper::new(loader));
-    }
-
-    fn remove_registry_extension_loader(&mut self, name: &str) {
-        debug!("remove registry extension loader, name: {}", name);
-        self.registry_extension_loaders.remove(name);
-    }
-
-    async fn load_registry_extension(&mut self, url: Url, tx: oneshot::Sender<RegistryProxy>) {
-        let extension_loader_name = url.query::<ExtensionLoaderName>();
-        match extension_loader_name {
-            Some(extension_loader_name) => {
-                let extension_loader_name = extension_loader_name.value();
-                if let Some(loader) = self
-                    .registry_extension_loaders
-                    .get_mut(&extension_loader_name)
-                {
-                    match loader.load(&url).await {
-                        Ok(extension) => match tx.send(extension) {
-                            Ok(_) => {}
-                            Err(_) => {
-                                error!("load registry extension error: send load extension response failed, url: {}", url);
-                            }
-                        },
-                        Err(err) => {
-                            error!("load registry extension error: {}", err);
-                        }
+    async fn load(
+        &mut self,
+        url: Url,
+        extension_type: ExtensionType,
+    ) -> Result<Extensions, StdError> {
+        match extension_type {
+            ExtensionType::Registry => {
+                let extension = self.registry_extension_loader.load(&url).await;
+                match extension {
+                    Ok(extension) => Ok(Extensions::Registry(extension)),
+                    Err(err) => {
+                        error!("load extension failed: {}", err);
+                        Err(err)
                     }
-                } else {
-                    error!(
-                        "load registry extension error: extension loader not found, name: {}",
-                        extension_loader_name
-                    );
                 }
-            }
-            None => {
-                error!(
-                    "load registry extension error: extension name not found, url: {}",
-                    url
-                );
             }
         }
     }
@@ -108,94 +120,188 @@ pub struct ExtensionDirectoryCommander {
 }
 
 impl ExtensionDirectoryCommander {
-    fn new(sender: tokio::sync::mpsc::Sender<ExtensionOpt>) -> Self {
-        ExtensionDirectoryCommander { sender }
-    }
+    pub async fn register<T>(&self) -> Result<(), StdError>
+    where
+        T: Extension,
+        T: ExtensionMetaInfo,
+        T: ConvertToExtensionFactories,
+    {
+        let extension_name = T::name();
+        let extension_factories = T::convert_to_extension_factories();
+        let extension_type = T::extension_type();
 
-    pub async fn add_registry_extension_loader(
-        &self,
-        loader: Box<dyn RegistryExtensionLoader + Send>,
-    ) -> Result<(), StdError> {
-        match self
+        info!(
+            "register extension: {}, type: {}",
+            extension_name,
+            extension_type.as_str()
+        );
+
+        let (tx, rx) = oneshot::channel();
+
+        let send = self
             .sender
-            .send(ExtensionOpt::AddRegistryExtensionLoader(loader))
-            .await
-        {
+            .send(ExtensionOpt::Register(
+                extension_name.clone(),
+                extension_factories,
+                extension_type,
+                tx,
+            ))
+            .await;
+
+        let Ok(_) = send else {
+            let err_msg = format!("register extension {} failed", extension_name);
+            return Err(RegisterExtensionError::new(err_msg).into());
+        };
+
+        let ret = rx.await;
+
+        match ret {
             Ok(_) => Ok(()),
             Err(_) => {
-                Err(AddExtensionLoaderError::new("add registry extension loader failed").into())
+                let err_msg = format!("register extension {} failed", extension_name);
+                Err(RegisterExtensionError::new(err_msg).into())
             }
         }
     }
 
-    pub async fn remove_registry_extension_loader(&self, name: &str) -> Result<(), StdError> {
-        match self
+    pub async fn remove<T>(&self) -> Result<(), StdError>
+    where
+        T: Extension,
+        T: ExtensionMetaInfo,
+    {
+        let extension_name = T::name();
+        let extension_type = T::extension_type();
+
+        info!(
+            "remove extension: {}, type: {}",
+            extension_name,
+            extension_type.as_str()
+        );
+
+        let (tx, rx) = oneshot::channel();
+
+        let send = self
             .sender
-            .send(ExtensionOpt::RemoveRegistryExtensionLoader(
-                name.to_string(),
+            .send(ExtensionOpt::Remove(
+                extension_name.clone(),
+                extension_type,
+                tx,
             ))
-            .await
-        {
+            .await;
+
+        let Ok(_) = send else {
+            let err_msg = format!("remove extension {} failed", extension_name);
+            return Err(RemoveExtensionError::new(err_msg).into());
+        };
+
+        let ret = rx.await;
+
+        match ret {
             Ok(_) => Ok(()),
-            Err(_) => Err(RemoveExtensionLoaderError::new(
-                "remove registry extension loader failed",
-            )
-            .into()),
+            Err(_) => {
+                let err_msg = format!("remove extension {} failed", extension_name);
+                Err(RemoveExtensionError::new(err_msg).into())
+            }
         }
     }
 
-    pub async fn load_registry_extension(&self, url: Url) -> Result<RegistryProxy, StdError> {
+    pub async fn load_registry(&self, url: Url) -> Result<RegistryProxy, StdError> {
+        let url_str = url.to_string();
+        info!("load registry extension: {}", url_str);
+
         let (tx, rx) = oneshot::channel();
-        match self
+
+        let send = self
             .sender
-            .send(ExtensionOpt::LoadRegistryExtension(url.clone(), tx))
-            .await
-        {
-            Ok(_) => match rx.await {
-                Ok(result) => Ok(result),
-                Err(_) => {
-                    error!("load registry extension error: receive load extension response failed, url: {}", url);
-                    return Err(
-                        LoadExtensionError::new("receive load extension response failed").into(),
-                    );
-                }
-            },
-            Err(_) => {
-                error!(
-                    "load registry extension error: send load extension request failed, url: {}",
-                    url
-                );
-                return Err(LoadExtensionError::new("send load extension request failed").into());
+            .send(ExtensionOpt::Load(url, ExtensionType::Registry, tx))
+            .await;
+
+        let Ok(_) = send else {
+            let err_msg = format!("load registry extension failed: {}", url_str);
+            return Err(LoadExtensionError::new(err_msg).into());
+        };
+
+        let extensions = rx.await;
+
+        let Ok(extension) = extensions else {
+            let err_msg = format!("load registry extension failed: {}", url_str);
+            return Err(LoadExtensionError::new(err_msg).into());
+        };
+
+        let Ok(extensions) = extension else {
+            let err_msg = format!("load registry extension failed: {}", url_str);
+            return Err(LoadExtensionError::new(err_msg).into());
+        };
+
+        match extensions {
+            Extensions::Registry(proxy) => Ok(proxy),
+            _ => {
+                let err_msg = format!("load registry extension failed: {}", url_str);
+                Err(LoadExtensionError::new(err_msg).into())
             }
         }
     }
 }
 
 enum ExtensionOpt {
-    AddRegistryExtensionLoader(Box<dyn RegistryExtensionLoader + Send>),
+    Register(
+        String,
+        ExtensionFactories,
+        ExtensionType,
+        oneshot::Sender<Result<(), StdError>>,
+    ),
+    Remove(String, ExtensionType, oneshot::Sender<Result<(), StdError>>),
+    Load(
+        Url,
+        ExtensionType,
+        oneshot::Sender<Result<Extensions, StdError>>,
+    ),
+}
 
-    RemoveRegistryExtensionLoader(String),
+pub(crate) trait Sealed {}
 
-    LoadRegistryExtension(Url, oneshot::Sender<RegistryProxy>),
+#[async_trait::async_trait]
+pub trait Extension: Sealed {
+    type Target;
+
+    fn name() -> String;
+
+    async fn create(url: &Url) -> Result<Self::Target, StdError>;
+}
+
+pub(crate) trait ExtensionMetaInfo {
+    fn extension_type() -> ExtensionType;
+}
+
+pub(crate) enum Extensions {
+    Registry(RegistryProxy),
+}
+
+pub(crate) enum ExtensionFactories {
+    RegistryExtensionFactory(registry_extension::RegistryExtensionFactory),
+}
+
+pub(crate) trait ConvertToExtensionFactories {
+    fn convert_to_extension_factories() -> ExtensionFactories;
 }
 
 #[derive(Error, Debug)]
 #[error("{0}")]
-pub struct AddExtensionLoaderError(String);
+pub(crate) struct RegisterExtensionError(String);
 
-impl AddExtensionLoaderError {
-    pub fn new(msg: &str) -> Self {
-        AddExtensionLoaderError(msg.to_string())
+impl RegisterExtensionError {
+    pub fn new(msg: String) -> Self {
+        RegisterExtensionError(msg)
     }
 }
 
 #[derive(Error, Debug)]
 #[error("{0}")]
-pub struct RemoveExtensionLoaderError(String);
+pub struct RemoveExtensionError(String);
 
-impl RemoveExtensionLoaderError {
-    pub fn new(msg: &str) -> Self {
-        RemoveExtensionLoaderError(msg.to_string())
+impl RemoveExtensionError {
+    pub fn new(msg: String) -> Self {
+        RemoveExtensionError(msg)
     }
 }
 
@@ -204,108 +310,16 @@ impl RemoveExtensionLoaderError {
 pub struct LoadExtensionError(String);
 
 impl LoadExtensionError {
-    pub fn new(msg: &str) -> Self {
-        LoadExtensionError(msg.to_string())
-    }
-}
-
-macro_rules! extension_loader {
-    ($name:ident<$extension_proxy_type:tt>) => {
-        #[async_trait::async_trait]
-        pub trait $name {
-            fn name(&self) -> String;
-
-            async fn load(&mut self, url: &Url) -> Result<$extension_proxy_type, StdError>;
-        }
-    };
-}
-
-extension_loader!(RegistryExtensionLoader<RegistryProxy>);
-
-macro_rules! extension_loader_wrapper {
-    ($loader_wrapper:ident[$loader:ident<$extension_type:tt<=>$proxy_type:tt>]) => {
-        extension_loader_wrapper!($loader_wrapper, $loader, $extension_type, $proxy_type);
-    };
-    ($loader_wrapper:ident, $loader:ident, $extension_type:tt, $proxy_type:tt) => {
-        struct $loader_wrapper {
-            loader: Box<dyn $loader + Send>,
-            extensions: HashMap<String, $proxy_type>,
-        }
-
-        impl $loader_wrapper {
-            fn new(loader: Box<dyn $loader + Send>) -> Self {
-                $loader_wrapper {
-                    loader,
-                    extensions: HashMap::new(),
-                }
-            }
-        }
-
-        #[async_trait::async_trait]
-        impl $loader for $loader_wrapper {
-            fn name(&self) -> String {
-                self.loader.name()
-            }
-
-            async fn load(&mut self, url: &Url) -> Result<$proxy_type, StdError> {
-                let extension_name = url.query::<ExtensionName>();
-                let extension_name = match extension_name {
-                    None => "default".to_string(),
-                    Some(extension_name) => extension_name.value(),
-                };
-
-                if let Some(extension_proxy) = self.extensions.get(&extension_name) {
-                    return Ok(extension_proxy.clone());
-                }
-
-                let extension = self.loader.load(url).await?;
-                let extension = $proxy_type::from(extension);
-                self.extensions.insert(extension_name, extension.clone());
-                Ok(extension)
-            }
-        }
-    };
-}
-
-extension_loader_wrapper!(RegistryExtensionLoaderWrapper[RegistryExtensionLoader<Registry<=>RegistryProxy>]);
-
-pub struct ExtensionLoaderName(String);
-
-impl ExtensionLoaderName {
-    pub fn new(name: &str) -> Self {
-        ExtensionLoaderName(name.to_string())
-    }
-}
-
-impl UrlParam for ExtensionLoaderName {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "extension-loader-name"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.clone()
-    }
-
-    fn as_str<'a>(&'a self) -> std::borrow::Cow<'a, str> {
-        self.0.as_str().into()
-    }
-}
-
-impl FromStr for ExtensionLoaderName {
-    type Err = StdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(ExtensionLoaderName::new(s))
+    pub fn new(msg: String) -> Self {
+        LoadExtensionError(msg)
     }
 }
 
 pub struct ExtensionName(String);
 
 impl ExtensionName {
-    pub fn new(name: &str) -> Self {
-        ExtensionName(name.to_string())
+    pub fn new(name: String) -> Self {
+        ExtensionName(name)
     }
 }
 
@@ -320,7 +334,7 @@ impl UrlParam for ExtensionName {
         self.0.clone()
     }
 
-    fn as_str<'a>(&'a self) -> std::borrow::Cow<'a, str> {
+    fn as_str(&self) -> Cow<str> {
         self.0.as_str().into()
     }
 }
@@ -329,7 +343,7 @@ impl FromStr for ExtensionName {
     type Err = StdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(ExtensionName::new(s))
+        Ok(ExtensionName::new(s.to_string()))
     }
 }
 

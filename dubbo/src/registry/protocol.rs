@@ -22,9 +22,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use super::n_registry::{Registry, StaticRegistry};
+use super::n_registry::StaticRegistry;
 use crate::{
-    extension::registry_extension::{proxy::RegistryProxy, InterfaceName},
+    extension::registry_extension::{proxy::RegistryProxy, InterfaceName, Registry},
     protocol::{
         triple::{triple_exporter::TripleExporter, triple_protocol::TripleProtocol},
         BoxExporter, BoxInvoker, Protocol,

@@ -53,7 +53,7 @@ impl Service<()> for MkRegistryService {
     }
 
     fn call(&mut self, req: ()) -> Self::Future {
-        let fut = extension::INSTANCE.load_registry_extension(self.registry_url.clone());
+        let fut = extension::EXTENSIONS.load_registry(self.registry_url.clone());
         Box::pin(fut)
     }
 }

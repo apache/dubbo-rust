@@ -22,7 +22,7 @@ use crate::{
     route::NewRoutes, utils::boxed_clone::BoxCloneService,
 };
 
-use crate::registry::{n_registry::StaticRegistryExtensionLoader, MkRegistryService};
+use crate::registry::{n_registry::StaticRegistry, MkRegistryService};
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
 use tower::ServiceBuilder;
@@ -54,8 +54,7 @@ impl ClientBuilder {
     }
 
     pub fn from_static(host: &str) -> ClientBuilder {
-        let registry_extension_url =
-            StaticRegistryExtensionLoader::to_extension_url(vec![host.parse().unwrap()]);
+        let registry_extension_url = StaticRegistry::to_extension_url(vec![host.parse().unwrap()]);
         Self {
             timeout: None,
             connector: "",
@@ -81,8 +80,7 @@ impl ClientBuilder {
     }
 
     pub fn with_host(self, host: &'static str) -> Self {
-        let registry_extension_url =
-            StaticRegistryExtensionLoader::to_extension_url(vec![host.parse().unwrap()]);
+        let registry_extension_url = StaticRegistry::to_extension_url(vec![host.parse().unwrap()]);
 
         Self {
             registry_extension_url: Some(registry_extension_url),

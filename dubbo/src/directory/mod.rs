@@ -27,7 +27,6 @@ use crate::{
     invocation::Invocation,
     invoker::{clone_invoker::CloneInvoker, NewInvoker},
     param::Param,
-    registry::n_registry::Registry,
     svc::NewService,
     StdError,
 };
@@ -43,7 +42,7 @@ use tower::{
     ServiceExt,
 };
 
-use crate::extension::registry_extension::{proxy::RegistryProxy, InterfaceName};
+use crate::extension::registry_extension::{proxy::RegistryProxy, InterfaceName, Registry};
 use tower_service::Service;
 
 type BufferedDirectory =
