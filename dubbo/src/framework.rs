@@ -19,12 +19,11 @@ use std::{
     collections::HashMap,
     error::Error,
     pin::Pin,
-    sync::{Arc, Mutex},
 };
 
 use crate::{
     extension,
-    extension::registry_extension::{proxy::RegistryProxy, Registry},
+    extension::registry_extension::{Registry},
     protocol::{BoxExporter, Protocol},
     registry::protocol::RegistryProtocol,
 };

@@ -15,12 +15,7 @@
  * limitations under the License.
  */
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
 
-use itertools::Itertools;
 
 //
 // pub type Registries = Arc<Mutex<HashMap<String, ArcRegistry>>>;

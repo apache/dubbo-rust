@@ -18,9 +18,8 @@
 use std::{io::ErrorKind, pin::Pin};
 
 use async_trait::async_trait;
-use dubbo_base::Url;
 use futures_util::{Stream, StreamExt};
-use registry_nacos::{NacosRegistry, NacosRegistryExtensionLoader};
+use registry_nacos::NacosRegistry;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -34,8 +33,6 @@ use protos::{
     greeter_server::{register_server, Greeter},
     GreeterReply, GreeterRequest,
 };
-use registry_zookeeper::ZookeeperRegistry;
-
 pub mod protos {
     #![allow(non_camel_case_types)]
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));

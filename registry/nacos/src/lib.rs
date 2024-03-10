@@ -19,13 +19,12 @@ mod utils;
 use async_trait::async_trait;
 use dubbo_base::Url;
 use std::{collections::HashMap, sync::Arc};
-use tokio::{select, sync::mpsc};
+use tokio::{sync::mpsc};
 
-use anyhow::anyhow;
 use dubbo::{
     extension::{
         registry_extension::{
-            proxy::RegistryProxy, AppName, Category, DiscoverStream, Group, InterfaceName,
+            AppName, Category, DiscoverStream, Group, InterfaceName,
             Registry, RegistryUrl, ServiceChange, ServiceNamespace, Version,
         },
         Extension,
@@ -33,16 +32,13 @@ use dubbo::{
     StdError,
 };
 use dubbo_base::url::UrlParam;
-use dubbo_logger::tracing::{debug, error, info};
+use dubbo_logger::tracing::info;
 use nacos_sdk::api::{
     naming::{NamingEventListener, NamingService, NamingServiceBuilder, ServiceInstance},
     props::ClientProps,
 };
 use tokio::sync::{watch, Notify};
 
-use crate::utils::{build_nacos_client_props, is_concrete_str, is_wildcard_str, match_range};
-
-pub struct NacosRegistryExtensionLoader;
 
 pub struct NacosRegistry {
     url: Url,
@@ -418,6 +414,7 @@ pub mod tests {
 
     use core::time;
     use std::thread;
+    use tracing::error;
 
     use dubbo::extension::{registry_extension::Side, ExtensionName};
     use tracing::metadata::LevelFilter;

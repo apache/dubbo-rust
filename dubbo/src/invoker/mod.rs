@@ -1,4 +1,3 @@
-use dubbo_base::Url;
 
 use crate::{codegen::TripleInvoker, invoker::clone_invoker::CloneInvoker, svc::NewService};
 

@@ -22,7 +22,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use super::n_registry::StaticRegistry;
 use crate::{
     extension::registry_extension::{proxy::RegistryProxy, InterfaceName, Registry},
     protocol::{

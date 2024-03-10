@@ -180,7 +180,7 @@ pub mod proxy {
     use thiserror::Error;
     use tokio::sync::oneshot;
 
-    use crate::extension::Extension;
+    
     use dubbo_base::Url;
     use dubbo_logger::tracing::error;
 

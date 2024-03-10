@@ -32,7 +32,6 @@ use crate::{
 };
 use dubbo_base::Url;
 use dubbo_logger::tracing::{debug, error};
-use futures_core::ready;
 use futures_util::future;
 use tokio::sync::mpsc::channel;
 use tokio_stream::wrappers::ReceiverStream;
