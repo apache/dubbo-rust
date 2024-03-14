@@ -14,31 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-mod utils;
 
 use async_trait::async_trait;
-use dubbo_base::Url;
+use dubbo_base::{StdError, Url};
 use std::{collections::HashMap, sync::Arc};
-use tokio::{sync::mpsc};
+use tokio::sync::mpsc;
 
-use dubbo::{
-    extension::{
-        registry_extension::{
-            AppName, Category, DiscoverStream, Group, InterfaceName,
-            Registry, RegistryUrl, ServiceChange, ServiceNamespace, Version,
-        },
-        Extension,
-    },
-    StdError,
+use dubbo::extension::{
+    registry_extension::{DiscoverStream, Registry, ServiceChange},
+    Extension,
 };
-use dubbo_base::url::UrlParam;
+use dubbo_base::{
+    registry_param::{
+        AppName, Category, Group, InterfaceName, RegistryUrl, ServiceNamespace, Version,
+    },
+    url::UrlParam,
+};
 use dubbo_logger::tracing::info;
 use nacos_sdk::api::{
     naming::{NamingEventListener, NamingService, NamingServiceBuilder, ServiceInstance},
     props::ClientProps,
 };
 use tokio::sync::{watch, Notify};
-
 
 pub struct NacosRegistry {
     url: Url,
@@ -352,14 +349,19 @@ impl NamingEventListener for NacosNamingEventListener {
 }
 
 struct NacosServiceName {
+    #[allow(dead_code)]
     category: String,
 
+    #[allow(dead_code)]
     interface: String,
 
+    #[allow(dead_code)]
     version: String,
 
+    #[allow(dead_code)]
     group: String,
 
+    #[allow(dead_code)]
     value: String,
 }
 
@@ -388,22 +390,27 @@ impl NacosServiceName {
         }
     }
 
+    #[allow(dead_code)]
     fn category(&self) -> &str {
         &self.category
     }
 
+    #[allow(dead_code)]
     fn interface(&self) -> &str {
         &self.interface
     }
 
+    #[allow(dead_code)]
     fn version(&self) -> &str {
         &self.version
     }
 
+    #[allow(dead_code)]
     fn group(&self) -> &str {
         &self.group
     }
 
+    #[allow(dead_code)]
     fn value(&self) -> &str {
         &self.value
     }
@@ -416,7 +423,7 @@ pub mod tests {
     use std::thread;
     use tracing::error;
 
-    use dubbo::extension::{registry_extension::Side, ExtensionName};
+    use dubbo_base::{extension_param::ExtensionName, registry_param::Side};
     use tracing::metadata::LevelFilter;
 
     use super::*;

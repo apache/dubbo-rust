@@ -28,9 +28,8 @@ use crate::{
     invoker::{clone_invoker::CloneInvoker, NewInvoker},
     param::Param,
     svc::NewService,
-    StdError,
 };
-use dubbo_base::Url;
+use dubbo_base::{StdError, Url};
 use dubbo_logger::tracing::{debug, error};
 use futures_util::future;
 use tokio::sync::mpsc::channel;
@@ -41,7 +40,8 @@ use tower::{
     ServiceExt,
 };
 
-use crate::extension::registry_extension::{proxy::RegistryProxy, InterfaceName, Registry};
+use crate::extension::registry_extension::{proxy::RegistryProxy, Registry};
+use dubbo_base::registry_param::InterfaceName;
 use tower_service::Service;
 
 type BufferedDirectory =

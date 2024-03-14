@@ -1,12 +1,27 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 pub mod registry_extension;
 
 use crate::{
-    extension::registry_extension::proxy::RegistryProxy, registry::n_registry::StaticRegistry,
-    StdError,
+    extension::registry_extension::proxy::RegistryProxy, registry::registry::StaticRegistry,
 };
-use dubbo_base::{url::UrlParam, Url};
+use dubbo_base::{extension_param::ExtensionType, url::UrlParam, StdError, Url};
 use dubbo_logger::tracing::{error, info};
-use std::{borrow::Cow, convert::Infallible, str::FromStr};
 use thiserror::Error;
 use tokio::sync::oneshot;
 
@@ -120,6 +135,7 @@ pub struct ExtensionDirectoryCommander {
 }
 
 impl ExtensionDirectoryCommander {
+    #[allow(private_bounds)]
     pub async fn register<T>(&self) -> Result<(), StdError>
     where
         T: Extension,
@@ -164,6 +180,7 @@ impl ExtensionDirectoryCommander {
         }
     }
 
+    #[allow(private_bounds)]
     pub async fn remove<T>(&self) -> Result<(), StdError>
     where
         T: Extension,
@@ -235,10 +252,6 @@ impl ExtensionDirectoryCommander {
 
         match extensions {
             Extensions::Registry(proxy) => Ok(proxy),
-            _ => {
-                let err_msg = format!("load registry extension failed: {}", url_str);
-                Err(LoadExtensionError::new(err_msg).into())
-            }
         }
     }
 }
@@ -260,6 +273,7 @@ enum ExtensionOpt {
 
 pub(crate) trait Sealed {}
 
+#[allow(private_bounds)]
 #[async_trait::async_trait]
 pub trait Extension: Sealed {
     type Target;
@@ -269,6 +283,7 @@ pub trait Extension: Sealed {
     async fn create(url: &Url) -> Result<Self::Target, StdError>;
 }
 
+#[allow(private_bounds)]
 pub(crate) trait ExtensionMetaInfo {
     fn extension_type() -> ExtensionType;
 }
@@ -281,6 +296,7 @@ pub(crate) enum ExtensionFactories {
     RegistryExtensionFactory(registry_extension::RegistryExtensionFactory),
 }
 
+#[allow(private_bounds)]
 pub(crate) trait ConvertToExtensionFactories {
     fn convert_to_extension_factories() -> ExtensionFactories;
 }
@@ -312,72 +328,5 @@ pub struct LoadExtensionError(String);
 impl LoadExtensionError {
     pub fn new(msg: String) -> Self {
         LoadExtensionError(msg)
-    }
-}
-
-pub struct ExtensionName(String);
-
-impl ExtensionName {
-    pub fn new(name: String) -> Self {
-        ExtensionName(name)
-    }
-}
-
-impl UrlParam for ExtensionName {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "extension-name"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.clone()
-    }
-
-    fn as_str(&self) -> Cow<str> {
-        self.0.as_str().into()
-    }
-}
-
-impl FromStr for ExtensionName {
-    type Err = StdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(ExtensionName::new(s.to_string()))
-    }
-}
-
-pub enum ExtensionType {
-    Registry,
-}
-
-impl UrlParam for ExtensionType {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "extension-type"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        match self {
-            ExtensionType::Registry => "registry".to_owned(),
-        }
-    }
-
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
-        match self {
-            ExtensionType::Registry => Cow::Borrowed("registry"),
-        }
-    }
-}
-
-impl FromStr for ExtensionType {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "registry" => Ok(ExtensionType::Registry),
-            _ => panic!("the extension type enum is not in range"),
-        }
     }
 }

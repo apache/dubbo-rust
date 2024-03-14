@@ -15,15 +15,11 @@
  * limitations under the License.
  */
 
-use std::{
-    collections::HashMap,
-    error::Error,
-    pin::Pin,
-};
+use std::{collections::HashMap, error::Error, pin::Pin};
 
 use crate::{
     extension,
-    extension::registry_extension::{Registry},
+    extension::registry_extension::Registry,
     protocol::{BoxExporter, Protocol},
     registry::protocol::RegistryProtocol,
 };

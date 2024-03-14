@@ -17,8 +17,8 @@
 
 #![allow(unused_variables, dead_code, missing_docs)]
 
-use crate::{extension, extension::registry_extension::proxy::RegistryProxy, StdError};
-use dubbo_base::Url;
+use crate::{extension, extension::registry_extension::proxy::RegistryProxy};
+use dubbo_base::{StdError, Url};
 use std::{
     future::Future,
     pin::Pin,
@@ -27,9 +27,8 @@ use std::{
 use tower_service::Service;
 
 pub mod integration;
-pub mod n_registry;
 pub mod protocol;
-pub mod types;
+pub mod registry;
 
 #[derive(Clone)]
 pub struct MkRegistryService {

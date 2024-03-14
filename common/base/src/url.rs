@@ -173,5 +173,5 @@ pub trait UrlParam: FromStr {
 
     fn value(&self) -> Self::TargetType;
 
-    fn as_str<'a>(&'a self) -> Cow<'a, str>;
+    fn as_str(&self) -> Cow<str>;
 }

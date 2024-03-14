@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use dubbo_base::{url::UrlParam, Url};
+use dubbo_base::{registry_param::InterfaceName, url::UrlParam, Url};
 use dubbo_logger::tracing;
 use std::{
     collections::HashMap,
@@ -23,7 +23,7 @@ use std::{
 };
 
 use crate::{
-    extension::registry_extension::{proxy::RegistryProxy, InterfaceName, Registry},
+    extension::registry_extension::{proxy::RegistryProxy, Registry},
     protocol::{
         triple::{triple_exporter::TripleExporter, triple_protocol::TripleProtocol},
         BoxExporter, BoxInvoker, Protocol,

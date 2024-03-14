@@ -1,21 +1,34 @@
-use std::{
-    borrow::Cow, collections::HashMap, convert::Infallible, future::Future, pin::Pin, str::FromStr,
-};
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+use std::{collections::HashMap, future::Future, pin::Pin};
 
 use async_trait::async_trait;
 use thiserror::Error;
 use tokio::sync::mpsc::Receiver;
 use tower::discover::Change;
 
-use dubbo_base::{url::UrlParam, Url};
+use dubbo_base::{
+    extension_param::ExtensionName, registry_param::RegistryUrl, url::UrlParam, StdError, Url,
+};
 use proxy::RegistryProxy;
 
-use crate::{
-    extension::{
-        ConvertToExtensionFactories, Extension, ExtensionFactories, ExtensionMetaInfo,
-        ExtensionName, ExtensionType,
-    },
-    StdError,
+use crate::extension::{
+    ConvertToExtensionFactories, Extension, ExtensionFactories, ExtensionMetaInfo, ExtensionType,
 };
 
 // extension://0.0.0.0/?extension-type=registry&extension-name=nacos&registry-url=nacos://127.0.0.1:8848
@@ -95,12 +108,6 @@ pub(super) struct RegistryExtensionLoader {
 }
 
 impl RegistryExtensionLoader {
-    pub(super) fn new() -> Self {
-        Self {
-            factories: HashMap::new(),
-        }
-    }
-
     pub(crate) async fn register(
         &mut self,
         extension_name: String,
@@ -131,7 +138,8 @@ type RegistryConstructor = for<'a> fn(
 ) -> Pin<
     Box<dyn Future<Output = Result<Box<dyn Registry + Send + 'static>, StdError>> + Send + 'a>,
 >;
-pub(super) struct RegistryExtensionFactory {
+
+pub(crate) struct RegistryExtensionFactory {
     constructor: RegistryConstructor,
     instances: HashMap<String, RegistryProxy>,
 }
@@ -180,14 +188,10 @@ pub mod proxy {
     use thiserror::Error;
     use tokio::sync::oneshot;
 
-    
-    use dubbo_base::Url;
+    use dubbo_base::{StdError, Url};
     use dubbo_logger::tracing::error;
 
-    use crate::{
-        extension::registry_extension::{DiscoverStream, Registry},
-        StdError,
-    };
+    use crate::extension::registry_extension::{DiscoverStream, Registry};
 
     pub(super) enum RegistryOpt {
         Register(Url, oneshot::Sender<Result<(), StdError>>),
@@ -376,310 +380,5 @@ pub mod proxy {
         pub(crate) fn new(msg: &str) -> Self {
             RegistryProxyError(msg.to_string())
         }
-    }
-}
-
-pub struct RegistryUrl(Url);
-
-impl RegistryUrl {
-    pub fn new(url: Url) -> Self {
-        Self(url)
-    }
-}
-
-impl UrlParam for RegistryUrl {
-    type TargetType = Url;
-
-    fn name() -> &'static str {
-        "registry"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.clone()
-    }
-
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
-        self.0.as_str().into()
-    }
-}
-
-impl FromStr for RegistryUrl {
-    type Err = StdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.parse()?))
-    }
-}
-
-pub struct ServiceNamespace(String);
-
-impl ServiceNamespace {
-    pub fn new(namespace: String) -> Self {
-        Self(namespace)
-    }
-}
-
-impl UrlParam for ServiceNamespace {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "namespace"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.clone()
-    }
-
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
-        self.0.as_str().into()
-    }
-}
-
-impl FromStr for ServiceNamespace {
-    type Err = StdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
-    }
-}
-
-impl Default for ServiceNamespace {
-    fn default() -> Self {
-        Self("public".to_string())
-    }
-}
-
-pub struct AppName(String);
-
-impl AppName {
-    pub fn new(app_name: String) -> Self {
-        Self(app_name)
-    }
-}
-
-impl UrlParam for AppName {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "app_name"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.clone()
-    }
-
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
-        self.0.as_str().into()
-    }
-}
-
-impl FromStr for AppName {
-    type Err = StdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
-    }
-}
-
-impl Default for AppName {
-    fn default() -> Self {
-        Self("UnknownApp".to_string())
-    }
-}
-
-pub struct InterfaceName(String);
-
-impl InterfaceName {
-    pub fn new(interface_name: String) -> Self {
-        Self(interface_name)
-    }
-}
-
-impl UrlParam for InterfaceName {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "interface"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.clone()
-    }
-
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
-        self.0.as_str().into()
-    }
-}
-
-impl FromStr for InterfaceName {
-    type Err = StdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
-    }
-}
-
-impl Default for InterfaceName {
-    fn default() -> Self {
-        Self("".to_string())
-    }
-}
-
-pub struct Category(String);
-
-impl Category {
-    pub fn new(category: String) -> Self {
-        Self(category)
-    }
-}
-
-impl UrlParam for Category {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "category"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.clone()
-    }
-
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
-        self.0.as_str().into()
-    }
-}
-
-impl FromStr for Category {
-    type Err = StdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
-    }
-}
-
-impl Default for Category {
-    fn default() -> Self {
-        Self("".to_string())
-    }
-}
-
-pub struct Version(String);
-
-impl Version {
-    pub fn new(version: String) -> Self {
-        Self(version)
-    }
-}
-
-impl UrlParam for Version {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "version"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.clone()
-    }
-
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
-        self.0.as_str().into()
-    }
-}
-
-impl FromStr for Version {
-    type Err = StdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
-    }
-}
-
-impl Default for Version {
-    fn default() -> Self {
-        Self("".to_string())
-    }
-}
-
-pub struct Group(String);
-
-impl Group {
-    pub fn new(group: String) -> Self {
-        Self(group)
-    }
-}
-
-impl UrlParam for Group {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "group"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.clone()
-    }
-
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
-        self.0.as_str().into()
-    }
-}
-
-impl FromStr for Group {
-    type Err = StdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
-    }
-}
-
-impl Default for Group {
-    fn default() -> Self {
-        Self("".to_string())
-    }
-}
-
-pub enum Side {
-    Provider,
-    Consumer,
-}
-
-impl UrlParam for Side {
-    type TargetType = String;
-
-    fn name() -> &'static str {
-        "side"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        match self {
-            Side::Consumer => "consumer".to_owned(),
-            Side::Provider => "provider".to_owned(),
-        }
-    }
-
-    fn as_str<'a>(&'a self) -> Cow<'a, str> {
-        match self {
-            Side::Consumer => Cow::Borrowed("consumer"),
-            Side::Provider => Cow::Borrowed("provider"),
-        }
-    }
-}
-
-impl FromStr for Side {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "consumer" => Ok(Side::Consumer),
-            "provider" => Ok(Side::Provider),
-            _ => Ok(Side::Consumer),
-        }
-    }
-}
-
-impl Default for Side {
-    fn default() -> Self {
-        Side::Consumer
     }
 }

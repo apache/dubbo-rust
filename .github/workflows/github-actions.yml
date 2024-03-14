@@ -64,6 +64,7 @@ jobs:
         image: nacos/nacos-server:v2.3.1
         ports:
           - 8848:8848
+          - 9848:9848
         env:
           MODE: standalone
     steps:

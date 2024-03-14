@@ -1,9 +1,20 @@
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    convert::Infallible,
-    str::FromStr,
-};
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -13,14 +24,16 @@ use tokio::sync::{
     Mutex,
 };
 
-use dubbo_base::{url::UrlParam, Url};
+use dubbo_base::{
+    extension_param::{ExtensionName, ExtensionType},
+    registry_param::{InterfaceName, RegistryUrl, StaticInvokerUrls},
+    url::UrlParam,
+    StdError, Url,
+};
 
-use crate::{
-    extension::{
-        registry_extension::{DiscoverStream, InterfaceName, Registry, RegistryUrl, ServiceChange},
-        Extension, ExtensionName, ExtensionType,
-    },
-    StdError,
+use crate::extension::{
+    registry_extension::{DiscoverStream, Registry, ServiceChange},
+    Extension,
 };
 
 pub struct StaticServiceValues {
@@ -60,11 +73,11 @@ impl StaticRegistry {
         let mut map = HashMap::with_capacity(static_urls.len());
 
         for url in static_urls {
-            let service_name = url.query::<InterfaceName>().unwrap();
-            let service_name = service_name.value();
+            let interface_name = url.query::<InterfaceName>().unwrap();
+            let interface_name = interface_name.value();
 
             let static_values = map
-                .entry(service_name)
+                .entry(interface_name)
                 .or_insert_with(|| StaticServiceValues {
                     listeners: Vec::new(),
                     urls: HashSet::new(),
@@ -95,13 +108,13 @@ impl Default for StaticRegistry {
 #[async_trait]
 impl Registry for StaticRegistry {
     async fn register(&self, url: Url) -> Result<(), StdError> {
-        let service_name = url.query::<InterfaceName>().unwrap();
-        let service_name = service_name.value();
+        let interface_name = url.query::<InterfaceName>().unwrap();
+        let interface_name = interface_name.value();
 
         let mut lock = self.urls.lock().await;
 
         let static_values = lock
-            .entry(service_name)
+            .entry(interface_name)
             .or_insert_with(|| StaticServiceValues {
                 listeners: Vec::new(),
                 urls: HashSet::new(),
@@ -118,12 +131,12 @@ impl Registry for StaticRegistry {
     }
 
     async fn unregister(&self, url: Url) -> Result<(), StdError> {
-        let service_name = url.query::<InterfaceName>().unwrap();
-        let service_name = service_name.value();
+        let interface_name = url.query::<InterfaceName>().unwrap();
+        let interface_name = interface_name.value();
 
         let mut lock = self.urls.lock().await;
 
-        match lock.get_mut(&service_name) {
+        match lock.get_mut(&interface_name) {
             None => Ok(()),
             Some(static_values) => {
                 let url = url.to_string();
@@ -133,7 +146,7 @@ impl Registry for StaticRegistry {
                     ret.is_ok()
                 });
                 if static_values.urls.is_empty() {
-                    lock.remove(&service_name);
+                    lock.remove(&interface_name);
                 }
                 Ok(())
             }
@@ -141,13 +154,13 @@ impl Registry for StaticRegistry {
     }
 
     async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError> {
-        let service_name = url.query::<InterfaceName>().unwrap();
-        let service_name = service_name.value();
+        let interface_name = url.query::<InterfaceName>().unwrap();
+        let interface_name = interface_name.value();
 
         let change_rx = {
             let mut lock = self.urls.lock().await;
             let static_values = lock
-                .entry(service_name)
+                .entry(interface_name)
                 .or_insert_with(|| StaticServiceValues {
                     listeners: Vec::new(),
                     urls: HashSet::new(),
@@ -207,35 +220,3 @@ impl Extension for StaticRegistry {
 #[derive(Error, Debug)]
 #[error("static registry error: {0}")]
 struct StaticRegistryError(String);
-
-pub(crate) struct StaticInvokerUrls(String);
-
-impl UrlParam for StaticInvokerUrls {
-    type TargetType = Vec<Url>;
-
-    fn name() -> &'static str {
-        "static-invoker-urls"
-    }
-
-    fn value(&self) -> Self::TargetType {
-        self.0.split(",").map(|url| url.parse().unwrap()).collect()
-    }
-
-    fn as_str(&self) -> Cow<str> {
-        Cow::Borrowed(&self.0)
-    }
-}
-
-impl FromStr for StaticInvokerUrls {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
-    }
-}
-
-impl Default for StaticInvokerUrls {
-    fn default() -> Self {
-        Self(String::default())
-    }
-}

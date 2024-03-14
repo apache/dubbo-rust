@@ -22,7 +22,7 @@ use crate::{
     route::NewRoutes, utils::boxed_clone::BoxCloneService,
 };
 
-use crate::registry::{n_registry::StaticRegistry, MkRegistryService};
+use crate::registry::{registry::StaticRegistry, MkRegistryService};
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
 use tower::ServiceBuilder;
@@ -39,7 +39,6 @@ pub struct ClientBuilder {
     pub connector: &'static str,
     registry_extension_url: Option<Url>,
     pub direct: bool,
-    host: String,
 }
 
 impl ClientBuilder {
@@ -49,7 +48,6 @@ impl ClientBuilder {
             connector: "",
             registry_extension_url: None,
             direct: false,
-            host: "".to_string(),
         }
     }
 
@@ -60,7 +58,6 @@ impl ClientBuilder {
             connector: "",
             registry_extension_url: Some(registry_extension_url),
             direct: true,
-            host: host.to_string(),
         }
     }
 

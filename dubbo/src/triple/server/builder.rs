@@ -21,16 +21,14 @@ use std::{
     str::FromStr,
 };
 
-use dubbo_base::{url::UrlParam, Url};
+use dubbo_base::{registry_param::InterfaceName, url::UrlParam, Url};
 use dubbo_logger::tracing;
 use http::{Request, Response, Uri};
 use hyper::body::Body;
 use tokio_rustls::rustls::{Certificate, PrivateKey};
 use tower_service::Service;
 
-use crate::{
-    extension::registry_extension::InterfaceName, triple::transport::DubboServer, utils, BoxBody,
-};
+use crate::{triple::transport::DubboServer, utils, BoxBody};
 
 #[derive(Clone, Default, Debug)]
 pub struct ServerBuilder {
