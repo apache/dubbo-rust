@@ -1,4 +1,20 @@
-use std::{marker::PhantomData, sync::Arc};
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+use std::sync::Arc;
 
 pub trait NewService<T> {
     type Service;
@@ -45,32 +61,3 @@ impl<T, S> NewService<T> for ArcNewService<T, S> {
         self.inner.new_service(t)
     }
 }
-
-// inner: Box<dyn Service<T, Response = U, Error = E, Future = Pin<Box<dyn Future<Output = Result<U, E>> + Send>>> + Send>,
-pub struct BoxedService<N, R> {
-    inner: N,
-    _mark: PhantomData<R>,
-}
-
-impl<R, N> BoxedService<N, R> {
-    pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
-        tower_layer::layer_fn(|inner: N| Self {
-            inner,
-            _mark: PhantomData,
-        })
-    }
-}
-
-// impl<T, R, N> NewService<T> for BoxedService<N, R>
-// where
-//     N: NewService<T>,
-//     N::Service: Service<R> + Send,
-//     <N::Service as Service<R>>::Future: Send + 'static,
-// {
-//     type Service = Box<dyn Service<R, Response = <N::Service as Service<R>>::Response, Error = <N::Service as Service<R>>::Error, Future = Pin<Box<dyn Future<Output = Result<<N::Service as Service<R>>::Response, <N::Service as Service<R>>::Error>> + Send>>> + Send>;
-
-//     fn new_service(&self, target: T) -> Self::Service {
-//         let service = self.inner.new_service(target);
-//         Box::new(service.map_future(|f|Box::pin(f) as _))
-//     }
-// }
