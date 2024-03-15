@@ -31,7 +31,7 @@ use dubbo_base::{
 use dubbo_logger::tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
-use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
+use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZkError, ZooKeeper};
 
 use dubbo::{
     registry::{
@@ -41,7 +41,7 @@ use dubbo::{
     StdError,
 };
 
-// 从url中获取服务注册的元数据
+// Get metadata of a service registration from a URL
 // rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)
 // dubboPath = fmt.Sprintf("/%s/%s/%s", r.URL.GetParam(constant.RegistryGroupKey, "dubbo"), r.service(c), common.DubboNodes[common.PROVIDER])
 
@@ -153,7 +153,7 @@ impl ZookeeperRegistry {
         match zk_result {
             Ok(_) => Ok(()),
             Err(err) => {
-                error!("zk path {} parent not exists.", path);
+                error!("create path {} to zookeeper error {}", path, err);
                 Err(Box::try_from(err).unwrap())
             }
         }
@@ -184,8 +184,20 @@ impl ZookeeperRegistry {
                     true => data,
                     false => "",
                 };
-                self.create_path(current.as_str(), new_data, new_create_mode)
-                    .unwrap();
+
+                //Skip ZkError::NodeExists
+                let res = self.create_path(current.as_str(), new_data, new_create_mode);
+                let mut node_exist = false;
+                if let Err(e) = &res {
+                    if let Some(zk_err) = e.downcast_ref::<ZkError>() {
+                        if ZkError::NodeExists == *zk_err {
+                            node_exist = true;
+                        }
+                    }
+                }
+                if !node_exist {
+                    return res;
+                }
             }
         }
         Ok(())
