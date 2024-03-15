@@ -145,7 +145,9 @@ impl From<Url> for ServerBuilder {
         let service_name = u.query::<InterfaceName>().unwrap().value();
 
         Self {
-            listener: u.query_param_by_kv("listener").unwrap_or("tcp".to_string()),
+            listener: u
+                .query_param_by_key("listener")
+                .unwrap_or("tcp".to_string()),
             addr: authority.to_string().to_socket_addrs().unwrap().next(),
             service_names: vec![service_name],
             server: DubboServer::default(),

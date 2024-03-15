@@ -68,7 +68,7 @@ impl Url {
             .flatten()
     }
 
-    pub fn query_param_by_kv(&self, key: &str) -> Option<String> {
+    pub fn query_param_by_key(&self, key: &str) -> Option<String> {
         self.inner
             .query_pairs()
             .find(|(k, _)| k == key)
