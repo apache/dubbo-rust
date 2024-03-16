@@ -29,6 +29,7 @@ use proxy::RegistryProxy;
 
 use crate::extension::{
     ConvertToExtensionFactories, Extension, ExtensionFactories, ExtensionMetaInfo, ExtensionType,
+    LoadExtensionPromise,
 };
 
 // extension://0.0.0.0/?extension-type=registry&extension-name=nacos&registry-url=nacos://127.0.0.1:8848
@@ -80,20 +81,19 @@ where
     fn convert_to_extension_factories() -> ExtensionFactories {
         fn constrain<F>(f: F) -> F
         where
-            F: for<'a> Fn(
-                &'a Url,
+            F: Fn(
+                Url,
             ) -> Pin<
                 Box<
                     dyn Future<Output = Result<Box<dyn Registry + Send + 'static>, StdError>>
-                        + Send
-                        + 'a,
+                        + Send,
                 >,
             >,
         {
             f
         }
 
-        let constructor = constrain(|url: &Url| {
+        let constructor = constrain(|url: Url| {
             let f = <T as Extension>::create(url);
             Box::pin(f)
         });
@@ -108,19 +108,18 @@ pub(super) struct RegistryExtensionLoader {
 }
 
 impl RegistryExtensionLoader {
-    pub(crate) async fn register(
-        &mut self,
-        extension_name: String,
-        factory: RegistryExtensionFactory,
-    ) {
+    pub(crate) fn register(&mut self, extension_name: String, factory: RegistryExtensionFactory) {
         self.factories.insert(extension_name, factory);
     }
 
-    pub(crate) async fn remove(&mut self, extension_name: String) {
+    pub(crate) fn remove(&mut self, extension_name: String) {
         self.factories.remove(&extension_name);
     }
 
-    pub(crate) async fn load(&mut self, url: &Url) -> Result<RegistryProxy, StdError> {
+    pub(crate) fn load(
+        &mut self,
+        url: Url,
+    ) -> Result<LoadExtensionPromise<RegistryProxy>, StdError> {
         let extension_name = url.query::<ExtensionName>().unwrap();
         let extension_name = extension_name.value();
         let factory = self.factories.get_mut(&extension_name).ok_or_else(|| {
@@ -129,19 +128,19 @@ impl RegistryExtensionLoader {
                 extension_name
             ))
         })?;
-        factory.create(url).await
+        factory.create(url)
     }
 }
 
-type RegistryConstructor = for<'a> fn(
-    &'a Url,
+type RegistryConstructor = fn(
+    Url,
 ) -> Pin<
-    Box<dyn Future<Output = Result<Box<dyn Registry + Send + 'static>, StdError>> + Send + 'a>,
+    Box<dyn Future<Output = Result<Box<dyn Registry + Send + 'static>, StdError>> + Send>,
 >;
 
 pub(crate) struct RegistryExtensionFactory {
     constructor: RegistryConstructor,
-    instances: HashMap<String, RegistryProxy>,
+    instances: HashMap<String, LoadExtensionPromise<RegistryProxy>>,
 }
 
 impl RegistryExtensionFactory {
@@ -154,7 +153,10 @@ impl RegistryExtensionFactory {
 }
 
 impl RegistryExtensionFactory {
-    pub(super) async fn create(&mut self, url: &Url) -> Result<RegistryProxy, StdError> {
+    pub(super) fn create(
+        &mut self,
+        url: Url,
+    ) -> Result<LoadExtensionPromise<RegistryProxy>, StdError> {
         let registry_url = url.query::<RegistryUrl>().unwrap();
         let registry_url = registry_url.value();
         let url_str = registry_url.as_str().to_string();
@@ -164,10 +166,16 @@ impl RegistryExtensionFactory {
                 Ok(proxy)
             }
             None => {
-                let registry = (self.constructor)(url).await?;
-                let proxy = <RegistryProxy as From<Box<dyn Registry + Send>>>::from(registry);
-                self.instances.insert(url_str, proxy.clone());
-                Ok(proxy)
+                let registry = (self.constructor)(url);
+                let fut = Box::pin(async move {
+                    let registry = registry.await?;
+                    let proxy = <RegistryProxy as From<Box<dyn Registry + Send>>>::from(registry);
+                    Ok(proxy)
+                });
+
+                let promise = LoadExtensionPromise::new(fut);
+                self.instances.insert(url_str, promise.clone());
+                Ok(promise)
             }
         }
     }
