@@ -210,30 +210,13 @@ where
         }
         drop(resolver_read_lock);
 
-        let resolver_write_lock = self.resolver.try_write();
-        let Ok(mut resolver_write_lock) = resolver_write_lock else {
-            // can not get write lock
-            // wait until this extension is created
-            let resolver_read_lock = self.resolver.read().await;
-            // check it again
-            if let Some(extension) = resolver_read_lock.resolved_data() {
-                return Ok(extension);
-            }
+        let mut write_lock = self.resolver.write().await;
 
-            return Err(LoadExtensionError::new("load extension canceled ".to_string()).into());
-        };
-
-        match resolver_write_lock.resolve().await {
-            Ok(extension) => {
-                info!("create extension success");
-                Ok(extension)
-            }
-            Err(err) => {
-                error!("create extension failed: {}", err);
-                Err(LoadExtensionError::new(
-                    "load extension failed, create extension occur an error".to_string(),
-                )
-                .into())
+        match write_lock.resolved_data() {
+            Some(extension) => Ok(extension),
+            None => {
+                let extension = write_lock.resolve().await;
+                extension
             }
         }
     }
