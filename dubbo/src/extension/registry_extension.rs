@@ -79,26 +79,9 @@ where
     T: Extension<Target = Box<dyn Registry + Send + 'static>>,
 {
     fn convert_to_extension_factories() -> ExtensionFactories {
-        fn constrain<F>(f: F) -> F
-        where
-            F: Fn(
-                Url,
-            ) -> Pin<
-                Box<
-                    dyn Future<Output = Result<Box<dyn Registry + Send + 'static>, StdError>>
-                        + Send,
-                >,
-            >,
-        {
-            f
-        }
-
-        let constructor = constrain(|url: Url| {
-            let f = <T as Extension>::create(url);
-            Box::pin(f)
-        });
-
-        ExtensionFactories::RegistryExtensionFactory(RegistryExtensionFactory::new(constructor))
+        ExtensionFactories::RegistryExtensionFactory(RegistryExtensionFactory::new(
+            <T as Extension>::create,
+        ))
     }
 }
 
@@ -166,14 +149,26 @@ impl RegistryExtensionFactory {
                 Ok(proxy)
             }
             None => {
-                let registry = (self.constructor)(url);
-                let fut = Box::pin(async move {
-                    let registry = registry.await?;
-                    let proxy = <RegistryProxy as From<Box<dyn Registry + Send>>>::from(registry);
-                    Ok(proxy)
-                });
+                let constructor = self.constructor;
 
-                let promise = LoadExtensionPromise::new(fut);
+                let creator = move |url: Url| {
+                    let registry = constructor(url);
+                    Box::pin(async move {
+                        let registry = registry.await?;
+                        let proxy =
+                            <RegistryProxy as From<Box<dyn Registry + Send>>>::from(registry);
+                        Ok(proxy)
+                    })
+                        as Pin<
+                            Box<
+                                dyn Future<Output = Result<RegistryProxy, StdError>>
+                                    + Send
+                                    + 'static,
+                            >,
+                        >
+                };
+
+                let promise = LoadExtensionPromise::new(Box::new(creator), url);
                 self.instances.insert(url_str, promise.clone());
                 Ok(promise)
             }
