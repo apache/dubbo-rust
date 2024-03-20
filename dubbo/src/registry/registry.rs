@@ -200,7 +200,7 @@ impl Extension for StaticRegistry {
         "static".to_string()
     }
 
-    async fn create(url: &Url) -> Result<Self::Target, StdError> {
+    async fn create(url: Url) -> Result<Self::Target, StdError> {
         // url example:
         // extension://0.0.0.0?extension-type=registry&extension-name=static&registry=static://127.0.0.1
         let static_invoker_urls = url.query::<StaticInvokerUrls>();

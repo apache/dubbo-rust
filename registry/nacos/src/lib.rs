@@ -256,7 +256,7 @@ impl Extension for NacosRegistry {
         "nacos".to_string()
     }
 
-    async fn create(url: &Url) -> Result<Self::Target, StdError> {
+    async fn create(url: Url) -> Result<Self::Target, StdError> {
         // url example:
         // extension://0.0.0.0?extension-type=registry&extension-name=nacos&registry=nacos://127.0.0.1:8848
         let registry_url = url.query::<RegistryUrl>().unwrap();
@@ -446,7 +446,7 @@ pub mod tests {
         extension_url.add_query_param(ExtensionName::new("nacos".to_string()));
         extension_url.add_query_param(RegistryUrl::new("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015".parse().unwrap()));
 
-        let registry = NacosRegistry::create(&extension_url).await.unwrap();
+        let registry = NacosRegistry::create(extension_url).await.unwrap();
 
         let mut service_url: Url = "tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807".parse().unwrap();
 
@@ -478,7 +478,7 @@ pub mod tests {
         extension_url.add_query_param(ExtensionName::new("nacos".to_string()));
         extension_url.add_query_param(RegistryUrl::new("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015".parse().unwrap()));
 
-        let registry = NacosRegistry::create(&extension_url).await.unwrap();
+        let registry = NacosRegistry::create(extension_url).await.unwrap();
 
         let mut service_url: Url = "tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807".parse().unwrap();
 
@@ -518,7 +518,7 @@ pub mod tests {
         extension_url.add_query_param(ExtensionName::new("nacos".to_string()));
         extension_url.add_query_param(RegistryUrl::new("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015".parse().unwrap()));
 
-        let registry = NacosRegistry::create(&extension_url).await.unwrap();
+        let registry = NacosRegistry::create(extension_url).await.unwrap();
 
         let mut service_url: Url = "tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807".parse().unwrap();
 
@@ -562,7 +562,7 @@ pub mod tests {
         extension_url.add_query_param(ExtensionName::new("nacos".to_string()));
         extension_url.add_query_param(RegistryUrl::new("nacos://127.0.0.1:8848/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-triple-api-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=7015".parse().unwrap()));
 
-        let registry = NacosRegistry::create(&extension_url).await.unwrap();
+        let registry = NacosRegistry::create(extension_url).await.unwrap();
 
         let mut service_url: Url = "tri://127.0.0.1:50052/org.apache.dubbo.demo.GreeterService?anyhost=true&application=dubbo-demo-triple-api-provider&background=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.GreeterService&methods=sayHello,sayHelloAsync&pid=7015&service-name-mapping=true&side=provider&timestamp=1670060843807".parse().unwrap();
 

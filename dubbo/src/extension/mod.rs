@@ -22,8 +22,9 @@ use crate::{
 };
 use dubbo_base::{extension_param::ExtensionType, url::UrlParam, StdError, Url};
 use dubbo_logger::tracing::{error, info};
+use std::{future::Future, pin::Pin, sync::Arc};
 use thiserror::Error;
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, RwLock};
 
 pub static EXTENSIONS: once_cell::sync::Lazy<ExtensionDirectoryCommander> =
     once_cell::sync::Lazy::new(|| ExtensionDirectory::init());
@@ -41,13 +42,11 @@ impl ExtensionDirectory {
             let mut extension_directory = ExtensionDirectory::default();
 
             // register static registry extension
-            let _ = extension_directory
-                .register(
-                    StaticRegistry::name(),
-                    StaticRegistry::convert_to_extension_factories(),
-                    ExtensionType::Registry,
-                )
-                .await;
+            let _ = extension_directory.register(
+                StaticRegistry::name(),
+                StaticRegistry::convert_to_extension_factories(),
+                ExtensionType::Registry,
+            );
 
             while let Some(extension_opt) = rx.recv().await {
                 match extension_opt {
@@ -57,20 +56,19 @@ impl ExtensionDirectory {
                         extension_type,
                         tx,
                     ) => {
-                        let result = extension_directory
-                            .register(extension_name, extension_factories, extension_type)
-                            .await;
+                        let result = extension_directory.register(
+                            extension_name,
+                            extension_factories,
+                            extension_type,
+                        );
                         let _ = tx.send(result);
                     }
                     ExtensionOpt::Remove(extension_name, extension_type, tx) => {
-                        let result = extension_directory
-                            .remove(extension_name, extension_type)
-                            .await;
+                        let result = extension_directory.remove(extension_name, extension_type);
                         let _ = tx.send(result);
                     }
                     ExtensionOpt::Load(url, extension_type, tx) => {
-                        let result = extension_directory.load(url, extension_type).await;
-                        let _ = tx.send(result);
+                        let _ = extension_directory.load(url, extension_type, tx);
                     }
                 }
             }
@@ -79,7 +77,7 @@ impl ExtensionDirectory {
         ExtensionDirectoryCommander { sender: tx }
     }
 
-    async fn register(
+    fn register(
         &mut self,
         extension_name: String,
         extension_factories: ExtensionFactories,
@@ -89,43 +87,145 @@ impl ExtensionDirectory {
             ExtensionType::Registry => match extension_factories {
                 ExtensionFactories::RegistryExtensionFactory(registry_extension_factory) => {
                     self.registry_extension_loader
-                        .register(extension_name, registry_extension_factory)
-                        .await;
+                        .register(extension_name, registry_extension_factory);
                     Ok(())
                 }
             },
         }
     }
 
-    async fn remove(
+    fn remove(
         &mut self,
         extension_name: String,
         extension_type: ExtensionType,
     ) -> Result<(), StdError> {
         match extension_type {
             ExtensionType::Registry => {
-                self.registry_extension_loader.remove(extension_name).await;
+                self.registry_extension_loader.remove(extension_name);
                 Ok(())
             }
         }
     }
 
-    async fn load(
+    fn load(
         &mut self,
         url: Url,
         extension_type: ExtensionType,
-    ) -> Result<Extensions, StdError> {
+        callback: oneshot::Sender<Result<Extensions, StdError>>,
+    ) {
         match extension_type {
             ExtensionType::Registry => {
-                let extension = self.registry_extension_loader.load(&url).await;
+                let extension = self.registry_extension_loader.load(url);
                 match extension {
-                    Ok(extension) => Ok(Extensions::Registry(extension)),
+                    Ok(mut extension) => {
+                        tokio::spawn(async move {
+                            let extension = extension.resolve().await;
+                            match extension {
+                                Ok(extension) => {
+                                    let _ = callback.send(Ok(Extensions::Registry(extension)));
+                                }
+                                Err(err) => {
+                                    error!("load extension failed: {}", err);
+                                    let _ = callback.send(Err(err));
+                                }
+                            }
+                        });
+                    }
                     Err(err) => {
                         error!("load extension failed: {}", err);
-                        Err(err)
+                        let _ = callback.send(Err(err));
                     }
                 }
             }
+        }
+    }
+}
+
+type ExtensionCreator<T> = Box<
+    dyn Fn(Url) -> Pin<Box<dyn Future<Output = Result<T, StdError>> + Send + 'static>>
+        + Send
+        + Sync
+        + 'static,
+>;
+pub(crate) struct ExtensionPromiseResolver<T> {
+    resolved_data: Option<T>,
+    creator: ExtensionCreator<T>,
+    url: Url,
+}
+
+impl<T> ExtensionPromiseResolver<T>
+where
+    T: Send + Clone + 'static,
+{
+    fn new(creator: ExtensionCreator<T>, url: Url) -> Self {
+        ExtensionPromiseResolver {
+            resolved_data: None,
+            creator,
+            url,
+        }
+    }
+
+    fn resolved_data(&self) -> Option<T> {
+        self.resolved_data.clone()
+    }
+
+    async fn resolve(&mut self) -> Result<T, StdError> {
+        match (self.creator)(self.url.clone()).await {
+            Ok(data) => {
+                self.resolved_data = Some(data.clone());
+                Ok(data)
+            }
+            Err(err) => {
+                error!("create extension failed: {}", err);
+                Err(LoadExtensionError::new(
+                    "load extension failed, create extension occur an error".to_string(),
+                )
+                .into())
+            }
+        }
+    }
+}
+
+pub(crate) struct LoadExtensionPromise<T> {
+    resolver: Arc<RwLock<ExtensionPromiseResolver<T>>>,
+}
+
+impl<T> LoadExtensionPromise<T>
+where
+    T: Send + Clone + 'static,
+{
+    pub(crate) fn new(creator: ExtensionCreator<T>, url: Url) -> Self {
+        let resolver = ExtensionPromiseResolver::new(creator, url);
+        LoadExtensionPromise {
+            resolver: Arc::new(RwLock::new(resolver)),
+        }
+    }
+
+    pub(crate) async fn resolve(&mut self) -> Result<T, StdError> {
+        // get read lock
+        let resolver_read_lock = self.resolver.read().await;
+        // if extension is not None, return it
+        if let Some(extension) = resolver_read_lock.resolved_data() {
+            return Ok(extension);
+        }
+        drop(resolver_read_lock);
+
+        let mut write_lock = self.resolver.write().await;
+
+        match write_lock.resolved_data() {
+            Some(extension) => Ok(extension),
+            None => {
+                let extension = write_lock.resolve().await;
+                extension
+            }
+        }
+    }
+}
+
+impl<T> Clone for LoadExtensionPromise<T> {
+    fn clone(&self) -> Self {
+        LoadExtensionPromise {
+            resolver: self.resolver.clone(),
         }
     }
 }
@@ -280,7 +380,7 @@ pub trait Extension: Sealed {
 
     fn name() -> String;
 
-    async fn create(url: &Url) -> Result<Self::Target, StdError>;
+    async fn create(url: Url) -> Result<Self::Target, StdError>;
 }
 
 #[allow(private_bounds)]
