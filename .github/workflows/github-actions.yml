@@ -60,6 +60,13 @@ jobs:
           - 2181:2181
         env:
           ZOO_MY_ID: 1
+      nacos:
+        image: nacos/nacos-server:v2.3.1
+        ports:
+          - 8848:8848
+          - 9848:9848
+        env:
+          MODE: standalone
     steps:
       - uses: actions/checkout@main
       - uses: actions-rs/toolchain@v1

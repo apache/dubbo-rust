@@ -22,6 +22,7 @@ pub use std::{
 
 pub use async_trait::async_trait;
 pub use bytes::Bytes;
+pub use dubbo_base::StdError;
 pub use http_body::Body;
 pub use hyper::Body as hyperBody;
 pub use tower_service::Service;
@@ -39,7 +40,7 @@ pub use super::{
             TripleServer,
         },
     },
-    BoxBody, BoxFuture, StdError,
+    BoxBody, BoxFuture,
 };
 pub use crate::{
     filter::{service::FilterService, Filter},

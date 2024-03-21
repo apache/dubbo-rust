@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-use std::{boxed::Box, collections::HashMap};
+use std::collections::HashMap;
 
 use async_trait::async_trait;
-use dubbo_base::Url;
+use dubbo_base::{registry_param::InterfaceName, url::UrlParam, Url};
 
 use super::{
     triple_exporter::TripleExporter, triple_invoker::TripleInvoker, triple_server::TripleServer,
@@ -44,8 +44,9 @@ impl TripleProtocol {
     }
 
     pub fn get_server(&self, url: Url) -> Option<TripleServer> {
+        let interface_name = url.query::<InterfaceName>().unwrap();
         self.servers
-            .get(&url.service_key)
+            .get(interface_name.value().as_str())
             .map(|data| data.to_owned())
     }
 }
@@ -61,8 +62,12 @@ impl Protocol for TripleProtocol {
     async fn export(mut self, url: Url) -> BoxExporter {
         // service_key is same to key of TRIPLE_SERVICES
         let server = TripleServer::new();
-        self.servers.insert(url.service_key.clone(), server.clone());
-        server.serve(url.short_url().as_str().into()).await;
+
+        let interface_name = url.query::<InterfaceName>().unwrap();
+        let interface_name = interface_name.value();
+
+        self.servers.insert(interface_name, server.clone());
+        server.serve(url).await;
 
         Box::new(TripleExporter::new())
     }

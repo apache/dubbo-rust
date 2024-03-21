@@ -16,47 +16,43 @@
  */
 
 #![allow(unused_variables, dead_code, missing_docs)]
+
+use crate::{extension, extension::registry_extension::proxy::RegistryProxy};
+use dubbo_base::{StdError, Url};
+use std::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
+use tower_service::Service;
+
 pub mod integration;
-pub mod n_registry;
 pub mod protocol;
-pub mod types;
+pub mod registry;
 
-// use std::{
-//     fmt::{Debug, Formatter},
-//     sync::Arc,
-// };
+#[derive(Clone)]
+pub struct MkRegistryService {
+    registry_url: Url,
+}
 
-// use dubbo_base::Url;
+impl MkRegistryService {
+    pub fn new(registry_url: Url) -> Self {
+        Self { registry_url }
+    }
+}
 
-// pub type RegistryNotifyListener = Arc<dyn NotifyListener + Send + Sync + 'static>;
-// pub trait Registry {
-//     fn register(&mut self, url: Url) -> Result<(), crate::StdError>;
-//     fn unregister(&mut self, url: Url) -> Result<(), crate::StdError>;
+impl Service<()> for MkRegistryService {
+    type Response = RegistryProxy;
+    type Error = StdError;
+    type Future =
+        Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
 
-//     fn subscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), crate::StdError>;
-//     fn unsubscribe(
-//         &self,
-//         url: Url,
-//         listener: RegistryNotifyListener,
-//     ) -> Result<(), crate::StdError>;
-// }
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
 
-// pub trait NotifyListener {
-//     fn notify(&self, event: ServiceEvent);
-//     fn notify_all(&self, event: ServiceEvent);
-// }
-
-// #[derive(Debug)]
-// pub struct ServiceEvent {
-//     pub key: String,
-//     pub action: String,
-//     pub service: Vec<Url>,
-// }
-
-// pub type BoxRegistry = Box<dyn Registry + Send + Sync>;
-
-// impl Debug for BoxRegistry {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         f.write_str("BoxRegistry")
-//     }
-// }
+    fn call(&mut self, req: ()) -> Self::Future {
+        let fut = extension::EXTENSIONS.load_registry(self.registry_url.clone());
+        Box::pin(fut)
+    }
+}

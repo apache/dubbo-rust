@@ -27,21 +27,21 @@ use crate::{
     invocation::Invocation,
     invoker::{clone_invoker::CloneInvoker, NewInvoker},
     param::Param,
-    registry::n_registry::Registry,
     svc::NewService,
-    StdError,
 };
-use dubbo_base::Url;
-use dubbo_logger::tracing::debug;
-use futures_core::ready;
+use dubbo_base::{StdError, Url};
+use dubbo_logger::tracing::{debug, error};
 use futures_util::future;
 use tokio::sync::mpsc::channel;
 use tokio_stream::wrappers::ReceiverStream;
 use tower::{
     buffer::Buffer,
     discover::{Change, Discover},
+    ServiceExt,
 };
 
+use crate::extension::registry_extension::{proxy::RegistryProxy, Registry};
+use dubbo_base::registry_param::InterfaceName;
 use tower_service::Service;
 
 type BufferedDirectory =
@@ -49,7 +49,8 @@ type BufferedDirectory =
 
 pub struct NewCachedDirectory<N>
 where
-    N: Registry + Clone + Send + Sync + 'static,
+    N: Service<(), Response = RegistryProxy> + Send + Clone + 'static,
+    <N as Service<()>>::Future: Send + 'static,
 {
     inner: CachedDirectory<NewDirectory<N>, RpcInvocation>,
 }
@@ -76,7 +77,8 @@ pub struct Directory<D> {
 
 impl<N> NewCachedDirectory<N>
 where
-    N: Registry + Clone + Send + Sync + 'static,
+    N: Service<(), Response = RegistryProxy> + Send + Clone + 'static,
+    <N as Service<()>>::Future: Send + 'static,
 {
     pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
         tower_layer::layer_fn(|inner: N| {
@@ -92,7 +94,8 @@ impl<N, T> NewService<T> for NewCachedDirectory<N>
 where
     T: Param<RpcInvocation>,
     // service registry
-    N: Registry + Clone + Send + Sync + 'static,
+    N: Service<(), Response = RegistryProxy> + Send + Clone + 'static,
+    <N as Service<()>>::Future: Send + 'static,
 {
     type Service = BufferedDirectory;
 
@@ -151,14 +154,15 @@ impl<N, T> NewService<T> for NewDirectory<N>
 where
     T: Param<RpcInvocation>,
     // service registry
-    N: Registry + Clone + Send + Sync + 'static,
+    N: Service<(), Response = RegistryProxy> + Send + Clone + 'static,
+    <N as Service<()>>::Future: Send + 'static,
 {
     type Service = BufferedDirectory;
 
     fn new_service(&self, target: T) -> Self::Service {
         let service_name = target.param().get_target_service_unique_name();
 
-        let registry = self.inner.clone();
+        let fut = self.inner.clone().oneshot(());
 
         let (tx, rx) = channel(Self::MAX_DIRECTORY_BUFFER_SIZE);
 
@@ -166,7 +170,14 @@ where
             // todo use dubbo url model generate subscribe url
             // category:serviceInterface:version:group
             let consumer_url = format!("consumer://{}/{}", "127.0.0.1:8888", service_name);
-            let subscribe_url = Url::from_url(&consumer_url).unwrap();
+            let mut subscribe_url: Url = consumer_url.parse().unwrap();
+            subscribe_url.add_query_param(InterfaceName::new(service_name));
+
+            let Ok(registry) = fut.await else {
+                error!("registry extension load failed.");
+                return;
+            };
+
             let receiver = registry.subscribe(subscribe_url).await;
             debug!("discover start!");
             match receiver {

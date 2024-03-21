@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
+use dubbo_base::StdError;
 use hyper::client::{conn::Builder, service::Connect};
 use tower_service::Service;
 
-use crate::{
-    boxed, invoker::clone_body::CloneBody, triple::transport::connector::get_connector, StdError,
-};
+use crate::{boxed, invoker::clone_body::CloneBody, triple::transport::connector::get_connector};
 
 type HyperConnect = Connect<
     crate::utils::boxed_clone::BoxCloneService<http::Uri, super::io::BoxIO, StdError>,

@@ -70,7 +70,8 @@ async fn main() {
     // Dubbo::new()
     //     .with_config({
     //         let mut r = RootConfig::new();
-    //         r.test_config();
+    //         r.test_config
+    // ();
     //         r
     //     })
     //     .start()

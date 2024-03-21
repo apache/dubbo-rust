@@ -22,17 +22,15 @@ use std::{collections::HashMap, env, sync::Arc, time::Duration};
 use async_trait::async_trait;
 use dubbo_base::{
     constants::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY},
-    Url,
+    StdError, Url,
 };
 use dubbo_logger::tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc};
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
-use dubbo::{
-    registry::n_registry::{DiscoverStream, Registry, ServiceChange},
-    StdError,
-};
+use dubbo::extension::registry_extension::{DiscoverStream, Registry, ServiceChange};
+use dubbo_base::{registry_param::InterfaceName, url::UrlParam};
 
 // 从url中获取服务注册的元数据
 // rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)
@@ -184,24 +182,24 @@ impl ZookeeperRegistry {
     ) -> (Vec<String>, Vec<String>) {
         let old_urls_map: HashMap<String, String> = old_urls
             .iter()
-            .map(|url| dubbo_base::Url::from_url(url.as_str()))
-            .filter(|item| item.is_some())
+            .map(|url| url.parse())
+            .filter(|item| item.is_ok())
             .map(|item| item.unwrap())
-            .map(|item| {
-                let ip_port = item.get_ip_port();
-                let url = item.encoded_raw_url_string();
+            .map(|item: Url| {
+                let ip_port = item.authority().to_owned();
+                let url = item.as_str().to_owned();
                 (ip_port, url)
             })
             .collect();
 
         let new_urls_map: HashMap<String, String> = new_urls
             .iter()
-            .map(|url| dubbo_base::Url::from_url(url.as_str()))
-            .filter(|item| item.is_some())
+            .map(|url| url.parse())
+            .filter(|item| item.is_ok())
             .map(|item| item.unwrap())
-            .map(|item| {
-                let ip_port = item.get_ip_port();
-                let url = item.encoded_raw_url_string();
+            .map(|item: Url| {
+                let ip_port = item.authority().to_owned();
+                let url = item.as_str().to_owned();
                 (ip_port, url)
             })
             .collect();
@@ -263,24 +261,23 @@ impl Default for ZookeeperRegistry {
 impl Registry for ZookeeperRegistry {
     async fn register(&self, url: Url) -> Result<(), StdError> {
         debug!("register url: {}", url);
+        let interface_name = url.query::<InterfaceName>().unwrap().value();
+        let url_str = url.as_str();
         let zk_path = format!(
             "/{}/{}/{}/{}",
-            DUBBO_KEY,
-            url.service_name,
-            PROVIDERS_KEY,
-            url.encoded_raw_url_string()
+            DUBBO_KEY, interface_name, PROVIDERS_KEY, url_str
         );
         self.create_path_with_parent_check(zk_path.as_str(), LOCALHOST_IP, CreateMode::Ephemeral)?;
         Ok(())
     }
 
     async fn unregister(&self, url: Url) -> Result<(), StdError> {
+        let interface_name = url.query::<InterfaceName>().unwrap().value();
+        let url_str = url.as_str();
+
         let zk_path = format!(
             "/{}/{}/{}/{}",
-            DUBBO_KEY,
-            url.service_name,
-            PROVIDERS_KEY,
-            url.encoded_raw_url_string()
+            DUBBO_KEY, interface_name, PROVIDERS_KEY, url_str
         );
         self.delete_path(zk_path.as_str());
         Ok(())
@@ -288,8 +285,9 @@ impl Registry for ZookeeperRegistry {
 
     // for consumer to find the changes of providers
     async fn subscribe(&self, url: Url) -> Result<DiscoverStream, StdError> {
-        let service_name = url.get_service_name();
-        let zk_path = format!("/{}/{}/{}", DUBBO_KEY, &service_name, PROVIDERS_KEY);
+        let interface_name = url.query::<InterfaceName>().unwrap().value();
+
+        let zk_path = format!("/{}/{}/{}", DUBBO_KEY, interface_name, PROVIDERS_KEY);
 
         debug!("subscribe service: {}", zk_path);
 
@@ -302,12 +300,12 @@ impl Registry for ZookeeperRegistry {
 
         let zk_client_in_task = self.zk_client.clone();
         let zk_path_in_task = zk_path.clone();
-        let service_name_in_task = service_name.clone();
+        let interface_name_in_task = interface_name.clone();
         let arc_listener_in_task = arc_listener.clone();
         tokio::spawn(async move {
             let zk_client = zk_client_in_task;
             let zk_path = zk_path_in_task;
-            let service_name = service_name_in_task;
+            let interface_name = interface_name_in_task;
             let listener = arc_listener_in_task;
 
             let mut current_urls = Vec::new();
@@ -383,11 +381,16 @@ impl Registry for ZookeeperRegistry {
     }
 
     async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
-        let service_name = url.get_service_name();
-        let zk_path = format!("/{}/{}/{}", DUBBO_KEY, &service_name, PROVIDERS_KEY);
+        let interface_name = url.query::<InterfaceName>().unwrap().value();
+
+        let zk_path = format!("/{}/{}/{}", DUBBO_KEY, &interface_name, PROVIDERS_KEY);
 
         info!("unsubscribe service: {}", zk_path);
         Ok(())
+    }
+
+    fn url(&self) -> &Url {
+        todo!()
     }
 }
 
