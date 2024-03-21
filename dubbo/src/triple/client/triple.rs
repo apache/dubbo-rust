@@ -16,18 +16,16 @@
  */
 
 use futures_util::{future, stream, StreamExt, TryStreamExt};
-
+use tower_service::Service;
 use aws_smithy_http::body::SdkBody;
 use http::HeaderValue;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
-use super::builder::ClientBuilder;
 use crate::codegen::{ProstCodec, RpcInvocation, SerdeCodec};
 
 use crate::{
     invocation::{IntoStreamingRequest, Metadata, Request, Response},
-    protocol::BoxInvoker,
     status::Status,
     svc::NewService,
     triple::{

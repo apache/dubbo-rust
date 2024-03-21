@@ -194,7 +194,7 @@ impl Registry for StaticRegistry {
 
 #[async_trait::async_trait]
 impl Extension for StaticRegistry {
-    type Target = Box<dyn Registry + Send + 'static>;
+    type Target = Box<dyn Registry + Send+Sync + 'static>;
 
     fn name() -> String {
         "static".to_string()

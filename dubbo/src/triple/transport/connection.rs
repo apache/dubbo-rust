@@ -67,7 +67,7 @@ impl Connection {
 
     pub fn build(mut self) -> Self {
         let builder = self.builder.clone().http2_only(true).to_owned();
-        let hyper_connect: HyperConnect = Connect::new(get_connector(self.connector), builder);
+        let hyper_connect: HyperConnect = Connect::new(get_connector(&self.connector), builder);
         self.connect = Some(hyper_connect);
         self
     }
