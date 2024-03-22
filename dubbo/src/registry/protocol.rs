@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#[allow(unused_variables, dead_code, missing_docs)]
 use dubbo_base::{registry_param::InterfaceName, url::UrlParam, Url};
 use dubbo_logger::tracing;
 use std::{
@@ -36,6 +35,7 @@ pub struct RegistryProtocol {
     // registerAddr: Registry
     registries: Vec<RegistryProxy>,
     // providerUrl: Exporter
+    #[allow(dead_code)]
     exporters: Arc<RwLock<HashMap<String, BoxExporter>>>,
     // serviceName: registryUrls
     services: HashMap<String, Vec<Url>>,

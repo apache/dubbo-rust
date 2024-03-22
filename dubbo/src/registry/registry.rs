@@ -18,7 +18,7 @@ use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use itertools::Itertools;
-use thiserror::Error;
+
 use tokio::sync::{
     mpsc::{self},
     Mutex,
@@ -217,6 +217,4 @@ impl Extension for StaticRegistry {
         Ok(Box::new(static_registry))
     }
 }
-#[derive(Error, Debug)]
-#[error("static registry error: {0}")]
-struct StaticRegistryError(String);
+
