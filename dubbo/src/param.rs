@@ -14,5 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-pub mod random;
-pub mod roundrobin;
+
+pub trait Param<T> {
+    fn param(&self) -> T;
+}
+
+impl<T: ToOwned> Param<T::Owned> for T {
+    fn param(&self) -> T::Owned {
+        self.to_owned()
+    }
+}

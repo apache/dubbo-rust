@@ -19,8 +19,12 @@
     allow(dead_code, unused_imports, unused_variables, unused_mut)
 )]
 pub mod constants;
+pub mod extension_param;
 pub mod node;
+pub mod registry_param;
 pub mod url;
 
 pub use node::Node;
 pub use url::Url;
+
+pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;

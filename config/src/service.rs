@@ -41,16 +41,4 @@ impl ServiceConfig {
     pub fn protocol(self, protocol: String) -> Self {
         Self { protocol, ..self }
     }
-
-    // pub fn get_url(&self) -> Vec<Url> {
-    //     let mut urls = Vec::new();
-    //     for (_, conf) in self.protocol_configs.iter() {
-    //         urls.push(Url {
-    //             url: conf.to_owned().to_url(),
-    //             service_key: "".to_string(),
-    //         });
-    //     }
-
-    //     urls
-    // }
 }

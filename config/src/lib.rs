@@ -21,4 +21,5 @@ pub mod config;
 pub mod protocol;
 pub mod provider;
 pub mod registry;
+pub mod router;
 pub mod service;

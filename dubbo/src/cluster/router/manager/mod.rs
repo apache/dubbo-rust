@@ -14,29 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-use dubbo_base::Url;
-use std::{fmt::Debug, sync::Arc};
-
-use crate::codegen::RpcInvocation;
-
-pub type BoxLoadBalance = Box<dyn LoadBalance + Send + Sync>;
-
-pub trait LoadBalance: Debug {
-    fn select(
-        &self,
-        invokers: Arc<Vec<Url>>,
-        url: Option<Url>,
-        invocation: Arc<RpcInvocation>,
-    ) -> Option<Url>;
-}
-
-pub struct Metadata {
-    pub name: &'static str,
-}
-
-impl Metadata {
-    pub fn new(name: &'static str) -> Self {
-        Metadata { name }
-    }
-}
+mod condition_manager;
+pub mod router_manager;
+mod tag_manager;

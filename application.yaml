@@ -22,3 +22,8 @@ dubbo:
       GreeterClientImpl:
         url: tri://localhost:20000
         protocol: tri
+  routers:
+    consumer:
+      - service: "org.apache.dubbo.sample.tri.Greeter"
+        url: tri://127.0.0.1:20000
+        protocol: triple

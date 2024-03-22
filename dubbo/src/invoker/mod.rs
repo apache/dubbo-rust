@@ -14,29 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use std::collections::HashMap;
+use crate::{codegen::TripleInvoker, invoker::clone_invoker::CloneInvoker, svc::NewService};
 
-use lazy_static::lazy_static;
+pub mod clone_body;
+pub mod clone_invoker;
 
-use crate::cluster::loadbalance::{
-    impls::{random::RandomLoadBalance, roundrobin::RoundRobinLoadBalance},
-    types::BoxLoadBalance,
-};
+pub struct NewInvoker;
 
-pub mod impls;
-pub mod types;
+impl NewService<String> for NewInvoker {
+    type Service = CloneInvoker<TripleInvoker>;
 
-lazy_static! {
-    pub static ref LOAD_BALANCE_EXTENSIONS: HashMap<String, BoxLoadBalance> =
-        init_loadbalance_extensions();
-}
+    fn new_service(&self, url: String) -> Self::Service {
+        // todo create another invoker by url protocol
 
-fn init_loadbalance_extensions() -> HashMap<String, BoxLoadBalance> {
-    let mut loadbalance_map: HashMap<String, BoxLoadBalance> = HashMap::new();
-    loadbalance_map.insert("random".to_string(), Box::new(RandomLoadBalance::default()));
-    loadbalance_map.insert(
-        "roundrobin".to_string(),
-        Box::new(RoundRobinLoadBalance::default()),
-    );
-    loadbalance_map
+        let url = url.parse().unwrap();
+        CloneInvoker::new(TripleInvoker::new(url))
+    }
 }

@@ -15,15 +15,10 @@
  * limitations under the License.
  */
 
-use std::{
-    fmt::Debug,
-    future::Future,
-    task::{Context, Poll},
-};
+use std::task::{Context, Poll};
 
 use async_trait::async_trait;
 use aws_smithy_http::body::SdkBody;
-use dyn_clone::DynClone;
 use tower_service::Service;
 
 use dubbo_base::Url;
@@ -44,18 +39,8 @@ pub trait Exporter {
     fn unexport(&self);
 }
 
-pub trait Invoker<ReqBody>: Debug + DynClone {
-    type Response;
-
-    type Error;
-
-    type Future: Future<Output = Result<Self::Response, Self::Error>>;
-
+pub trait Invoker<ReqBody>: Service<ReqBody> {
     fn get_url(&self) -> Url;
-
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>>;
-
-    fn call(&mut self, req: ReqBody) -> Self::Future;
 }
 
 pub type BoxExporter = Box<dyn Exporter + Send + Sync>;
@@ -68,15 +53,6 @@ pub type BoxInvoker = Box<
         > + Send
         + Sync,
 >;
-
-dyn_clone::clone_trait_object!(
-    Invoker<
-        http::Request<SdkBody>,
-        Response = http::Response<crate::BoxBody>,
-        Error = crate::Error,
-        Future = crate::BoxFuture<http::Response<crate::BoxBody>, crate::Error>,
-    >
-);
 
 pub struct WrapperInvoker<T>(T);
 

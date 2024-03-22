@@ -63,7 +63,7 @@ pub fn generate<T: Service>(
 
             #service_doc
             #(#struct_attributes)*
-            #[derive(Debug, Clone, Default)]
+            #[derive(Clone)]
             pub struct #service_ident {
                 inner: TripleClient,
             }
@@ -75,12 +75,6 @@ pub fn generate<T: Service>(
                         inner: cli,
                     }
                 }
-
-                // pub fn build(builder: ClientBuilder) -> Self {
-                //     Self {
-                //         inner: TripleClient::new(builder),
-                //     }
-                // }
 
                 pub fn new(builder: ClientBuilder) -> Self {
                     Self {

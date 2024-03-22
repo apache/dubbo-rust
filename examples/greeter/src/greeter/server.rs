@@ -19,10 +19,11 @@ use std::{io::ErrorKind, pin::Pin};
 
 use async_trait::async_trait;
 use futures_util::{Stream, StreamExt};
+use registry_nacos::NacosRegistry;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use dubbo::{codegen::*, Dubbo};
+use dubbo::{codegen::*, extension, Dubbo};
 use dubbo_config::RootConfig;
 use dubbo_logger::{
     tracing::{info, span},
@@ -32,8 +33,6 @@ use protos::{
     greeter_server::{register_server, Greeter},
     GreeterReply, GreeterRequest,
 };
-use registry_zookeeper::ZookeeperRegistry;
-
 pub mod protos {
     #![allow(non_camel_case_types)]
     include!(concat!(env!("OUT_DIR"), "/org.apache.dubbo.sample.tri.rs"));
@@ -50,15 +49,18 @@ async fn main() {
     register_server(GreeterServerImpl {
         name: "greeter".to_string(),
     });
-    let zkr = ZookeeperRegistry::default();
+    // let zkr: ZookeeperRegistry = ZookeeperRegistry::default();
     let r = RootConfig::new();
     let r = match r.load() {
         Ok(config) => config,
         Err(_err) => panic!("err: {:?}", _err), // response was droped
     };
+
+    let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
     let mut f = Dubbo::new()
         .with_config(r)
-        .add_registry("zookeeper", Box::new(zkr));
+        .add_registry("nacos://127.0.0.1:8848/");
+
     f.start().await;
 }
 

@@ -18,28 +18,27 @@
 use std::sync::Arc;
 
 use crate::{
-    cluster::{directory::StaticDirectory, Cluster, Directory, MockCluster, MockDirectory},
-    codegen::{RegistryDirectory, RpcInvocation, TripleInvoker},
-    protocol::BoxInvoker,
-    triple::compression::CompressionEncoding,
-    utils::boxed_clone::BoxCloneService,
+    cluster::NewCluster, directory::NewCachedDirectory, extension, loadbalancer::NewLoadBalancer,
+    route::NewRoutes, utils::boxed_clone::BoxCloneService,
 };
 
+use crate::registry::{registry::StaticRegistry, MkRegistryService};
 use aws_smithy_http::body::SdkBody;
 use dubbo_base::Url;
-
-use super::TripleClient;
+use tower::ServiceBuilder;
 
 pub type ClientBoxService =
     BoxCloneService<http::Request<SdkBody>, http::Response<crate::BoxBody>, crate::Error>;
 
-#[derive(Clone, Debug, Default)]
+pub type ServiceMK =
+    Arc<NewCluster<NewLoadBalancer<NewRoutes<NewCachedDirectory<MkRegistryService>>>>>;
+
+#[derive(Default)]
 pub struct ClientBuilder {
     pub timeout: Option<u64>,
     pub connector: &'static str,
-    directory: Option<Box<dyn Directory>>,
+    registry_extension_url: Option<Url>,
     pub direct: bool,
-    host: String,
 }
 
 impl ClientBuilder {
@@ -47,19 +46,18 @@ impl ClientBuilder {
         ClientBuilder {
             timeout: None,
             connector: "",
-            directory: None,
+            registry_extension_url: None,
             direct: false,
-            host: "".to_string(),
         }
     }
 
     pub fn from_static(host: &str) -> ClientBuilder {
+        let registry_extension_url = StaticRegistry::to_extension_url(vec![host.parse().unwrap()]);
         Self {
             timeout: None,
             connector: "",
-            directory: Some(Box::new(StaticDirectory::new(&host))),
+            registry_extension_url: Some(registry_extension_url),
             direct: true,
-            host: host.to_string(),
         }
     }
 
@@ -70,64 +68,44 @@ impl ClientBuilder {
         }
     }
 
-    /// host: http://0.0.0.0:8888
-    pub fn with_directory(self, directory: Box<dyn Directory>) -> Self {
+    pub fn with_registry(self, registry: Url) -> Self {
+        let registry_extension_url = extension::registry_extension::to_extension_url(registry);
         Self {
-            directory: Some(directory),
-            ..self
-        }
-    }
-
-    pub fn with_registry_directory(self, registry: RegistryDirectory) -> Self {
-        Self {
-            directory: Some(Box::new(registry)),
+            registry_extension_url: Some(registry_extension_url),
             ..self
         }
     }
 
     pub fn with_host(self, host: &'static str) -> Self {
+        let registry_extension_url = StaticRegistry::to_extension_url(vec![host.parse().unwrap()]);
+
         Self {
-            directory: Some(Box::new(StaticDirectory::new(&host))),
+            registry_extension_url: Some(registry_extension_url),
             ..self
         }
     }
 
     pub fn with_connector(self, connector: &'static str) -> Self {
-        Self {
-            connector: connector,
-            ..self
-        }
+        Self { connector, ..self }
     }
 
     pub fn with_direct(self, direct: bool) -> Self {
         Self { direct, ..self }
     }
 
-    pub(crate) fn direct_build(self) -> TripleClient {
-        let mut cli = TripleClient {
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
-            builder: Some(self.clone()),
-            invoker: None,
-        };
-        cli.invoker = Some(Box::new(TripleInvoker::new(
-            Url::from_url(&self.host).unwrap(),
-        )));
-        return cli;
-    }
+    pub fn build(mut self) -> ServiceMK {
+        let registry = self
+            .registry_extension_url
+            .take()
+            .expect("registry must not be empty");
 
-    pub fn build(self, invocation: Arc<RpcInvocation>) -> Option<BoxInvoker> {
-        if self.direct {
-            return Some(Box::new(TripleInvoker::new(
-                Url::from_url(&self.host).unwrap(),
-            )));
-        }
-        let invokers = match self.directory {
-            Some(v) => v.list(invocation),
-            None => panic!("use direct connection"),
-        };
+        let mk_service = ServiceBuilder::new()
+            .layer(NewCluster::layer())
+            .layer(NewLoadBalancer::layer())
+            .layer(NewRoutes::layer())
+            .layer(NewCachedDirectory::layer())
+            .service(MkRegistryService::new(registry));
 
-        let cluster = MockCluster::default().join(Box::new(MockDirectory::new(invokers)));
-
-        return Some(cluster);
+        Arc::new(mk_service)
     }
 }

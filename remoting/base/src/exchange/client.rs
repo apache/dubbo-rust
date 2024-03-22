@@ -51,7 +51,7 @@ impl ExchangeClient {
     pub fn new(url: Url, client: BoxedClient, connection_timeout: Duration) -> Self {
         ExchangeClient {
             connection_timeout,
-            address: url.get_ip_port(),
+            address: url.authority().to_owned(),
             client: None,
             init: AtomicBool::new(false),
             active: AtomicI32::new(0),
