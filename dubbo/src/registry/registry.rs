@@ -217,4 +217,3 @@ impl Extension for StaticRegistry {
         Ok(Box::new(static_registry))
     }
 }
-
