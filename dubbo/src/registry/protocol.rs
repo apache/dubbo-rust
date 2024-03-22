@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#[allow(unused_variables, dead_code, missing_docs)]
 use dubbo_base::{registry_param::InterfaceName, url::UrlParam, Url};
 use dubbo_logger::tracing;
 use std::{
@@ -96,7 +97,7 @@ impl Protocol for RegistryProtocol {
         }
     }
 
-    async fn refer(self, url: Url) -> Self::Invoker {
+    async fn refer(self, _url: Url) -> Self::Invoker {
         // getRegisterUrl
         // get Registry from registry_url
         // init directory based on registry_url and Registry

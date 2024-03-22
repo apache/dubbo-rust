@@ -61,12 +61,12 @@ pub trait Registry {
     fn url(&self) -> &Url;
 }
 
-impl<T> crate::extension::Sealed for T where T: Registry + Send +Sync + 'static {}
+impl<T> crate::extension::Sealed for T where T: Registry + Send + Sync + 'static {}
 
 impl<T> ExtensionMetaInfo for T
 where
-    T: Registry + Send+Sync + 'static,
-    T: Extension<Target = Box<dyn Registry + Send+Sync + 'static>>,
+    T: Registry + Send + Sync + 'static,
+    T: Extension<Target = Box<dyn Registry + Send + Sync + 'static>>,
 {
     fn extension_type() -> ExtensionType {
         ExtensionType::Registry
@@ -75,8 +75,8 @@ where
 
 impl<T> ConvertToExtensionFactories for T
 where
-    T: Registry + Send+Sync + 'static,
-    T: Extension<Target = Box<dyn Registry + Send+Sync + 'static>>,
+    T: Registry + Send + Sync + 'static,
+    T: Extension<Target = Box<dyn Registry + Send + Sync + 'static>>,
 {
     fn convert_to_extension_factories() -> ExtensionFactories {
         ExtensionFactories::RegistryExtensionFactory(RegistryExtensionFactory::new(
@@ -118,7 +118,7 @@ impl RegistryExtensionLoader {
 type RegistryConstructor = fn(
     Url,
 ) -> Pin<
-    Box<dyn Future<Output = Result<Box<dyn Registry + Send +Sync + 'static>, StdError>> + Send>,
+    Box<dyn Future<Output = Result<Box<dyn Registry + Send + Sync + 'static>, StdError>> + Send>,
 >;
 
 pub(crate) struct RegistryExtensionFactory {
@@ -155,8 +155,9 @@ impl RegistryExtensionFactory {
                     let registry = constructor(url);
                     Box::pin(async move {
                         let registry = registry.await?;
-                        let proxy =
-                            <RegistryProxy as From<Box<dyn Registry + Send + Sync>>>::from(registry);
+                        let proxy = <RegistryProxy as From<Box<dyn Registry + Send + Sync>>>::from(
+                            registry,
+                        );
                         Ok(proxy)
                     })
                         as Pin<
@@ -334,8 +335,8 @@ pub mod proxy {
         }
     }
 
-    impl From<Box<dyn Registry + Send+Sync>> for RegistryProxy {
-        fn from(registry: Box<dyn Registry + Send+ Sync>) -> Self {
+    impl From<Box<dyn Registry + Send + Sync>> for RegistryProxy {
+        fn from(registry: Box<dyn Registry + Send + Sync>) -> Self {
             let url = registry.url().clone();
 
             let (sender, mut receiver) = tokio::sync::mpsc::channel(1024);

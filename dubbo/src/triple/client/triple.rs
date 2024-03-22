@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-use futures_util::{future, stream, StreamExt, TryStreamExt};
-use tower_service::Service;
 use aws_smithy_http::body::SdkBody;
+use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use tower_service::Service;
 
 use crate::codegen::{ProstCodec, RpcInvocation, SerdeCodec};
 
@@ -33,7 +33,8 @@ use crate::{
         compression::CompressionEncoding,
         decode::Decoding,
         encode::encode,
-    }};
+    },
+};
 
 use super::builder::{ClientBuilder, ServiceMK};
 

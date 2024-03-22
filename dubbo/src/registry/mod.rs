@@ -15,8 +15,6 @@
  * limitations under the License.
  */
 
-#![allow(unused_variables, dead_code, missing_docs)]
-
 use crate::{extension, extension::registry_extension::proxy::RegistryProxy};
 use dubbo_base::{StdError, Url};
 use std::{
@@ -47,11 +45,11 @@ impl Service<()> for MkRegistryService {
     type Future =
         Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, req: ()) -> Self::Future {
+    fn call(&mut self, _req: ()) -> Self::Future {
         let fut = extension::EXTENSIONS.load_registry(self.registry_url.clone());
         Box::pin(fut)
     }

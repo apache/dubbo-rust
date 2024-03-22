@@ -250,7 +250,7 @@ impl Registry for NacosRegistry {
 
 #[async_trait]
 impl Extension for NacosRegistry {
-    type Target = Box<dyn Registry + Send + 'static>;
+    type Target = Box<dyn Registry + Send + Sync + 'static>;
 
     fn name() -> String {
         "nacos".to_string()

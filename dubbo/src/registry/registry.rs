@@ -183,7 +183,7 @@ impl Registry for StaticRegistry {
         Ok(change_rx)
     }
 
-    async fn unsubscribe(&self, url: Url) -> Result<(), StdError> {
+    async fn unsubscribe(&self, _url: Url) -> Result<(), StdError> {
         Ok(())
     }
 
@@ -194,7 +194,7 @@ impl Registry for StaticRegistry {
 
 #[async_trait::async_trait]
 impl Extension for StaticRegistry {
-    type Target = Box<dyn Registry + Send+Sync + 'static>;
+    type Target = Box<dyn Registry + Send + Sync + 'static>;
 
     fn name() -> String {
         "static".to_string()
