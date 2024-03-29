@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
   "common/logger",
   "common/utils",
@@ -59,5 +60,7 @@ itertools = "0.10.1"
 bytes = "1.0"
 prost-serde = "0.3.0"
 prost-serde-derive = "0.1.2"
+url = "2.5.0"
+
 
 

@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#![allow(unused_variables, dead_code, missing_docs)]
 
 use dubbo_logger::tracing::debug;
 use std::{

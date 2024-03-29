@@ -15,75 +15,49 @@
  * limitations under the License.
  */
 
-use dubbo_base::Url;
+use dubbo_base::{registry_param::InterfaceName, url::UrlParam, Url};
 use dubbo_logger::tracing;
 use std::{
     collections::HashMap,
-    fmt::{Debug, Formatter},
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
 };
 
-use super::{memory_registry::MemoryRegistry, BoxRegistry};
 use crate::{
+    extension::registry_extension::{proxy::RegistryProxy, Registry},
     protocol::{
         triple::{triple_exporter::TripleExporter, triple_protocol::TripleProtocol},
         BoxExporter, BoxInvoker, Protocol,
     },
-    registry::types::Registries,
 };
 
 #[derive(Clone, Default)]
 pub struct RegistryProtocol {
     // registerAddr: Registry
-    registries: Option<Registries>,
+    registries: Vec<RegistryProxy>,
     // providerUrl: Exporter
+    #[allow(dead_code)]
     exporters: Arc<RwLock<HashMap<String, BoxExporter>>>,
     // serviceName: registryUrls
     services: HashMap<String, Vec<Url>>,
 }
 
-impl Debug for RegistryProtocol {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(
-            format!(
-                "RegistryProtocol services{:#?},registries,{:#?}",
-                self.services,
-                self.registries.clone()
-            )
-            .as_str(),
-        )
-    }
-}
-
 impl RegistryProtocol {
     pub fn new() -> Self {
         RegistryProtocol {
-            registries: None,
+            registries: Vec::default(),
             exporters: Arc::new(RwLock::new(HashMap::new())),
             services: HashMap::new(),
         }
     }
 
-    pub fn with_registries(mut self, registries: Registries) -> Self {
-        self.registries = Some(registries);
+    pub fn with_registries(mut self, registries: Vec<RegistryProxy>) -> Self {
+        self.registries.extend(registries);
         self
     }
 
     pub fn with_services(mut self, services: HashMap<String, Vec<Url>>) -> Self {
         self.services.extend(services);
         self
-    }
-
-    pub fn get_registry(&mut self, url: Url) -> BoxRegistry {
-        let mem = MemoryRegistry::default();
-        self.registries
-            .as_ref()
-            .unwrap()
-            .lock()
-            .unwrap()
-            .insert(url.location, Arc::new(Mutex::new(Box::new(mem.clone()))));
-
-        Box::new(mem)
     }
 }
 
@@ -101,29 +75,29 @@ impl Protocol for RegistryProtocol {
         // init Exporter based on provider_url
         // server registry based on register_url
         // start server health check
-        let registry_url = self.services.get(url.get_service_name().as_str());
+        let service_name = url.query::<InterfaceName>().unwrap();
+        let registry_url = self.services.get(service_name.as_str().as_ref());
         if let Some(urls) = registry_url {
-            for url in urls.clone().iter() {
-                if !url.service_key.is_empty() {
-                    let mut reg = self.get_registry(url.clone());
-                    reg.register(url.clone()).unwrap();
+            for url in urls.iter() {
+                for registry_proxy in &self.registries {
+                    let _ = registry_proxy.register(url.clone()).await;
                 }
             }
         }
 
-        match url.clone().scheme.as_str() {
+        match url.clone().protocol() {
             "tri" => {
                 let pro = Box::new(TripleProtocol::new());
                 return pro.export(url).await;
             }
             _ => {
-                tracing::error!("base {:?} not implemented", url.scheme);
+                tracing::error!("base {:?} not implemented", url.protocol());
                 Box::new(TripleExporter::new())
             }
         }
     }
 
-    async fn refer(self, url: Url) -> Self::Invoker {
+    async fn refer(self, _url: Url) -> Self::Invoker {
         // getRegisterUrl
         // get Registry from registry_url
         // init directory based on registry_url and Registry

@@ -9,10 +9,13 @@ repository = "https://github.com/apache/dubbo-rust.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zookeeper = "0.7.0"
+zookeeper = "0.8.0"
 dubbo.workspace = true
+anyhow.workspace = true
 serde_json.workspace = true
 serde = { workspace = true, features = ["derive"] }
 urlencoding.workspace = true
 dubbo-logger.workspace = true
 dubbo-base.workspace = true
+tokio.workspace = true
+async-trait.workspace = true

@@ -15,20 +15,13 @@
  * limitations under the License.
  */
 
-use std::{
-    collections::HashMap,
-    error::Error,
-    pin::Pin,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, error::Error, pin::Pin};
 
 use crate::{
+    extension,
+    extension::registry_extension::Registry,
     protocol::{BoxExporter, Protocol},
-    registry::{
-        protocol::RegistryProtocol,
-        types::{Registries, RegistriesOperation},
-        BoxRegistry, Registry,
-    },
+    registry::protocol::RegistryProtocol,
 };
 use dubbo_base::Url;
 use dubbo_config::{get_global_config, protocol::ProtocolRetrieve, RootConfig};
@@ -40,7 +33,7 @@ use futures::{future, Future};
 #[derive(Default)]
 pub struct Dubbo {
     protocols: HashMap<String, Vec<Url>>,
-    registries: Option<Registries>,
+    registries: Vec<Url>,
     service_registry: HashMap<String, Vec<Url>>, // registry: Urls
     config: Option<&'static RootConfig>,
 }
@@ -49,7 +42,7 @@ impl Dubbo {
     pub fn new() -> Dubbo {
         Self {
             protocols: HashMap::new(),
-            registries: None,
+            registries: Vec::default(),
             service_registry: HashMap::new(),
             config: None,
         }
@@ -60,14 +53,10 @@ impl Dubbo {
         self
     }
 
-    pub fn add_registry(mut self, registry_key: &str, registry: BoxRegistry) -> Self {
-        if self.registries.is_none() {
-            self.registries = Some(Arc::new(Mutex::new(HashMap::new())));
-        }
-        self.registries
-            .as_ref()
-            .unwrap()
-            .insert(registry_key.to_string(), Arc::new(Mutex::new(registry)));
+    pub fn add_registry(mut self, registry: &str) -> Self {
+        let url: Url = registry.parse().unwrap();
+        let url = extension::registry_extension::to_extension_url(url);
+        self.registries.push(url);
         self
     }
 
@@ -88,10 +77,15 @@ impl Dubbo {
                 let protocol = root_config
                     .protocols
                     .get_protocol_or_default(service_config.protocol.as_str());
-                let protocol_url =
-                    format!("{}/{}", protocol.to_url(), service_config.interface.clone(),);
+                let interface_name = service_config.interface.clone();
+                let protocol_url = format!(
+                    "{}/{}?interface={}",
+                    protocol.to_url(),
+                    interface_name,
+                    interface_name
+                );
                 tracing::info!("protocol_url: {:?}", protocol_url);
-                Url::from_url(&protocol_url)
+                protocol_url.parse().ok()
             } else {
                 return Err(format!("base {:?} not exists", service_config.protocol).into());
             };
@@ -117,9 +111,20 @@ impl Dubbo {
         self.init().unwrap();
         tracing::info!("starting...");
         // TODO: server registry
+
+        let mut registry_extensions = Vec::new();
+
+        for registry_url in &self.registries {
+            let registry_url = registry_url.clone();
+            let registry_extension = extension::EXTENSIONS.load_registry(registry_url).await;
+            if let Ok(registry_extension) = registry_extension {
+                registry_extensions.push(registry_extension);
+            }
+        }
+
         let mem_reg = Box::new(
             RegistryProtocol::new()
-                .with_registries(self.registries.as_ref().unwrap().clone())
+                .with_registries(registry_extensions.clone())
                 .with_services(self.service_registry.clone()),
         );
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
@@ -128,14 +133,10 @@ impl Dubbo {
                 tracing::info!("base: {:?}, service url: {:?}", name, url);
                 let exporter = mem_reg.clone().export(url.to_owned());
                 async_vec.push(exporter);
+
                 //TODO multiple registry
-                if self.registries.is_some() {
-                    self.registries
-                        .as_ref()
-                        .unwrap()
-                        .default_registry()
-                        .register(url.clone())
-                        .unwrap();
+                for registry_extension in &registry_extensions {
+                    let _ = registry_extension.register(url.clone()).await;
                 }
             }
         }

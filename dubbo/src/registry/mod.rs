@@ -15,48 +15,42 @@
  * limitations under the License.
  */
 
-#![allow(unused_variables, dead_code, missing_docs)]
-pub mod integration;
-pub mod memory_registry;
-pub mod protocol;
-pub mod types;
-
+use crate::{extension, extension::registry_extension::proxy::RegistryProxy};
+use dubbo_base::{StdError, Url};
 use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
 };
+use tower_service::Service;
 
-use dubbo_base::Url;
+pub mod integration;
+pub mod protocol;
+pub mod registry;
 
-pub type RegistryNotifyListener = Arc<dyn NotifyListener + Send + Sync + 'static>;
-pub trait Registry {
-    fn register(&mut self, url: Url) -> Result<(), crate::StdError>;
-    fn unregister(&mut self, url: Url) -> Result<(), crate::StdError>;
-
-    fn subscribe(&self, url: Url, listener: RegistryNotifyListener) -> Result<(), crate::StdError>;
-    fn unsubscribe(
-        &self,
-        url: Url,
-        listener: RegistryNotifyListener,
-    ) -> Result<(), crate::StdError>;
+#[derive(Clone)]
+pub struct MkRegistryService {
+    registry_url: Url,
 }
 
-pub trait NotifyListener {
-    fn notify(&self, event: ServiceEvent);
-    fn notify_all(&self, event: ServiceEvent);
+impl MkRegistryService {
+    pub fn new(registry_url: Url) -> Self {
+        Self { registry_url }
+    }
 }
 
-#[derive(Debug)]
-pub struct ServiceEvent {
-    pub key: String,
-    pub action: String,
-    pub service: Vec<Url>,
-}
+impl Service<()> for MkRegistryService {
+    type Response = RegistryProxy;
+    type Error = StdError;
+    type Future =
+        Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
 
-pub type BoxRegistry = Box<dyn Registry + Send + Sync>;
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
 
-impl Debug for BoxRegistry {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("BoxRegistry")
+    fn call(&mut self, _req: ()) -> Self::Future {
+        let fut = extension::EXTENSIONS.load_registry(self.registry_url.clone());
+        Box::pin(fut)
     }
 }
