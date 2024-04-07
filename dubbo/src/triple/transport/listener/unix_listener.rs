@@ -18,7 +18,7 @@
 use std::{net::SocketAddr, task};
 
 use super::Listener;
-use crate::logger::tracing;
+use crate::logger::tracing::error;
 use async_trait::async_trait;
 use futures_core::Stream;
 use hyper::server::accept::Accept;
@@ -61,7 +61,7 @@ impl Stream for UnixListener {
         self.inner.poll_accept(cx).map(|res| match res {
             Ok(data) => Some(data.0),
             Err(err) => {
-                tracing::error!("UnixListener poll_next Error: {:?}", err);
+                error!("UnixListener poll_next Error: {:?}", err);
                 None
             }
         })
@@ -80,7 +80,7 @@ impl Accept for UnixListener {
         self.inner.poll_accept(cx).map(|res| match res {
             Ok(data) => Some(Ok(data.0)),
             Err(err) => {
-                tracing::error!("UnixListener poll_accept Error: {:?}", err);
+                error!("UnixListener poll_accept Error: {:?}", err);
                 None
             }
         })

@@ -18,7 +18,10 @@
 use std::{collections::HashMap, env, path::PathBuf};
 
 use super::{protocol::Protocol, registry::RegistryConfig, router::RouterConfig};
-use crate::{logger::tracing, utils::yaml_utils::yaml_file_parser};
+use crate::{
+    logger::tracing::{debug, error, info, warn},
+    utils::yaml_utils::yaml_file_parser,
+};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 
@@ -52,7 +55,7 @@ pub struct RootConfig {
 
 pub fn get_global_config() -> &'static RootConfig {
     GLOBAL_ROOT_CONFIG.get_or_init(|| {
-        tracing::debug!("current path: {:?}", env::current_dir());
+        debug!("current path: {:?}", env::current_dir());
         RootConfig::new()
             .load()
             .unwrap_or_else(|err| panic!("Failed to load global config, error: {}", err))
@@ -73,14 +76,13 @@ impl RootConfig {
     pub fn load(&self) -> std::io::Result<Self> {
         let config_path = match env::var("DUBBO_CONFIG_PATH") {
             Ok(v) => {
-                tracing::info!("read config_path from env: {:?}", v);
+                info!("read config_path from env: {:?}", v);
                 v
             }
             Err(err) => {
-                tracing::warn!(
+                warn!(
                     "error loading config_path: {:?}, use default path: {:?}",
-                    err,
-                    DUBBO_CONFIG_PATH
+                    err, DUBBO_CONFIG_PATH
                 );
                 crate::app_root_dir()
                     .join(DUBBO_CONFIG_PATH)
@@ -93,7 +95,7 @@ impl RootConfig {
         let conf: HashMap<String, RootConfig> =
             yaml_file_parser(PathBuf::new().join(config_path)).unwrap();
         let root_config: RootConfig = conf.get(DUBBO_CONFIG_PREFIX).unwrap().clone();
-        tracing::debug!("origin config: {:?}", conf);
+        debug!("origin config: {:?}", conf);
         Ok(root_config)
     }
 
@@ -150,7 +152,7 @@ impl Config for RootConfig {
             Some(val) => match val.parse::<bool>() {
                 Ok(v) => v,
                 Err(_err) => {
-                    tracing::error!("key: {}, val: {} is not boolean", key, val);
+                    error!("key: {}, val: {} is not boolean", key, val);
                     false
                 }
             },

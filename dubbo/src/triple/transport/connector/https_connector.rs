@@ -21,7 +21,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::logger::tracing;
+use crate::logger::tracing::info;
 use http::Uri;
 use hyper::client::connect::dns::Name;
 use rustls_native_certs::load_native_certs;
@@ -88,10 +88,10 @@ where
         let port = uri.port_u16().unwrap();
 
         let addr = if let Ok(addr) = host.parse::<Ipv4Addr>() {
-            tracing::info!("host is ip address: {:?}", host);
+            info!("host is ip address: {:?}", host);
             SocketAddr::V4(SocketAddrV4::new(addr, port))
         } else {
-            tracing::info!("host is dns: {:?}", host);
+            info!("host is dns: {:?}", host);
             let addrs = self
                 .resolver
                 .resolve(Name::from_str(host).unwrap())

@@ -21,7 +21,7 @@ use crate::{
     config::{get_global_config, protocol::ProtocolRetrieve, RootConfig},
     extension,
     extension::registry_extension::Registry,
-    logger::tracing,
+    logger::tracing::{debug, info},
     protocol::{BoxExporter, Protocol},
     registry::protocol::RegistryProtocol,
     Url,
@@ -66,10 +66,10 @@ impl Dubbo {
         }
 
         let root_config = self.config.as_ref().unwrap();
-        tracing::debug!("global conf: {:?}", root_config);
+        debug!("global conf: {:?}", root_config);
         // env::set_var("ZOOKEEPER_SERVERS",root_config);
         for (_, service_config) in root_config.provider.services.iter() {
-            tracing::info!("init service name: {}", service_config.interface);
+            info!("init service name: {}", service_config.interface);
             let url = if root_config
                 .protocols
                 .contains_key(service_config.protocol.as_str())
@@ -84,12 +84,12 @@ impl Dubbo {
                     interface_name,
                     interface_name
                 );
-                tracing::info!("protocol_url: {:?}", protocol_url);
+                info!("protocol_url: {:?}", protocol_url);
                 protocol_url.parse().ok()
             } else {
                 return Err(format!("base {:?} not exists", service_config.protocol).into());
             };
-            tracing::info!("url: {:?}", url);
+            info!("url: {:?}", url);
             if url.is_none() {
                 continue;
             }
@@ -109,7 +109,7 @@ impl Dubbo {
 
     pub async fn start(&mut self) {
         self.init().unwrap();
-        tracing::info!("starting...");
+        info!("starting...");
         // TODO: server registry
 
         let mut registry_extensions = Vec::new();
@@ -130,7 +130,7 @@ impl Dubbo {
         let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
         for (name, items) in self.protocols.iter() {
             for url in items.iter() {
-                tracing::info!("base: {:?}, service url: {:?}", name, url);
+                info!("base: {:?}, service url: {:?}", name, url);
                 let exporter = mem_reg.clone().export(url.to_owned());
                 async_vec.push(exporter);
 

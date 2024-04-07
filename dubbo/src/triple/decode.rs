@@ -17,7 +17,7 @@
 
 use std::{pin::Pin, task::Poll};
 
-use crate::logger::tracing;
+use crate::logger::tracing::error;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures_util::{future, ready, Stream};
 use http_body::Body;
@@ -265,7 +265,7 @@ impl<T> Stream for Decoding<T> {
                 self.trailers = trailer.map(Metadata::from_headers);
             }
             Err(err) => {
-                tracing::error!("poll_trailers, err: {}", err);
+                error!("poll_trailers, err: {}", err);
             }
         }
 

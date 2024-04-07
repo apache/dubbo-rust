@@ -21,7 +21,12 @@ use std::{
     str::FromStr,
 };
 
-use crate::{logger::tracing, params::registry_param::InterfaceName, url::UrlParam, Url};
+use crate::{
+    logger::tracing::{error, info, warn},
+    params::registry_param::InterfaceName,
+    url::UrlParam,
+    Url,
+};
 use http::{Request, Response, Uri};
 use hyper::body::Body;
 use tokio_rustls::rustls::{Certificate, PrivateKey};
@@ -53,14 +58,14 @@ impl ServerBuilder {
             certs: match utils::tls::load_certs(Path::new(certs)) {
                 Ok(v) => v,
                 Err(err) => {
-                    tracing::error!("error loading tls certs {:?}", err);
+                    error!("error loading tls certs {:?}", err);
                     Vec::new()
                 }
             },
             keys: match utils::tls::load_keys(Path::new(keys)) {
                 Ok(v) => v,
                 Err(err) => {
-                    tracing::error!("error loading tls keys {:?}", err);
+                    error!("error loading tls keys {:?}", err);
                     Vec::new()
                 }
             },
@@ -95,7 +100,7 @@ impl ServerBuilder {
             let lock = crate::protocol::triple::TRIPLE_SERVICES.read().unwrap();
             for name in self.service_names.iter() {
                 if lock.get(name).is_none() {
-                    tracing::warn!("service ({}) not register", name);
+                    warn!("service ({}) not register", name);
                     continue;
                 }
                 let svc = lock.get(name).unwrap();
@@ -124,7 +129,7 @@ impl ServerBuilder {
     }
 
     pub async fn serve(self) -> Result<(), crate::Error> {
-        tracing::info!("server starting. addr: {:?}", self.addr.unwrap());
+        info!("server starting. addr: {:?}", self.addr.unwrap());
         self.server.serve(self.addr.unwrap()).await
     }
 }
@@ -134,7 +139,7 @@ impl From<Url> for ServerBuilder {
         let uri = match http::Uri::from_str(&u.as_str()) {
             Ok(v) => v,
             Err(err) => {
-                tracing::error!("http uri parse error: {}, url: {:?}", err, &u);
+                error!("http uri parse error: {}, url: {:?}", err, &u);
                 Uri::default()
             }
         };
