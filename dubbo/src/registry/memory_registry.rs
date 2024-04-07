@@ -16,13 +16,13 @@
  */
 
 
-use dubbo_logger::tracing::debug;
+use crate::logger::tracing::debug;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
 
-use dubbo_base::Url;
+use crate::Url;
 
 use super::{NotifyListener, Registry, RegistryNotifyListener};
 
@@ -68,7 +68,7 @@ impl Registry for MemoryRegistry {
         Ok(())
     }
 
-    fn unregister(&mut self, url: dubbo_base::Url) -> Result<(), crate::StdError> {
+    fn unregister(&mut self, url: crate::Url) -> Result<(), crate::StdError> {
         let registry_group = match url.get_param(REGISTRY_GROUP_KEY) {
             Some(key) => key,
             None => "dubbo".to_string(),
@@ -87,7 +87,7 @@ impl Registry for MemoryRegistry {
 
     fn subscribe(
         &self,
-        url: dubbo_base::Url,
+        url: crate::Url,
         listener: RegistryNotifyListener,
     ) -> Result<(), crate::StdError> {
         todo!()
@@ -95,7 +95,7 @@ impl Registry for MemoryRegistry {
 
     fn unsubscribe(
         &self,
-        url: dubbo_base::Url,
+        url: crate::Url,
         listener: RegistryNotifyListener,
     ) -> Result<(), crate::StdError> {
         todo!()

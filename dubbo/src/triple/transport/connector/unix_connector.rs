@@ -20,7 +20,7 @@ use std::{
     str::FromStr,
 };
 
-use dubbo_logger::tracing;
+use crate::logger::tracing;
 use http::Uri;
 use hyper::client::connect::dns::Name;
 use tokio::net::UnixStream;

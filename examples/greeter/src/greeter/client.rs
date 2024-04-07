@@ -29,7 +29,7 @@ use registry_nacos::NacosRegistry;
 
 #[tokio::main]
 async fn main() {
-    dubbo_logger::init();
+    dubbo::logger::init();
 
     let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
 

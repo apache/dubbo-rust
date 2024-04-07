@@ -17,7 +17,7 @@
 
 use std::task::Poll;
 
-use dubbo_base::StdError;
+use crate::StdError;
 use futures_util::future;
 use http::Request;
 use tower::{retry::Retry, util::Oneshot, ServiceExt};

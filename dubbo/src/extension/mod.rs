@@ -18,10 +18,13 @@
 pub mod registry_extension;
 
 use crate::{
-    extension::registry_extension::proxy::RegistryProxy, registry::registry::StaticRegistry,
+    extension::registry_extension::proxy::RegistryProxy,
+    logger::tracing::{error, info},
+    params::extension_param::ExtensionType,
+    registry::registry::StaticRegistry,
+    url::UrlParam,
+    StdError, Url,
 };
-use dubbo_base::{extension_param::ExtensionType, url::UrlParam, StdError, Url};
-use dubbo_logger::tracing::{error, info};
 use std::{future::Future, pin::Pin, sync::Arc};
 use thiserror::Error;
 use tokio::sync::{oneshot, RwLock};

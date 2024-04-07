@@ -20,17 +20,20 @@
 use std::{collections::HashMap, env, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use dubbo_base::{
-    constants::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY},
+use dubbo::{
+    logger::tracing::{debug, error, info},
+    params::constants::{DUBBO_KEY, LOCALHOST_IP, PROVIDERS_KEY},
+    url::UrlParam,
     StdError, Url,
 };
-use dubbo_logger::tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc};
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
-use dubbo::extension::registry_extension::{DiscoverStream, Registry, ServiceChange};
-use dubbo_base::{registry_param::InterfaceName, url::UrlParam};
+use dubbo::{
+    extension::registry_extension::{DiscoverStream, Registry, ServiceChange},
+    params::registry_param::InterfaceName,
+};
 
 // Get metadata of a service registration from a URL
 // rawURL = fmt.Sprintf("%s://%s%s?%s", c.Protocol, host, c.Path, s)

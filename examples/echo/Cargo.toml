@@ -39,10 +39,8 @@ prost-serde-derive = "0.1.2"
 serde = { version = "1.0.171",features = ["derive"]  }
 async-trait = "0.1.56"
 tokio-stream = "0.1"
-dubbo-logger.workspace=true
 
 dubbo = {path = "../../dubbo"}
-dubbo-config = {path = "../../config", version = "0.3.0" }
 registry-zookeeper.workspace=true
 
 [build-dependencies]

@@ -42,11 +42,12 @@ dyn-clone = "1.0.11"
 itertools.workspace = true
 urlencoding.workspace = true
 lazy_static.workspace = true
-dubbo-base.workspace = true
-dubbo-logger.workspace = true
 once_cell.workspace = true
-
-dubbo-config = { path = "../config", version = "0.3.0" }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+project-root = "0.2.2"
+anyhow.workspace=true
+url.workspace = true
 
 #对象存储
 state = { version = "0.5", features = ["tls"] }

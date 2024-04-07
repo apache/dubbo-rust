@@ -21,7 +21,7 @@ use std::{
     sync::Arc,
 };
 
-use dubbo_logger::tracing;
+use crate::logger::tracing;
 use http::Uri;
 use hyper::client::connect::dns::Name;
 use rustls_native_certs::load_native_certs;

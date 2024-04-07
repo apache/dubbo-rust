@@ -17,7 +17,7 @@
 
 use std::{io, net::SocketAddr, sync::Arc};
 
-use dubbo_logger::tracing;
+use crate::logger::tracing;
 use futures_core::Future;
 use http::{Request, Response};
 use hyper::body::Body;

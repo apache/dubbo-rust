@@ -24,9 +24,11 @@ use tokio::sync::{
     Mutex,
 };
 
-use dubbo_base::{
-    extension_param::{ExtensionName, ExtensionType},
-    registry_param::{InterfaceName, RegistryUrl, StaticInvokerUrls},
+use crate::{
+    params::{
+        extension_param::{ExtensionName, ExtensionType},
+        registry_param::{InterfaceName, RegistryUrl, StaticInvokerUrls},
+    },
     url::UrlParam,
     StdError, Url,
 };

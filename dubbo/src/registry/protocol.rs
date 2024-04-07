@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use dubbo_base::{registry_param::InterfaceName, url::UrlParam, Url};
-use dubbo_logger::tracing;
+use crate::{logger::tracing, params::registry_param::InterfaceName, url::UrlParam, Url};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},

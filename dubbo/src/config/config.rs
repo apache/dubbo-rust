@@ -17,9 +17,8 @@
 
 use std::{collections::HashMap, env, path::PathBuf};
 
-use crate::{protocol::Protocol, registry::RegistryConfig, router::RouterConfig};
-use dubbo_logger::tracing;
-use dubbo_utils::yaml_util::yaml_file_parser;
+use super::{protocol::Protocol, registry::RegistryConfig, router::RouterConfig};
+use crate::{logger::tracing, utils::yaml_utils::yaml_file_parser};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 
@@ -83,7 +82,7 @@ impl RootConfig {
                     err,
                     DUBBO_CONFIG_PATH
                 );
-                dubbo_utils::path_util::app_root_dir()
+                crate::app_root_dir()
                     .join(DUBBO_CONFIG_PATH)
                     .to_str()
                     .unwrap()
@@ -178,6 +177,8 @@ pub trait Config {
 
 #[cfg(test)]
 mod tests {
+    use crate::logger;
+
     use super::*;
 
     #[test]
@@ -188,7 +189,7 @@ mod tests {
 
     #[test]
     fn test_load() {
-        dubbo_logger::init();
+        logger::init();
         let r = RootConfig::new();
         let r = r.load().unwrap();
         println!("{:#?}", r);

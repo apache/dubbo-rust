@@ -18,14 +18,14 @@
 use std::{collections::HashMap, error::Error, pin::Pin};
 
 use crate::{
+    config::{get_global_config, protocol::ProtocolRetrieve, RootConfig},
     extension,
     extension::registry_extension::Registry,
+    logger::tracing,
     protocol::{BoxExporter, Protocol},
     registry::protocol::RegistryProtocol,
+    Url,
 };
-use dubbo_base::Url;
-use dubbo_config::{get_global_config, protocol::ProtocolRetrieve, RootConfig};
-use dubbo_logger::tracing;
 use futures::{future, Future};
 
 // Invoker是否可以基于hyper写一个通用的

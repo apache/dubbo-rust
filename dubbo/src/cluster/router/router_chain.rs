@@ -16,7 +16,7 @@
  */
 
 use crate::{cluster::router::BoxRouter, invocation::RpcInvocation};
-use dubbo_base::Url;
+use url::Url;
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug, Default)]

@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use crate::{extension, extension::registry_extension::proxy::RegistryProxy};
-use dubbo_base::{StdError, Url};
+use crate::{extension, extension::registry_extension::proxy::RegistryProxy, StdError, Url};
 use std::{
     future::Future,
     pin::Pin,
