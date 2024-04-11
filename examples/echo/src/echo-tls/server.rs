@@ -44,7 +44,7 @@ impl Filter for FakeFilter {
 
 #[tokio::main]
 async fn main() {
-    dubbo_logger::init();
+    dubbo::logger::init();
     register_server(EchoServerImpl {
         name: "echo".to_string(),
     });

@@ -22,7 +22,7 @@ pub mod tag;
 pub mod utils;
 
 use crate::invocation::RpcInvocation;
-use dubbo_base::Url;
+use crate::Url;
 use std::{fmt::Debug, sync::Arc};
 
 pub trait Router: Debug {

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use dubbo_base::StdError;
+use crate::StdError;
 use futures_core::future::BoxFuture;
 use tower::{discover::ServiceList, ServiceExt};
 use tower_service::Service;

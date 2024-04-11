@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use dubbo_base::StdError;
+use crate::StdError;
 use hyper::client::{conn::Builder, service::Connect};
 use tower_service::Service;
 

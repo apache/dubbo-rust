@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use dubbo_base::{registry_param::InterfaceName, url::UrlParam, Url};
-use dubbo_logger::tracing;
+use crate::{logger::tracing::error, params::registry_param::InterfaceName, url::UrlParam, Url};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
@@ -91,7 +90,7 @@ impl Protocol for RegistryProtocol {
                 return pro.export(url).await;
             }
             _ => {
-                tracing::error!("base {:?} not implemented", url.protocol());
+                error!("base {:?} not implemented", url.protocol());
                 Box::new(TripleExporter::new())
             }
         }

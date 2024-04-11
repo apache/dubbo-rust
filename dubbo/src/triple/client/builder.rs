@@ -22,9 +22,11 @@ use crate::{
     route::NewRoutes, utils::boxed_clone::BoxCloneService,
 };
 
-use crate::registry::{registry::StaticRegistry, MkRegistryService};
+use crate::{
+    registry::{registry::StaticRegistry, MkRegistryService},
+    Url,
+};
 use aws_smithy_http::body::SdkBody;
-use dubbo_base::Url;
 use tower::ServiceBuilder;
 
 pub type ClientBoxService =

@@ -16,8 +16,7 @@
  */
 use std::{mem, pin::Pin, task::Poll};
 
-use dubbo_base::StdError;
-use dubbo_logger::tracing::debug;
+use crate::{logger::tracing::debug, StdError};
 use futures_core::{future::BoxFuture, ready, Future, TryFuture};
 use futures_util::FutureExt;
 use pin_project::pin_project;

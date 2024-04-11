@@ -17,13 +17,16 @@
 
 use std::collections::HashMap;
 
-use async_trait::async_trait;
-use dubbo_base::{registry_param::InterfaceName, url::UrlParam, Url};
-
 use super::{
     triple_exporter::TripleExporter, triple_invoker::TripleInvoker, triple_server::TripleServer,
 };
-use crate::protocol::{BoxExporter, Protocol};
+use crate::{
+    params::registry_param::InterfaceName,
+    protocol::{BoxExporter, Protocol},
+    url::UrlParam,
+    Url,
+};
+use async_trait::async_trait;
 
 #[derive(Clone)]
 pub struct TripleProtocol {

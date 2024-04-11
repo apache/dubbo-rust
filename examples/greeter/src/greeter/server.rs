@@ -23,11 +23,15 @@ use registry_nacos::NacosRegistry;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use dubbo::{codegen::*, extension, Dubbo};
-use dubbo_config::RootConfig;
-use dubbo_logger::{
-    tracing::{info, span},
-    Level,
+use dubbo::{
+    codegen::*,
+    config::RootConfig,
+    extension,
+    logger::{
+        tracing::{info, span},
+        Level,
+    },
+    Dubbo,
 };
 use protos::{
     greeter_server::{register_server, Greeter},
@@ -43,7 +47,7 @@ type ResponseStream =
 
 #[tokio::main]
 async fn main() {
-    dubbo_logger::init();
+    dubbo::logger::init();
     let span = span!(Level::DEBUG, "greeter.server");
     let _enter = span.enter();
     register_server(GreeterServerImpl {

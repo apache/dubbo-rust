@@ -21,7 +21,7 @@ use std::{
     thread,
 };
 
-use dubbo_logger::tracing;
+use crate::logger::tracing::debug;
 use serde_json::Value;
 use state::Container;
 
@@ -47,7 +47,7 @@ impl Context for RpcContext {
     fn get_attachments() -> Option<Arc<Mutex<HashMap<String, Value>>>> {
         let local = APPLICATION_CONTEXT.try_get_local::<Arc<Mutex<HashMap<String, Value>>>>();
 
-        tracing::debug!("{:?} - {:?}", thread::current().id(), local);
+        debug!("{:?} - {:?}", thread::current().id(), local);
 
         match local {
             Some(attachment) => Some(attachment.clone()),

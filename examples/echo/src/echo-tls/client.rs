@@ -30,7 +30,7 @@ impl Filter for FakeFilter {
 
 #[tokio::main]
 async fn main() {
-    dubbo_logger::init();
+    dubbo::logger::init();
 
     let builder = ClientBuilder::from_static(&"https://127.0.0.1:8889").with_timeout(1000000);
     let mut cli = EchoClient::new(builder);

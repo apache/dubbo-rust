@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use dubbo_base::Url;
+use crate::Url;
 use http::{HeaderValue, Uri};
 use std::{
     fmt::{Debug, Formatter},

@@ -17,6 +17,7 @@
 
 pub mod cluster;
 pub mod codegen;
+pub mod config;
 pub mod context;
 pub mod directory;
 pub mod extension;
@@ -25,23 +26,28 @@ mod framework;
 pub mod invocation;
 pub mod invoker;
 pub mod loadbalancer;
+pub mod logger;
 pub mod param;
+pub mod params;
 pub mod protocol;
 pub mod registry;
 pub mod route;
 pub mod status;
 pub mod svc;
 pub mod triple;
+pub mod url;
 pub mod utils;
 
 use http_body::Body;
-use std::{future::Future, pin::Pin};
+use std::{env, future::Future, path::PathBuf, pin::Pin};
 
+pub use crate::url::Url;
 pub use framework::Dubbo;
 
 pub type BoxFuture<T, E> = self::Pin<Box<dyn self::Future<Output = Result<T, E>> + Send + 'static>>;
 pub(crate) type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type BoxBody = http_body::combinators::UnsyncBoxBody<bytes::Bytes, self::status::Status>;
+pub type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 pub fn empty_body() -> BoxBody {
     http_body::Empty::new()
@@ -58,4 +64,12 @@ where
         self::status::Status::new(self::status::Code::Internal, format!("{:?}", err.into()))
     })
     .boxed_unsync()
+}
+
+pub fn app_root_dir() -> PathBuf {
+    match project_root::get_project_root() {
+        // Cargo.lock file as app root dir
+        Ok(p) => p,
+        Err(_) => env::current_dir().unwrap(),
+    }
 }

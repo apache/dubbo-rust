@@ -14,8 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use dubbo_base::Url;
-use dubbo_logger::tracing::info;
+use crate::Url;
+use crate::logger::tracing::info;
 use regex::Regex;
 use std::{
     collections::HashMap,

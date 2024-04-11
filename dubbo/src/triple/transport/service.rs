@@ -17,7 +17,7 @@
 
 use std::{io, net::SocketAddr, sync::Arc};
 
-use dubbo_logger::tracing;
+use crate::logger::tracing::{debug, error, info};
 use futures_core::Future;
 use http::{Request, Response};
 use hyper::body::Body;
@@ -191,7 +191,7 @@ impl DubboServer {
         loop {
             tokio::select! {
                 _ = &mut signal => {
-                    tracing::info!("graceful shutdown");
+                    info!("graceful shutdown");
                     break
                 }
                 res = listener.accept() => {
@@ -206,7 +206,7 @@ impl DubboServer {
                                 b = io;
                             }
 
-                            tracing::debug!("hyper serve, local address: {:?}", local_addr);
+                            debug!("hyper serve, local address: {:?}", local_addr);
                             let c = hyper::server::conn::Http::new()
                                 .http2_only(self.accept_http2)
                                 .http2_max_concurrent_streams(self.max_concurrent_streams)
@@ -219,7 +219,7 @@ impl DubboServer {
 
                             tokio::spawn(c);
                         },
-                        Err(err) => tracing::error!("hyper serve, err: {:?}", err),
+                        Err(err) => error!("hyper serve, err: {:?}", err),
                     }
                 }
             }

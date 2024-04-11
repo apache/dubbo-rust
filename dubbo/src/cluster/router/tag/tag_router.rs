@@ -19,7 +19,7 @@ use crate::{
     cluster::router::{utils::to_original_map, Router},
     codegen::RpcInvocation,
 };
-use dubbo_base::Url;
+use crate::Url;
 use dubbo_config::router::TagRouterConfig;
 use std::{
     collections::HashMap,

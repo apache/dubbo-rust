@@ -22,8 +22,10 @@ use thiserror::Error;
 use tokio::sync::mpsc::Receiver;
 use tower::discover::Change;
 
-use dubbo_base::{
-    extension_param::ExtensionName, registry_param::RegistryUrl, url::UrlParam, StdError, Url,
+use crate::{
+    params::{extension_param::ExtensionName, registry_param::RegistryUrl},
+    url::UrlParam,
+    StdError, Url,
 };
 use proxy::RegistryProxy;
 
@@ -192,8 +194,7 @@ pub mod proxy {
     use thiserror::Error;
     use tokio::sync::oneshot;
 
-    use dubbo_base::{StdError, Url};
-    use dubbo_logger::tracing::error;
+    use crate::{logger::tracing::error, StdError, Url};
 
     use crate::extension::registry_extension::{DiscoverStream, Registry};
 
