@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use crate::triple::server::builder::ServerBuilder;
-use dubbo_base::Url;
+use crate::{triple::server::builder::ServerBuilder, Url};
 
 #[derive(Default, Clone)]
 pub struct TripleServer {

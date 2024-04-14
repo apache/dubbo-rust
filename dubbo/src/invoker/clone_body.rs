@@ -24,7 +24,7 @@ use std::{
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures_core::ready;
 
-use dubbo_base::StdError;
+use crate::StdError;
 use http::HeaderMap;
 use http_body::Body;
 use pin_project::pin_project;

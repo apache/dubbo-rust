@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use dubbo_logger::tracing;
+use crate::logger::tracing::debug;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
@@ -51,10 +51,9 @@ impl Filter for TimeoutFilter {
                 .parse()
                 .unwrap();
 
-            tracing::debug!(
+            debug!(
                 "TimeoutFilter tri-timeout-deadline-in-nanos : {}, current-nanos:{}",
-                tri_timeout_deadline_in_nanos,
-                current_nanos
+                tri_timeout_deadline_in_nanos, current_nanos
             );
             if tri_timeout_deadline_in_nanos - current_nanos <= 0 {
                 return Err(Status::new(Code::DeadlineExceeded, String::from("Timeout")));

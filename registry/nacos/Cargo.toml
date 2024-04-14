@@ -14,8 +14,6 @@ dubbo.workspace = true
 serde_json.workspace = true
 serde = { workspace = true, features = ["derive"] }
 anyhow.workspace = true
-dubbo-logger.workspace = true
-dubbo-base.workspace = true
 tokio.workspace = true
 async-trait.workspace = true
 

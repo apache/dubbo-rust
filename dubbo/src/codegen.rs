@@ -20,9 +20,9 @@ pub use std::{
     task::{Context, Poll},
 };
 
+pub use crate::StdError;
 pub use async_trait::async_trait;
 pub use bytes::Bytes;
-pub use dubbo_base::StdError;
 pub use http_body::Body;
 pub use hyper::Body as hyperBody;
 pub use tower_service::Service;

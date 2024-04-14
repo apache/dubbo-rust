@@ -19,7 +19,7 @@ use crate::{
     cluster::router::{condition::single_router::ConditionSingleRouter, Router},
     codegen::RpcInvocation,
 };
-use dubbo_base::Url;
+use crate::Url;
 use std::{
     fmt::Debug,
     sync::{Arc, RwLock},

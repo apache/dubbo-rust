@@ -20,7 +20,7 @@ use std::{
     str::FromStr,
 };
 
-use dubbo_logger::tracing;
+use crate::logger::tracing::{debug, info};
 use http::Uri;
 use hyper::client::connect::dns::Name;
 use tokio::net::UnixStream;
@@ -81,10 +81,10 @@ where
         let port = uri.port_u16().unwrap();
 
         let addr = if let Ok(addr) = host.parse::<Ipv4Addr>() {
-            tracing::info!("host is ip address: {:?}", host);
+            info!("host is ip address: {:?}", host);
             SocketAddr::V4(SocketAddrV4::new(addr, port))
         } else {
-            tracing::info!("host is dns: {:?}", host);
+            info!("host is dns: {:?}", host);
             let addrs = self
                 .resolver
                 .resolve(Name::from_str(host).unwrap())
@@ -99,7 +99,7 @@ where
             addrs[0]
         };
 
-        tracing::debug!("uri:{:?}, ip:port : {}", &addr, addr.to_string());
+        debug!("uri:{:?}, ip:port : {}", &addr, addr.to_string());
 
         let conn = UnixStream::connect(addr.to_string().replace("unix://", "")).await?;
 

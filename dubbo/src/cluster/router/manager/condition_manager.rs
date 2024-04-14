@@ -19,7 +19,7 @@ use crate::cluster::router::condition::{
     condition_router::{ConditionRouter, ConditionSingleRouters},
     single_router::ConditionSingleRouter,
 };
-use dubbo_config::router::ConditionRouterConfig;
+use crate::config::router::ConditionRouterConfig;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},

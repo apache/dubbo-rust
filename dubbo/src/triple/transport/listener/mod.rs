@@ -21,8 +21,8 @@ pub mod unix_listener;
 
 use std::net::SocketAddr;
 
+use crate::logger::tracing::warn;
 use async_trait::async_trait;
-use dubbo_logger::tracing;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::io::BoxIO;
@@ -68,7 +68,7 @@ pub async fn get_listener(name: String, addr: SocketAddr) -> Result<BoxListener,
         #[cfg(any(target_os = "macos", target_os = "unix"))]
         "unix" => Ok(unix_listener::UnixListener::bind(addr).await?.boxed()),
         _ => {
-            tracing::warn!("no support listener: {:?}", name);
+            warn!("no support listener: {:?}", name);
             Err(Box::new(crate::status::DubboError::new(format!(
                 "no support listener: {:?}",
                 name

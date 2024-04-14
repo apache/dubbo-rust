@@ -20,12 +20,12 @@ use crate::cluster::router::{
     nacos_config_center::nacos_client::NacosClient,
     router_chain::RouterChain,
 };
-use dubbo_base::Url;
+use crate::Url;
 use dubbo_config::{
     get_global_config,
     router::{ConditionRouterConfig, NacosConfig, TagRouterConfig},
 };
-use dubbo_logger::tracing::{info, trace};
+use crate::logger::tracing::{info, trace};
 use once_cell::sync::OnceCell;
 use std::{
     collections::HashMap,

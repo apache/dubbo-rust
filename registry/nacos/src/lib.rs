@@ -16,21 +16,20 @@
  */
 
 use async_trait::async_trait;
-use dubbo_base::{StdError, Url};
+use dubbo::{url::UrlParam, StdError, Url};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::mpsc;
 
-use dubbo::extension::{
-    registry_extension::{DiscoverStream, Registry, ServiceChange},
-    Extension,
-};
-use dubbo_base::{
-    registry_param::{
+use dubbo::{
+    extension::{
+        registry_extension::{DiscoverStream, Registry, ServiceChange},
+        Extension,
+    },
+    logger::tracing::info,
+    params::registry_param::{
         AppName, Category, Group, InterfaceName, RegistryUrl, ServiceNamespace, Version,
     },
-    url::UrlParam,
 };
-use dubbo_logger::tracing::info;
 use nacos_sdk::api::{
     naming::{NamingEventListener, NamingService, NamingServiceBuilder, ServiceInstance},
     props::ClientProps,
@@ -423,7 +422,7 @@ pub mod tests {
     use std::thread;
     use tracing::error;
 
-    use dubbo_base::{extension_param::ExtensionName, registry_param::Side};
+    use dubbo::params::{extension_param::ExtensionName, registry_param::Side};
     use tracing::metadata::LevelFilter;
 
     use super::*;

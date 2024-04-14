@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use dubbo_base::Url;
+use crate::Url;
 use std::{collections::HashMap, string::String};
 
 pub fn to_original_map(url: Url) -> HashMap<String, String> {

@@ -66,10 +66,8 @@ mod tests {
     use serde_yaml::Value;
     use std::collections::HashMap;
 
-    use crate::{
-        path_util::app_root_dir,
-        yaml_util::{yaml_file_parser, yaml_key_reader},
-    };
+    use super::{yaml_file_parser, yaml_key_reader};
+    use crate::app_root_dir;
 
     #[test]
     fn test_yaml_file_parser() {

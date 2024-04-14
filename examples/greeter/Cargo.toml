@@ -31,12 +31,9 @@ prost-serde = "0.3.0"
 prost-serde-derive = "0.1.2"
 async-trait = "0.1.56"
 tokio-stream = "0.1"
-dubbo-logger = { path = "../../common/logger" }
 dubbo = { path = "../../dubbo"}
-dubbo-config = { path = "../../config", version = "0.3.0" }
 registry-zookeeper.workspace = true
 registry-nacos.workspace = true
-dubbo-base.workspace = true
 
 [build-dependencies]
 dubbo-build = { path = "../../dubbo-build", version = "0.3.0" }

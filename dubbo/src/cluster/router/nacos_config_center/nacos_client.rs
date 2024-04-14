@@ -19,7 +19,7 @@ use crate::cluster::router::manager::router_manager::{
     get_global_router_manager, RouterConfigChangeEvent,
 };
 use dubbo_config::router::NacosConfig;
-use dubbo_logger::{tracing, tracing::info};
+use crate::logger::{tracing, tracing::info};
 use nacos_sdk::api::{
     config::{ConfigChangeListener, ConfigResponse, ConfigService, ConfigServiceBuilder},
     props::ClientProps,
