@@ -144,8 +144,20 @@ where
 
     type Message = T::Item;
 
-    fn into_streaming_request(self) -> Request<Self::Stream> {
+    fn into_streaming_request(self) -> Request<Self> {
         Request::new(self)
+    }
+}
+
+impl<T> IntoStreamingRequest for Request<T>
+where
+    T: Stream + Send + 'static,
+{
+    type Stream = T;
+    type Message = T::Item;
+
+    fn into_streaming_request(self) -> Self {
+        self
     }
 }
 
@@ -165,6 +177,11 @@ impl Metadata {
         Metadata {
             inner: HashMap::new(),
         }
+    }
+
+    pub fn insert(mut self, key: String, value: String) -> Self {
+        self.inner.insert(key, value);
+        self
     }
 
     pub fn from_headers(headers: http::HeaderMap) -> Self {
@@ -196,10 +213,12 @@ pub trait Invocation {
     fn get_method_name(&self) -> String;
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct RpcInvocation {
     target_service_unique_name: String,
     method_name: String,
+
+    metadata: Metadata
 }
 
 impl RpcInvocation {
@@ -211,8 +230,18 @@ impl RpcInvocation {
         self.method_name = method_name;
         self
     }
+
+    pub fn with_metadata(mut self, metadata: Metadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+
     pub fn unique_fingerprint(&self) -> String {
         format!("{}#{}", self.target_service_unique_name, self.method_name)
+    }
+
+    pub fn get_metadata(&self) -> Metadata {
+        self.metadata.clone()
     }
 }
 

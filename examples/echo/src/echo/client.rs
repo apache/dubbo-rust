@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use dubbo::codegen::*;
+use dubbo::{codegen::*, invocation::Metadata};
 use example_echo::generated::generated::{echo_client::EchoClient, EchoRequest};
 use futures_util::StreamExt;
 
@@ -41,10 +41,13 @@ async fn main() {
     let mut cli = EchoClient::new(builder);
     // let mut unary_cli = cli.clone().with_filter(FakeFilter {});
     // let mut cli = EchoClient::build(ClientBuilder::from_static("http://127.0.0.1:8888"));
+    let mut mtdata = Metadata::default();
+    mtdata = mtdata.insert("static_tag".to_string(), "red".to_string());
+    let req = Request::from_parts(mtdata.clone(), EchoRequest {
+        message: "message from client".to_string(),
+    });
     let resp = cli
-        .unary_echo(Request::new(EchoRequest {
-            message: "message from client".to_string(),
-        }))
+        .unary_echo(req)
         .await;
     let resp = match resp {
         Ok(resp) => resp,
@@ -64,7 +67,9 @@ async fn main() {
             message: "msg3 from client streaming".to_string(),
         },
     ];
-    let req = futures_util::stream::iter(data);
+    let mut mtdata = Metadata::default();
+    mtdata = mtdata.insert("client_streaming".to_string(), "true".to_string());
+    let req = Request::from_parts(mtdata, futures_util::stream::iter(data));
     let resp = cli.client_streaming_echo(req).await;
     let client_streaming_resp = match resp {
         Ok(resp) => resp,
@@ -84,7 +89,7 @@ async fn main() {
             message: "msg3 from client".to_string(),
         },
     ];
-    let req = futures_util::stream::iter(data);
+    let req = Request::new(futures_util::stream::iter(data));
 
     let bidi_resp = cli.bidirectional_streaming_echo(req).await.unwrap();
 

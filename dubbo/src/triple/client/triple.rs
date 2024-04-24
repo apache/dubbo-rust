@@ -137,7 +137,7 @@ impl TripleClient {
         &mut self,
         req: Request<M1>,
         path: http::uri::PathAndQuery,
-        invocation: RpcInvocation,
+        mut invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
         M1: Message + Send + Sync + 'static + Serialize,
@@ -147,6 +147,9 @@ impl TripleClient {
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
         ) = get_codec("application/grpc+proto");
+
+        let mt = req.metadata.clone();
+
         let req = req.map(|m| stream::once(future::ready(m)));
         let body_stream = encode(
             encoder,
@@ -157,12 +160,17 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(body_stream);
 
+        invocation = invocation.with_metadata(mt.clone());
         let mut invoker = self.mk.new_service(invocation);
 
-        let request = http::Request::builder()
+        let mut request = http::Request::builder()
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+
+        for (k, v) in mt.into_headers().iter() {
+            request.headers_mut().insert(k, v.to_owned());
+        }
 
         let response = invoker
             .call(request)
@@ -200,7 +208,7 @@ impl TripleClient {
         &mut self,
         req: impl IntoStreamingRequest<Message = M1>,
         path: http::uri::PathAndQuery,
-        invocation: RpcInvocation,
+        mut invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
         M1: Message + Send + Sync + 'static + Serialize,
@@ -210,7 +218,10 @@ impl TripleClient {
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
         ) = get_codec("application/grpc+proto");
+
         let req = req.into_streaming_request();
+        let mt = req.metadata.clone();
+
         let en = encode(
             encoder,
             req.into_inner().map(Ok),
@@ -220,12 +231,18 @@ impl TripleClient {
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
 
+        invocation = invocation.with_metadata(mt.clone());
         let mut invoker = self.mk.new_service(invocation);
 
-        let request = http::Request::builder()
+        let mut request = http::Request::builder()
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+
+
+        for (k, v) in mt.into_headers().iter() {
+            request.headers_mut().insert(k, v.to_owned());
+        }
 
         let response = invoker
             .call(request)
@@ -247,7 +264,7 @@ impl TripleClient {
         &mut self,
         req: impl IntoStreamingRequest<Message = M1>,
         path: http::uri::PathAndQuery,
-        invocation: RpcInvocation,
+        mut invocation: RpcInvocation,
     ) -> Result<Response<M2>, crate::status::Status>
     where
         M1: Message + Send + Sync + 'static + Serialize,
@@ -258,6 +275,8 @@ impl TripleClient {
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
         ) = get_codec("application/grpc+proto");
         let req = req.into_streaming_request();
+        let mt = req.metadata.clone();
+
         let en = encode(
             encoder,
             req.into_inner().map(Ok),
@@ -266,14 +285,19 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
+
+        invocation = invocation.with_metadata(mt.clone());
         let mut invoker = self.mk.new_service(invocation);
 
-        let request = http::Request::builder()
+        let mut request = http::Request::builder()
             .header("path", path.to_string())
             .body(body)
             .unwrap();
 
-        // let mut conn = Connection::new().with_host(http_uri);
+        for (k, v) in mt.into_headers().iter() {
+            request.headers_mut().insert(k, v.to_owned());
+        }
+
         let response = invoker
             .call(request)
             .await
@@ -310,7 +334,7 @@ impl TripleClient {
         &mut self,
         req: Request<M1>,
         path: http::uri::PathAndQuery,
-        invocation: RpcInvocation,
+        mut invocation: RpcInvocation,
     ) -> Result<Response<Decoding<M2>>, crate::status::Status>
     where
         M1: Message + Send + Sync + 'static + Serialize,
@@ -320,7 +344,10 @@ impl TripleClient {
             Box<dyn Decoder<Item = M2, Error = Status> + Send + 'static>,
             Box<dyn Encoder<Error = Status, Item = M1> + Send + 'static>,
         ) = get_codec("application/grpc+proto");
+
         let req = req.map(|m| stream::once(future::ready(m)));
+        let mt = req.metadata.clone();
+
         let en = encode(
             encoder,
             req.into_inner().map(Ok),
@@ -329,12 +356,18 @@ impl TripleClient {
         )
         .into_stream();
         let body = hyper::Body::wrap_stream(en);
+
+        invocation = invocation.with_metadata(mt.clone());
         let mut invoker = self.mk.new_service(invocation);
 
-        let request = http::Request::builder()
+        let mut request = http::Request::builder()
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+
+        for (k, v) in mt.into_headers().iter() {
+            request.headers_mut().insert(k, v.to_owned());
+        }
 
         let response = invoker
             .call(request)
