@@ -218,7 +218,7 @@ pub struct RpcInvocation {
     target_service_unique_name: String,
     method_name: String,
 
-    metadata: Metadata
+    metadata: Metadata,
 }
 
 impl RpcInvocation {

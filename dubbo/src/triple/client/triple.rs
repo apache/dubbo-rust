@@ -239,7 +239,6 @@ impl TripleClient {
             .body(body)
             .unwrap();
 
-
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
         }

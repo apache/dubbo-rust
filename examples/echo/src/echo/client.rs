@@ -43,12 +43,13 @@ async fn main() {
     // let mut cli = EchoClient::build(ClientBuilder::from_static("http://127.0.0.1:8888"));
     let mut mtdata = Metadata::default();
     mtdata = mtdata.insert("static_tag".to_string(), "red".to_string());
-    let req = Request::from_parts(mtdata.clone(), EchoRequest {
-        message: "message from client".to_string(),
-    });
-    let resp = cli
-        .unary_echo(req)
-        .await;
+    let req = Request::from_parts(
+        mtdata.clone(),
+        EchoRequest {
+            message: "message from client".to_string(),
+        },
+    );
+    let resp = cli.unary_echo(req).await;
     let resp = match resp {
         Ok(resp) => resp,
         Err(err) => return println!("{:?}", err),
