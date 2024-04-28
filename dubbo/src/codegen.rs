@@ -29,7 +29,7 @@ pub use tower_service::Service;
 
 pub use super::{
     empty_body,
-    invocation::{IntoStreamingRequest, Request, Response, RpcInvocation},
+    invocation::{IntoStreamingRequest, Metadata, Request, Response, RpcInvocation},
     protocol::{triple::triple_invoker::TripleInvoker, Invoker},
     triple::{
         client::TripleClient,

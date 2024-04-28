@@ -71,6 +71,10 @@ impl TripleInvoker {
             .body(body)
             .unwrap();
 
+        // add header of source
+        for (k, v) in parts.headers.iter() {
+            req.headers_mut().insert(k, v.to_owned());
+        }
         // *req.version_mut() = http::Version::HTTP_2;
         req.headers_mut()
             .insert("method", HeaderValue::from_static("POST"));
