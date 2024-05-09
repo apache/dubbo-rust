@@ -16,6 +16,7 @@
  */
 
 pub mod registry_extension;
+mod invoker_extension;
 
 use crate::{
     extension::registry_extension::proxy::RegistryProxy,
@@ -397,6 +398,7 @@ pub(crate) enum Extensions {
 
 pub(crate) enum ExtensionFactories {
     RegistryExtensionFactory(registry_extension::RegistryExtensionFactory),
+    InvokerExtensionFactory(invoker_extension::InvokerExtensionFactory)
 }
 
 #[allow(private_bounds)]
