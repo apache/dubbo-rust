@@ -51,7 +51,7 @@ impl FromStr for ExtensionName {
 
 pub enum ExtensionType {
     Registry,
-    Invoker
+    Invoker,
 }
 
 impl UrlParam for ExtensionType {

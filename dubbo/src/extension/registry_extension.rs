@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use std::{collections::HashMap, future::Future, pin::Pin};
-use std::marker::PhantomData;
+use std::{collections::HashMap, future::Future, marker::PhantomData, pin::Pin};
 
 use async_trait::async_trait;
 use thiserror::Error;
@@ -31,8 +30,7 @@ use crate::{
 use proxy::RegistryProxy;
 
 use crate::extension::{
-    Extension, ExtensionFactories, ExtensionMetaInfo, ExtensionType,
-    LoadExtensionPromise,
+    Extension, ExtensionFactories, ExtensionMetaInfo, ExtensionType, LoadExtensionPromise,
 };
 
 // extension://0.0.0.0/?extension-type=registry&extension-name=nacos&registry-url=nacos://127.0.0.1:8848
@@ -64,7 +62,9 @@ pub trait Registry {
     fn url(&self) -> &Url;
 }
 
-pub struct RegistryExtension<T>(PhantomData<T>) where T: Registry + Send + Sync + 'static;
+pub struct RegistryExtension<T>(PhantomData<T>)
+where
+    T: Registry + Send + Sync + 'static;
 
 impl<T> ExtensionMetaInfo for RegistryExtension<T>
 where
@@ -85,7 +85,6 @@ where
         ))
     }
 }
-
 
 #[derive(Default)]
 pub(super) struct RegistryExtensionLoader {

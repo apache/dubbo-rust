@@ -15,11 +15,14 @@
  * limitations under the License.
  */
 
-pub mod registry_extension;
 mod invoker_extension;
+pub mod registry_extension;
 
 use crate::{
-    extension::registry_extension::proxy::RegistryProxy,
+    extension::{
+        invoker_extension::proxy::InvokerProxy,
+        registry_extension::{proxy::RegistryProxy, RegistryExtension},
+    },
     logger::tracing::{error, info},
     params::extension_param::ExtensionType,
     registry::registry::StaticRegistry,
@@ -29,8 +32,6 @@ use crate::{
 use std::{future::Future, pin::Pin, sync::Arc};
 use thiserror::Error;
 use tokio::sync::{oneshot, RwLock};
-use crate::extension::invoker_extension::proxy::InvokerProxy;
-use crate::extension::registry_extension::RegistryExtension;
 
 pub static EXTENSIONS: once_cell::sync::Lazy<ExtensionDirectoryCommander> =
     once_cell::sync::Lazy::new(|| ExtensionDirectory::init());
@@ -96,20 +97,16 @@ impl ExtensionDirectory {
                     self.registry_extension_loader
                         .register(extension_name, registry_extension_factory);
                     Ok(())
-                },
-                _ => {
-                    Ok(())
                 }
+                _ => Ok(()),
             },
             ExtensionType::Invoker => match extension_factories {
                 ExtensionFactories::InvokerExtensionFactory(invoker_extension_factory) => {
                     self.invoker_extension_loader
                         .register(extension_name, invoker_extension_factory);
                     Ok(())
-                },
-                _ => {
-                    Ok(())
                 }
+                _ => Ok(()),
             },
         }
     }
@@ -123,7 +120,7 @@ impl ExtensionDirectory {
             ExtensionType::Registry => {
                 self.registry_extension_loader.remove(extension_name);
                 Ok(())
-            },
+            }
             ExtensionType::Invoker => {
                 self.invoker_extension_loader.remove(extension_name);
                 Ok(())
@@ -160,24 +157,24 @@ impl ExtensionDirectory {
                         let _ = callback.send(Err(err));
                     }
                 }
-            },
+            }
             ExtensionType::Invoker => {
                 let extension = self.invoker_extension_loader.load(url);
                 match extension {
                     Ok(mut extension) => {
                         tokio::spawn(async move {
-                           let invoker = extension.resolve().await;
+                            let invoker = extension.resolve().await;
                             match invoker {
                                 Ok(invoker) => {
                                     let _ = callback.send(Ok(Extensions::Invoker(invoker)));
-                                },
+                                }
                                 Err(err) => {
                                     error!("load invoker extension failed: {}", err);
                                     let _ = callback.send(Err(err));
                                 }
                             }
                         });
-                    },
+                    }
                     Err(err) => {
                         error!("load invoker extension failed: {}", err);
                         let _ = callback.send(Err(err));
@@ -418,7 +415,6 @@ enum ExtensionOpt {
     ),
 }
 
-
 #[allow(private_bounds)]
 #[async_trait::async_trait]
 pub trait Extension {
@@ -443,9 +439,8 @@ pub(crate) enum Extensions {
 
 pub(crate) enum ExtensionFactories {
     RegistryExtensionFactory(registry_extension::RegistryExtensionFactory),
-    InvokerExtensionFactory(invoker_extension::InvokerExtensionFactory)
+    InvokerExtensionFactory(invoker_extension::InvokerExtensionFactory),
 }
-
 
 #[derive(Error, Debug)]
 #[error("{0}")]

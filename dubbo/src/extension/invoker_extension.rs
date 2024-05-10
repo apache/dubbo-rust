@@ -1,31 +1,32 @@
-use std::collections::HashMap;
-use std::future::Future;
-use std::marker::PhantomData;
-use std::pin::Pin;
+use crate::{
+    extension::{
+        invoker_extension::proxy::InvokerProxy, Extension, ExtensionFactories, ExtensionMetaInfo,
+        LoadExtensionPromise,
+    },
+    params::extension_param::{ExtensionName, ExtensionType},
+    url::UrlParam,
+    StdError, Url,
+};
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures_core::Stream;
-use crate::{StdError, Url};
-use crate::extension::{Extension, ExtensionFactories, ExtensionMetaInfo, LoadExtensionPromise};
-use crate::extension::invoker_extension::proxy::InvokerProxy;
-use crate::params::extension_param::{ExtensionName, ExtensionType};
-use crate::url::UrlParam;
-
+use std::{collections::HashMap, future::Future, marker::PhantomData, pin::Pin};
 
 #[async_trait]
 pub trait Invoker {
-
-    async fn invoke(&self, invocation: GrpcInvocation) -> Result<Pin<Box<dyn Stream<Item= Bytes> + Send + 'static>>, StdError>;
+    async fn invoke(
+        &self,
+        invocation: GrpcInvocation,
+    ) -> Result<Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>, StdError>;
 
     async fn url(&self) -> Result<Url, StdError>;
-
 }
 
 pub enum CallType {
     Unary,
     ClientStream,
     ServerStream,
-    BiStream
+    BiStream,
 }
 
 pub struct GrpcInvocation {
@@ -33,47 +34,54 @@ pub struct GrpcInvocation {
     method_name: String,
     arguments: Vec<Argument>,
     attachments: HashMap<String, String>,
-    call_type: CallType
+    call_type: CallType,
 }
 
 pub struct Argument {
     name: String,
-    value: Box<dyn Stream<Item = Box<dyn Serializable + Send + 'static>> + Send + 'static>
+    value: Box<dyn Stream<Item = Box<dyn Serializable + Send + 'static>> + Send + 'static>,
 }
-
 
 pub trait Serializable {
     fn serialize(&self, serialization_type: String) -> Result<Bytes, StdError>;
 }
 
-
 pub trait Deserializable {
-    fn deserialize(&self, bytes: Bytes, deserialization_type: String) -> Result<Self, StdError> where Self: Sized;
+    fn deserialize(&self, bytes: Bytes, deserialization_type: String) -> Result<Self, StdError>
+    where
+        Self: Sized;
 }
 
 pub mod proxy {
-    use std::pin::Pin;
+    use crate::{
+        extension::invoker_extension::{GrpcInvocation, Invoker},
+        StdError, Url,
+    };
     use async_trait::async_trait;
     use bytes::Bytes;
     use futures_core::Stream;
-    use tokio::sync::mpsc::Sender;
-    use tokio::sync::oneshot;
-    use crate::extension::invoker_extension::{GrpcInvocation, Invoker};
-    use crate::{StdError, Url};
+    use std::pin::Pin;
+    use tokio::sync::{mpsc::Sender, oneshot};
 
     pub(super) enum InvokerOpt {
-        Invoke(GrpcInvocation, oneshot::Sender<Result<Pin<Box<dyn Stream<Item= Bytes> + Send + 'static>>, StdError>>),
-        Url(oneshot::Sender<Result<Url, StdError>>)
+        Invoke(
+            GrpcInvocation,
+            oneshot::Sender<Result<Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>, StdError>>,
+        ),
+        Url(oneshot::Sender<Result<Url, StdError>>),
     }
 
     #[derive(Clone)]
     pub struct InvokerProxy {
-        tx: Sender<InvokerOpt>
+        tx: Sender<InvokerOpt>,
     }
 
     #[async_trait]
     impl Invoker for InvokerProxy {
-        async fn invoke(&self, invocation: GrpcInvocation) -> Result<Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>, StdError> {
+        async fn invoke(
+            &self,
+            invocation: GrpcInvocation,
+        ) -> Result<Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>, StdError> {
             let (tx, rx) = oneshot::channel();
             let _ = self.tx.send(InvokerOpt::Invoke(invocation, tx));
             let ret = rx.await?;
@@ -97,32 +105,27 @@ pub mod proxy {
                         InvokerOpt::Invoke(invocation, tx) => {
                             let result = invoker.invoke(invocation).await;
                             let _ = tx.send(result);
-                        },
+                        }
                         InvokerOpt::Url(tx) => {
                             let _ = tx.send(invoker.url().await);
                         }
                     }
                 }
             });
-            InvokerProxy {
-                tx
-            }
+            InvokerProxy { tx }
         }
     }
 }
 
-
 #[derive(Default)]
 pub(super) struct InvokerExtensionLoader {
-    factories: HashMap<String, InvokerExtensionFactory>
+    factories: HashMap<String, InvokerExtensionFactory>,
 }
 
 impl InvokerExtensionLoader {
-
     pub fn register(&mut self, extension_name: String, factory: InvokerExtensionFactory) {
         self.factories.insert(extension_name, factory);
     }
-
 
     pub fn remove(&mut self, extension_name: String) {
         self.factories.remove(&extension_name);
@@ -133,32 +136,29 @@ impl InvokerExtensionLoader {
         let extension_name = extension_name.value();
         let factory = self.factories.get_mut(&extension_name).unwrap();
         factory.create(url)
-
     }
 }
 
-
-
-type InvokerExtensionConstructor = fn(Url) -> Pin<Box<dyn Future<Output=Result<Box<dyn Invoker + Send + 'static>, StdError>> + Send + 'static>>;
+type InvokerExtensionConstructor = fn(
+    Url,
+) -> Pin<
+    Box<dyn Future<Output = Result<Box<dyn Invoker + Send + 'static>, StdError>> + Send + 'static>,
+>;
 pub(crate) struct InvokerExtensionFactory {
     constructor: InvokerExtensionConstructor,
-    instances: HashMap<String, LoadExtensionPromise<InvokerProxy>>
+    instances: HashMap<String, LoadExtensionPromise<InvokerProxy>>,
 }
-
 
 impl InvokerExtensionFactory {
     pub fn new(constructor: InvokerExtensionConstructor) -> Self {
-
         Self {
             constructor,
-            instances: HashMap::default()
+            instances: HashMap::default(),
         }
     }
 }
 
-
 impl InvokerExtensionFactory {
-
     pub fn create(&mut self, url: Url) -> Result<LoadExtensionPromise<InvokerProxy>, StdError> {
         let key = url.to_string();
 
@@ -166,15 +166,23 @@ impl InvokerExtensionFactory {
             Some(instance) => Ok(instance.clone()),
             None => {
                 let constructor = self.constructor;
-                let creator = move |url: Url|  {
+                let creator = move |url: Url| {
                     let invoker_future = constructor(url);
                     Box::pin(async move {
                         let invoker = invoker_future.await?;
                         Ok(InvokerProxy::from(invoker))
-                    }) as Pin<Box<dyn Future<Output=Result<InvokerProxy, StdError>> + Send + 'static>>
+                    })
+                        as Pin<
+                            Box<
+                                dyn Future<Output = Result<InvokerProxy, StdError>>
+                                    + Send
+                                    + 'static,
+                            >,
+                        >
                 };
 
-                let promise: LoadExtensionPromise<InvokerProxy> = LoadExtensionPromise::new(Box::new(creator), url);
+                let promise: LoadExtensionPromise<InvokerProxy> =
+                    LoadExtensionPromise::new(Box::new(creator), url);
                 self.instances.insert(key, promise.clone());
                 Ok(promise)
             }
@@ -182,14 +190,14 @@ impl InvokerExtensionFactory {
     }
 }
 
-
-pub struct InvokerExtension<T>(PhantomData<T>) where T: Invoker + Send + 'static;
-
+pub struct InvokerExtension<T>(PhantomData<T>)
+where
+    T: Invoker + Send + 'static;
 
 impl<T> ExtensionMetaInfo for InvokerExtension<T>
 where
     T: Invoker + Send + 'static,
-    T: Extension<Target= Box<dyn Invoker + Send + 'static>>
+    T: Extension<Target = Box<dyn Invoker + Send + 'static>>,
 {
     fn name() -> String {
         T::name()
@@ -200,6 +208,8 @@ where
     }
 
     fn extension_factory() -> ExtensionFactories {
-        ExtensionFactories::InvokerExtensionFactory(InvokerExtensionFactory::new(<T as Extension>::create))
+        ExtensionFactories::InvokerExtensionFactory(InvokerExtensionFactory::new(
+            <T as Extension>::create,
+        ))
     }
 }
