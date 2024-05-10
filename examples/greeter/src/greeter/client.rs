@@ -24,6 +24,7 @@ use dubbo::codegen::*;
 
 use dubbo::extension;
 use futures_util::StreamExt;
+use dubbo::extension::registry_extension::RegistryExtension;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
 use registry_nacos::NacosRegistry;
 
@@ -31,7 +32,7 @@ use registry_nacos::NacosRegistry;
 async fn main() {
     dubbo::logger::init();
 
-    let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
+    let _ = extension::EXTENSIONS.register::<RegistryExtension<NacosRegistry>>().await;
 
     let builder = ClientBuilder::new().with_registry("nacos://127.0.0.1:8848".parse().unwrap());
 

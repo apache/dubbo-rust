@@ -8,7 +8,6 @@ use futures_core::Stream;
 use crate::{StdError, Url};
 use crate::extension::{Extension, ExtensionFactories, ExtensionMetaInfo, LoadExtensionPromise};
 use crate::extension::invoker_extension::proxy::InvokerProxy;
-use crate::extension::registry_extension::proxy::RegistryProxy;
 use crate::params::extension_param::{ExtensionName, ExtensionType};
 use crate::url::UrlParam;
 
@@ -192,6 +191,10 @@ where
     T: Invoker + Send + 'static,
     T: Extension<Target= Box<dyn Invoker + Send + 'static>>
 {
+    fn name() -> String {
+        T::name()
+    }
+
     fn extension_type() -> ExtensionType {
         ExtensionType::Invoker
     }

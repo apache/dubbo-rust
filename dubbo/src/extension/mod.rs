@@ -285,7 +285,6 @@ impl ExtensionDirectoryCommander {
     #[allow(private_bounds)]
     pub async fn register<T>(&self) -> Result<(), StdError>
     where
-        T: Extension,
         T: ExtensionMetaInfo,
     {
         let extension_name = T::name();
@@ -329,7 +328,6 @@ impl ExtensionDirectoryCommander {
     #[allow(private_bounds)]
     pub async fn remove<T>(&self) -> Result<(), StdError>
     where
-        T: Extension,
         T: ExtensionMetaInfo,
     {
         let extension_name = T::name();
@@ -433,6 +431,7 @@ pub trait Extension {
 
 #[allow(private_bounds)]
 pub(crate) trait ExtensionMetaInfo {
+    fn name() -> String;
     fn extension_type() -> ExtensionType;
     fn extension_factory() -> ExtensionFactories;
 }

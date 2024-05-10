@@ -71,6 +71,10 @@ where
     T: Registry + Send + Sync + 'static,
     T: Extension<Target = Box<dyn Registry + Send + Sync + 'static>>,
 {
+    fn name() -> String {
+        T::name()
+    }
+
     fn extension_type() -> ExtensionType {
         ExtensionType::Registry
     }
