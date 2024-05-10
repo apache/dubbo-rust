@@ -29,6 +29,8 @@ use crate::{
 use std::{future::Future, pin::Pin, sync::Arc};
 use thiserror::Error;
 use tokio::sync::{oneshot, RwLock};
+use crate::extension::invoker_extension::proxy::InvokerProxy;
+use crate::extension::registry_extension::RegistryExtension;
 
 pub static EXTENSIONS: once_cell::sync::Lazy<ExtensionDirectoryCommander> =
     once_cell::sync::Lazy::new(|| ExtensionDirectory::init());
@@ -36,6 +38,7 @@ pub static EXTENSIONS: once_cell::sync::Lazy<ExtensionDirectoryCommander> =
 #[derive(Default)]
 struct ExtensionDirectory {
     registry_extension_loader: registry_extension::RegistryExtensionLoader,
+    invoker_extension_loader: invoker_extension::InvokerExtensionLoader,
 }
 
 impl ExtensionDirectory {
@@ -48,8 +51,8 @@ impl ExtensionDirectory {
             // register static registry extension
             let _ = extension_directory.register(
                 StaticRegistry::name(),
-                StaticRegistry::convert_to_extension_factories(),
-                ExtensionType::Registry,
+                RegistryExtension::<StaticRegistry>::extension_factory(),
+                RegistryExtension::<StaticRegistry>::extension_type(),
             );
 
             while let Some(extension_opt) = rx.recv().await {
@@ -93,6 +96,19 @@ impl ExtensionDirectory {
                     self.registry_extension_loader
                         .register(extension_name, registry_extension_factory);
                     Ok(())
+                },
+                _ => {
+                    Ok(())
+                }
+            },
+            ExtensionType::Invoker => match extension_factories {
+                ExtensionFactories::InvokerExtensionFactory(invoker_extension_factory) => {
+                    self.invoker_extension_loader
+                        .register(extension_name, invoker_extension_factory);
+                    Ok(())
+                },
+                _ => {
+                    Ok(())
                 }
             },
         }
@@ -106,6 +122,10 @@ impl ExtensionDirectory {
         match extension_type {
             ExtensionType::Registry => {
                 self.registry_extension_loader.remove(extension_name);
+                Ok(())
+            },
+            ExtensionType::Invoker => {
+                self.invoker_extension_loader.remove(extension_name);
                 Ok(())
             }
         }
@@ -129,14 +149,37 @@ impl ExtensionDirectory {
                                     let _ = callback.send(Ok(Extensions::Registry(extension)));
                                 }
                                 Err(err) => {
-                                    error!("load extension failed: {}", err);
+                                    error!("load registry extension failed: {}", err);
                                     let _ = callback.send(Err(err));
                                 }
                             }
                         });
                     }
                     Err(err) => {
-                        error!("load extension failed: {}", err);
+                        error!("load registry extension failed: {}", err);
+                        let _ = callback.send(Err(err));
+                    }
+                }
+            },
+            ExtensionType::Invoker => {
+                let extension = self.invoker_extension_loader.load(url);
+                match extension {
+                    Ok(mut extension) => {
+                        tokio::spawn(async move {
+                           let invoker = extension.resolve().await;
+                            match invoker {
+                                Ok(invoker) => {
+                                    let _ = callback.send(Ok(Extensions::Invoker(invoker)));
+                                },
+                                Err(err) => {
+                                    error!("load invoker extension failed: {}", err);
+                                    let _ = callback.send(Err(err));
+                                }
+                            }
+                        });
+                    },
+                    Err(err) => {
+                        error!("load invoker extension failed: {}", err);
                         let _ = callback.send(Err(err));
                     }
                 }
@@ -244,10 +287,9 @@ impl ExtensionDirectoryCommander {
     where
         T: Extension,
         T: ExtensionMetaInfo,
-        T: ConvertToExtensionFactories,
     {
         let extension_name = T::name();
-        let extension_factories = T::convert_to_extension_factories();
+        let extension_factories = T::extension_factory();
         let extension_type = T::extension_type();
 
         info!(
@@ -356,6 +398,9 @@ impl ExtensionDirectoryCommander {
 
         match extensions {
             Extensions::Registry(proxy) => Ok(proxy),
+            _ => {
+                panic!("load registry extension failed: invalid extension type");
+            }
         }
     }
 }
@@ -375,11 +420,10 @@ enum ExtensionOpt {
     ),
 }
 
-pub(crate) trait Sealed {}
 
 #[allow(private_bounds)]
 #[async_trait::async_trait]
-pub trait Extension: Sealed {
+pub trait Extension {
     type Target;
 
     fn name() -> String;
@@ -390,10 +434,12 @@ pub trait Extension: Sealed {
 #[allow(private_bounds)]
 pub(crate) trait ExtensionMetaInfo {
     fn extension_type() -> ExtensionType;
+    fn extension_factory() -> ExtensionFactories;
 }
 
 pub(crate) enum Extensions {
     Registry(RegistryProxy),
+    Invoker(InvokerProxy),
 }
 
 pub(crate) enum ExtensionFactories {
@@ -401,10 +447,6 @@ pub(crate) enum ExtensionFactories {
     InvokerExtensionFactory(invoker_extension::InvokerExtensionFactory)
 }
 
-#[allow(private_bounds)]
-pub(crate) trait ConvertToExtensionFactories {
-    fn convert_to_extension_factories() -> ExtensionFactories;
-}
 
 #[derive(Error, Debug)]
 #[error("{0}")]
