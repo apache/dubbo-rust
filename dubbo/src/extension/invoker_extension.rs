@@ -28,6 +28,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use futures_core::Stream;
 use std::{collections::HashMap, future::Future, marker::PhantomData, pin::Pin};
+use thiserror::Error;
 
 #[async_trait]
 pub trait Invoker {
@@ -78,7 +79,9 @@ pub mod proxy {
     use bytes::Bytes;
     use futures_core::Stream;
     use std::pin::Pin;
+    use thiserror::Error;
     use tokio::sync::{mpsc::Sender, oneshot};
+    use tracing::error;
 
     pub(super) enum InvokerOpt {
         Invoke(
@@ -100,14 +103,36 @@ pub mod proxy {
             invocation: GrpcInvocation,
         ) -> Result<Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>, StdError> {
             let (tx, rx) = oneshot::channel();
-            let _ = self.tx.send(InvokerOpt::Invoke(invocation, tx));
+            let ret = self.tx.send(InvokerOpt::Invoke(invocation, tx)).await;
+            match ret {
+                Ok(_) => {}
+                Err(err) => {
+                    error!(
+                        "call invoke method failed by invoker proxy, error: {:?}",
+                        err
+                    );
+                    return Err(InvokerProxyError::new(
+                        "call invoke method failed by invoker proxy",
+                    )
+                    .into());
+                }
+            }
             let ret = rx.await?;
             ret
         }
 
         async fn url(&self) -> Result<Url, StdError> {
             let (tx, rx) = oneshot::channel();
-            let _ = self.tx.send(InvokerOpt::Url(tx));
+            let ret = self.tx.send(InvokerOpt::Url(tx)).await;
+            match ret {
+                Ok(_) => {}
+                Err(err) => {
+                    error!("call url method failed by invoker proxy, error: {:?}", err);
+                    return Err(
+                        InvokerProxyError::new("call url method failed by invoker proxy").into(),
+                    );
+                }
+            }
             let ret = rx.await?;
             ret
         }
@@ -121,15 +146,37 @@ pub mod proxy {
                     match opt {
                         InvokerOpt::Invoke(invocation, tx) => {
                             let result = invoker.invoke(invocation).await;
-                            let _ = tx.send(result);
+                            let callback_ret = tx.send(result);
+                            match callback_ret {
+                                Ok(_) => {}
+                                Err(err) => {
+                                    error!("invoke method has been called, but callback to caller failed. {:?}", err);
+                                }
+                            }
                         }
                         InvokerOpt::Url(tx) => {
-                            let _ = tx.send(invoker.url().await);
+                            let ret = tx.send(invoker.url().await);
+                            match ret {
+                                Ok(_) => {}
+                                Err(err) => {
+                                    error!("url method has been called, but callback to caller failed. {:?}", err);
+                                }
+                            }
                         }
                     }
                 }
             });
             InvokerProxy { tx }
+        }
+    }
+
+    #[derive(Error, Debug)]
+    #[error("invoker proxy error: {0}")]
+    pub struct InvokerProxyError(String);
+
+    impl InvokerProxyError {
+        pub fn new(msg: &str) -> Self {
+            InvokerProxyError(msg.to_string())
         }
     }
 }
@@ -149,9 +196,22 @@ impl InvokerExtensionLoader {
     }
 
     pub fn load(&mut self, url: Url) -> Result<LoadExtensionPromise<InvokerProxy>, StdError> {
-        let extension_name = url.query::<ExtensionName>().unwrap();
+        let extension_name = url.query::<ExtensionName>();
+        let Some(extension_name) = extension_name else {
+            return Err(InvokerExtensionLoaderError::new(
+                "load invoker extension failed, extension mustn't be empty",
+            )
+            .into());
+        };
         let extension_name = extension_name.value();
-        let factory = self.factories.get_mut(&extension_name).unwrap();
+        let factory = self.factories.get_mut(&extension_name);
+        let Some(factory) = factory else {
+            let err_msg = format!(
+                "load {} invoker extension failed, can not found extension factory",
+                extension_name
+            );
+            return Err(InvokerExtensionLoaderError(err_msg).into());
+        };
         factory.create(url)
     }
 }
@@ -228,5 +288,15 @@ where
         ExtensionFactories::InvokerExtensionFactory(InvokerExtensionFactory::new(
             <T as Extension>::create,
         ))
+    }
+}
+
+#[derive(Error, Debug)]
+#[error("{0}")]
+pub struct InvokerExtensionLoaderError(String);
+
+impl InvokerExtensionLoaderError {
+    pub fn new(msg: &str) -> Self {
+        InvokerExtensionLoaderError(msg.to_string())
     }
 }
