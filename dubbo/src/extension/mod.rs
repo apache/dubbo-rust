@@ -398,6 +398,42 @@ impl ExtensionDirectoryCommander {
             }
         }
     }
+
+    pub async fn load_invoker(&self, url: Url) -> Result<InvokerProxy, StdError> {
+        let url_str = url.to_string();
+        info!("load invoker extension: {}", url_str);
+
+        let (tx, rx) = oneshot::channel();
+
+        let send = self
+            .sender
+            .send(ExtensionOpt::Load(url, ExtensionType::Invoker, tx))
+            .await;
+
+        let Ok(_) = send else {
+            let err_msg = format!("load invoker extension failed: {}", url_str);
+            return Err(LoadExtensionError::new(err_msg).into());
+        };
+
+        let extensions = rx.await;
+
+        let Ok(extension) = extensions else {
+            let err_msg = format!("load invoker extension failed: {}", url_str);
+            return Err(LoadExtensionError::new(err_msg).into());
+        };
+
+        let Ok(extensions) = extension else {
+            let err_msg = format!("load invoker extension failed: {}", url_str);
+            return Err(LoadExtensionError::new(err_msg).into());
+        };
+
+        match extensions {
+            Extensions::Invoker(proxy) => Ok(proxy),
+            _ => {
+                panic!("load invoker extension failed: invalid extension type");
+            }
+        }
+    }
 }
 
 enum ExtensionOpt {
