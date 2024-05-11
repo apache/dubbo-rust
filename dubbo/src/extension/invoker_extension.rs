@@ -149,9 +149,10 @@ pub mod proxy {
                             let callback_ret = tx.send(result);
                             match callback_ret {
                                 Ok(_) => {}
-                                Err(err) => {
+                                Err(Err(err)) => {
                                     error!("invoke method has been called, but callback to caller failed. {:?}", err);
                                 }
+                                _ => {}
                             }
                         }
                         InvokerOpt::Url(tx) => {
