@@ -18,8 +18,3 @@ dubbo:
         protocol: triple
         serialization : fastjson
         interface: org.apache.dubbo.springboot.demo.DemoService
-  routers:
-    consumer:
-      - service: "org.apache.dubbo.springboot.demo.DemoService"
-        url: tri://127.0.0.1:20000
-        protocol: triple

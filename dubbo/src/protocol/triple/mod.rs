@@ -26,7 +26,7 @@ use std::{collections::HashMap, sync::RwLock};
 use crate::{utils::boxed_clone::BoxCloneService, BoxBody};
 
 pub type GrpcBoxCloneService =
-BoxCloneService<http::Request<hyper::Body>, http::Response<BoxBody>, std::convert::Infallible>;
+    BoxCloneService<http::Request<hyper::Body>, http::Response<BoxBody>, std::convert::Infallible>;
 
 lazy_static! {
     pub static ref TRIPLE_SERVICES: RwLock<HashMap<String, GrpcBoxCloneService>> =

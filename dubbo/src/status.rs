@@ -225,29 +225,35 @@ impl std::fmt::Display for Code {
     }
 }
 
-impl From<i32> for Code {
-    fn from(i: i32) -> Self {
+impl From<&[u8]> for Code {
+    fn from(i: &[u8]) -> Self {
         match i {
-            0 => Code::Ok,
-            1 => Code::Cancelled,
-            2 => Code::Unknown,
-            3 => Code::InvalidArgument,
-            4 => Code::DeadlineExceeded,
-            5 => Code::NotFound,
-            6 => Code::AlreadyExists,
-            7 => Code::PermissionDenied,
-            8 => Code::ResourceExhausted,
-            9 => Code::FailedPrecondition,
-            10 => Code::Aborted,
-            11 => Code::OutOfRange,
-            12 => Code::Unimplemented,
-            13 => Code::Internal,
-            14 => Code::Unavailable,
-            15 => Code::DataLoss,
-            16 => Code::Unauthenticated,
+            b"0" => Code::Ok,
+            b"1" => Code::Cancelled,
+            b"2" => Code::Unknown,
+            b"3" => Code::InvalidArgument,
+            b"4" => Code::DeadlineExceeded,
+            b"5" => Code::NotFound,
+            b"6" => Code::AlreadyExists,
+            b"7" => Code::PermissionDenied,
+            b"8" => Code::ResourceExhausted,
+            b"9" => Code::FailedPrecondition,
+            b"10" => Code::Aborted,
+            b"11" => Code::OutOfRange,
+            b"12" => Code::Unimplemented,
+            b"13" => Code::Internal,
+            b"14" => Code::Unavailable,
+            b"15" => Code::DataLoss,
+            b"16" => Code::Unauthenticated,
 
             _ => Code::Unknown,
         }
+    }
+}
+
+impl From<i32> for Code {
+    fn from(i: i32) -> Self {
+        Code::from(i.to_string().as_bytes())
     }
 }
 

@@ -64,11 +64,12 @@ pub fn dubbo_trait(attr: DubboAttr, item: TokenStream) -> TokenStream {
             vec.push(token);
             vec
         });
-        let package = stringify!(#trait_ident);
+        let package = trait_ident.to_string();
         let service_unique = match &attr.package {
-            None => { quote!(#package) }
-            Some(attr) => { quote!(#attr.to_owned() + "." + #package) }
+            None => package.to_owned(),
+            Some(attr) => attr.to_owned() + "." + &package,
         };
+        let path = "/".to_string() + &service_unique + "/" + &ident.to_string();
         fn_quote.push(
             quote! {
                     #[allow(non_snake_case)]
@@ -82,22 +83,26 @@ pub fn dubbo_trait(attr: DubboAttr, item: TokenStream) -> TokenStream {
                         req_vec.push(req_poi_str.unwrap());
                     )*
                     let _version : Option<&str> = #version;
-                    let request = Request::new(TripleRequestWrapper::new(req_vec));
+                    let request = dubbo::invocation::Request::new(dubbo::triple::triple_wrapper::TripleRequestWrapper::new(req_vec));
                     let service_unique = #service_unique;
                     let method_name = stringify!(#ident).to_string();
                     let invocation = dubbo::invocation::RpcInvocation::default()
                                     .with_service_unique_name(service_unique.to_owned())
                                     .with_method_name(method_name.clone());
-                    let path = "/".to_string() + service_unique + "/" + &method_name;
-                    let path = http::uri::PathAndQuery::from_str(
-                         &path,
-                    ).unwrap();
-                    let res = self.inner.unary::<TripleRequestWrapper,TripleResponseWrapper>(request, path, invocation).await;
+                    let path = http::uri::PathAndQuery::from_static(
+                         #path,
+                    );
+                    let res = self.inner.unary::<dubbo::triple::triple_wrapper::TripleRequestWrapper,dubbo::triple::triple_wrapper::TripleResponseWrapper>(request, path, invocation).await;
                     match res {
                         Ok(res) => {
                             let response_wrapper = res.into_parts().1;
-                            let res: #output_type = serde_json::from_slice(&response_wrapper.data).unwrap();
-                             Ok(res)
+                            let data = &response_wrapper.data;
+                            if data.starts_with(b"null") {
+                                Err(dubbo::status::Status::new(dubbo::status::Code::DataLoss,"null".to_string()))
+                            } else {
+                                let res: #output_type = serde_json::from_slice(data).unwrap();
+                                Ok(res)
+                            }
                         },
                         Err(err) => Err(err)
                     }
@@ -107,32 +112,23 @@ pub fn dubbo_trait(attr: DubboAttr, item: TokenStream) -> TokenStream {
     }
     let rpc_client = syn::Ident::new(&format!("{}Client", trait_ident), trait_ident.span());
     let expanded = quote! {
-        use dubbo::triple::client::TripleClient;
-        use dubbo::triple::triple_wrapper::TripleRequestWrapper;
-        use dubbo::triple::triple_wrapper::TripleResponseWrapper;
-        use dubbo::triple::codec::prost::ProstCodec;
-        use dubbo::invocation::Request;
-        use dubbo::invocation::Response;
-        use dubbo::triple::client::builder::ClientBuilder;
-        use std::str::FromStr;
 
         #item_trait
 
         #vis struct #rpc_client {
-            inner: TripleClient
+            inner: dubbo::triple::client::TripleClient
         }
         impl #rpc_client {
             #(
                 #fn_quote
             )*
-            pub fn new(builder: ClientBuilder) -> #rpc_client {
-                #rpc_client {inner: TripleClient::new(builder),}
+            pub fn new(builder: dubbo::triple::client::builder::ClientBuilder) -> #rpc_client {
+                #rpc_client {inner: dubbo::triple::client::TripleClient::new(builder),}
             }
         }
     };
     TokenStream::from(expanded)
 }
-
 
 fn get_item_trait(item: ItemTrait) -> proc_macro2::TokenStream {
     let trait_ident = &item.ident;

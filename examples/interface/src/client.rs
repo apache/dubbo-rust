@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-use dubbo::codegen::{ClientBuilder};
-use dubbo::extension;
+use dubbo::{codegen::ClientBuilder, extension};
 use example_interface::{DemoServiceClient, ReqDto};
 use registry_nacos::NacosRegistry;
 

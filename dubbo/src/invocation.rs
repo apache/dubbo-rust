@@ -18,6 +18,7 @@
 use std::{collections::HashMap, fmt::Debug, str::FromStr};
 
 use futures_core::Stream;
+use http::StatusCode;
 
 pub struct Request<T> {
     pub message: T,
@@ -81,6 +82,7 @@ impl<T> Request<T> {
 
 pub struct Response<T> {
     message: T,
+    status: StatusCode,
     metadata: Metadata,
 }
 
@@ -88,30 +90,41 @@ impl<T> Response<T> {
     pub fn new(message: T) -> Response<T> {
         Self {
             message,
+            status: Default::default(),
             metadata: Metadata::new(),
         }
     }
 
     pub fn from_parts(metadata: Metadata, message: T) -> Self {
-        Self { message, metadata }
+        Self {
+            message,
+            status: Default::default(),
+            metadata,
+        }
     }
 
     pub fn into_parts(self) -> (Metadata, T) {
-        (self.metadata, self.message)
+        let metadata = self
+            .metadata
+            .insert("http_status".to_owned(), self.status.as_str().to_owned());
+        (metadata, self.message)
     }
 
     pub fn into_http(self) -> http::Response<T> {
         let mut http_resp = http::Response::new(self.message);
         *http_resp.version_mut() = http::Version::HTTP_2;
         *http_resp.headers_mut() = self.metadata.into_headers();
+        *http_resp.status_mut() = self.status;
 
         http_resp
     }
 
     pub fn from_http(resp: http::Response<T>) -> Self {
+        let status = resp.status();
         let (part, body) = resp.into_parts();
         Response {
             message: body,
+            status,
             metadata: Metadata::from_headers(part.headers),
         }
     }
@@ -123,6 +136,7 @@ impl<T> Response<T> {
         let u = f(self.message);
         Response {
             message: u,
+            status: self.status,
             metadata: self.metadata,
         }
     }
@@ -205,6 +219,14 @@ impl Metadata {
         }
 
         header
+    }
+
+    pub fn get(&self, key: &str) -> Option<&String> {
+        self.inner.get(key)
+    }
+
+    pub fn get_http_status(&self) -> &str {
+        self.inner.get("http_status").map_or("200", |e| e)
     }
 }
 

@@ -24,10 +24,10 @@ use crate::{
     logger::tracing::{debug, info},
     protocol::{BoxExporter, Protocol},
     registry::protocol::RegistryProtocol,
+    triple::server::support::{RpcHttp2Server, RpcServer},
     Url,
 };
 use futures::{future, Future};
-use crate::triple::server::support::{RpcHttp2Server, RpcServer};
 
 // Invoker是否可以基于hyper写一个通用的
 
@@ -93,12 +93,17 @@ impl Dubbo {
                     .protocols
                     .get_protocol_or_default(service_config.protocol.as_str());
                 let interface_name = service_config.interface.clone();
-                let protocol_url = format!(
-                    "{}/{}?interface={}",
+                let mut protocol_url = format!(
+                    "{}/{}?interface={}&category={}&protocol={}",
                     protocol.to_url(),
                     interface_name,
-                    interface_name
+                    interface_name,
+                    "providers",
+                    "tri"
                 );
+                if let Some(serialization) = &service_config.serialization {
+                    protocol_url.push_str(&format!("&prefer.serialization={}", serialization));
+                }
                 info!("protocol_url: {:?}", protocol_url);
                 protocol_url.parse().ok()
             } else {
@@ -142,7 +147,7 @@ impl Dubbo {
                 .with_registries(registry_extensions.clone())
                 .with_services(self.service_registry.clone()),
         );
-        let mut async_vec: Vec<Pin<Box<dyn Future<Output=BoxExporter> + Send>>> = Vec::new();
+        let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
         for (name, items) in self.protocols.iter() {
             for url in items.iter() {
                 info!("base: {:?}, service url: {:?}", name, url);

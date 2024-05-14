@@ -17,7 +17,7 @@
 
 pub mod builder;
 pub mod service;
-pub mod triple;
 pub mod support;
+pub mod triple;
 
 pub use triple::TripleServer;

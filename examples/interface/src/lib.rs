@@ -18,7 +18,6 @@
 use dubbo_macro::dubbo_trait;
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct ReqDto {
     pub str: String,

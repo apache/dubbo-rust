@@ -33,29 +33,30 @@ use super::TripleServer;
 
 pub type RpcFuture<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send>>;
 
-pub struct RpcMsg {
+#[derive(Debug)]
+pub struct RpcContext {
     pub version: Option<String>,
     pub class_name: String,
     pub method_name: String,
-    pub req: Vec<String>,
-    pub res: Result<String, Status>,
+    pub args: Vec<String>,
+    pub result: Result<String, Status>,
 }
 
-impl RpcMsg {
+impl RpcContext {
     pub fn new(path: String, version: Option<String>) -> Self {
         let attr: Vec<&str> = path.split("/").collect();
-        RpcMsg {
+        RpcContext {
             version,
             class_name: attr[1].to_string(),
             method_name: attr[2].to_string(),
-            req: vec![],
-            res: Err(Status::new(Code::Ok, "success".to_string())),
+            args: vec![],
+            result: Err(Status::new(Code::Ok, "success".to_string())),
         }
     }
 }
 
 pub trait RpcServer: Send + Sync + 'static {
-    fn invoke(&self, msg: RpcMsg) -> RpcFuture<RpcMsg>;
+    fn invoke(&self, msg: RpcContext) -> RpcFuture<RpcContext>;
     fn get_info(&self) -> (&str, Option<&str>, Vec<String>);
 }
 
@@ -86,20 +87,20 @@ where
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
-    fn call(&mut self, req: http::Request<B>) -> Self::Future {
-        let path = req.uri().path().to_string();
-        let version = req
+    fn call(&mut self, request: http::Request<B>) -> Self::Future {
+        let path = request.uri().path().to_string();
+        let version = request
             .headers()
             .get("tri-service-version")
             .map(|e| String::from_utf8_lossy(e.as_bytes()).to_string());
-        let rpc_msg = RpcMsg::new(path, version);
+        let rpc_msg = RpcContext::new(path, version);
         let rpc_unary_server = RpcUnaryServer {
             inner: self.inner.clone(),
             msg: Some(rpc_msg),
         };
         let mut server = TripleServer::new();
         let fut = async move {
-            let res = server.unary(rpc_unary_server, req).await;
+            let res = server.unary(rpc_unary_server, request).await;
             Ok(res)
         };
         Box::pin(fut)
@@ -109,7 +110,7 @@ where
 #[allow(non_camel_case_types)]
 struct RpcUnaryServer<T: RpcServer + 'static> {
     inner: _Inner<T>,
-    msg: Option<RpcMsg>,
+    msg: Option<RpcContext>,
 }
 
 impl<T: RpcServer> UnarySvc<TripleRequestWrapper> for RpcUnaryServer<T> {
@@ -118,10 +119,10 @@ impl<T: RpcServer> UnarySvc<TripleRequestWrapper> for RpcUnaryServer<T> {
     fn call(&mut self, request: Request<TripleRequestWrapper>) -> Self::Future {
         let inner = self.inner.0.clone();
         let mut msg = self.msg.take().unwrap();
-        msg.req = request.message.get_req();
+        msg.args = request.message.get_args();
         let fut = async move {
-            let res = inner.invoke(msg).await.res;
-            match res {
+            let result = inner.invoke(msg).await.result;
+            match result {
                 Ok(res) => Ok(Response::new(TripleResponseWrapper::new(res))),
                 Err(err) => Err(err),
             }

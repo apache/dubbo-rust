@@ -61,7 +61,7 @@ impl TripleRequestWrapper {
         trip.args = data.iter().map(|e| e.as_bytes().to_vec()).collect();
         return trip;
     }
-    pub fn get_req(self) -> Vec<String> {
+    pub fn get_args(self) -> Vec<String> {
         let mut res = vec![];
         for str in self.args {
             res.push(String::from_utf8(str).unwrap());

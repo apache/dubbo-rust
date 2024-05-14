@@ -21,6 +21,7 @@ use http::HeaderValue;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use tower_service::Service;
+use tracing::error;
 
 use crate::codegen::{ProstCodec, RpcInvocation, SerdeCodec};
 
@@ -167,7 +168,6 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
-
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
         }
@@ -185,12 +185,24 @@ impl TripleClient {
 
                 futures_util::pin_mut!(body);
 
-                let message = body.try_next().await?.ok_or_else(|| {
-                    crate::status::Status::new(
-                        crate::status::Code::Internal,
-                        "Missing response message.".to_string(),
-                    )
-                })?;
+                let message = match body.try_next().await? {
+                    Some(message) => message,
+                    None => {
+                        let http_status = parts.get_http_status();
+                        if http_status != "200" {
+                            error!("http status : {}", http_status);
+                        }
+                        let code = parts
+                            .get("grpc-status")
+                            .map(|e| crate::status::Code::from(e.as_bytes()))
+                            .map_or(crate::status::Code::Internal, |e| e);
+                        let message = parts
+                            .get("grpc-message")
+                            .map(|e| e.to_string())
+                            .map_or(code.to_string(), |e| e);
+                        return Err(crate::status::Status::new(code, message));
+                    }
+                };
 
                 if let Some(trailers) = body.trailer().await? {
                     let mut h = parts.into_headers();

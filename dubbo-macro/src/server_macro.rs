@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-
 use crate::DubboAttr;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, FnArg, ItemImpl, ImplItem};
+use syn::{parse_macro_input, FnArg, ImplItem, ItemImpl};
 
 pub fn dubbo_server(attr: DubboAttr, item: TokenStream) -> TokenStream {
     let version = match attr.version {
@@ -48,7 +47,7 @@ pub fn dubbo_server(attr: DubboAttr, item: TokenStream) -> TokenStream {
                     let token = quote! {
                      let result : Result<#req_type,_>  = serde_json::from_slice(param_req[idx].as_bytes());
                     if let Err(err) = result {
-                        param.res = Err(dubbo::status::Status::new(dubbo::status::Code::InvalidArgument,err.to_string()));
+                        param.result = Err(dubbo::status::Status::new(dubbo::status::Code::InvalidArgument,err.to_string()));
                         return param;
                     }
                     let #req : #req_type = result.unwrap();
@@ -62,7 +61,7 @@ pub fn dubbo_server(attr: DubboAttr, item: TokenStream) -> TokenStream {
             );
             vec.push(quote! {
                 if &param.method_name[..] == stringify!(#method) {
-                let param_req = &param.req;
+                let param_req = &param.args;
                 let mut idx = 0;
                 #(
                     #req
@@ -72,7 +71,7 @@ pub fn dubbo_server(attr: DubboAttr, item: TokenStream) -> TokenStream {
                         #req_pat,
                     )*
                 ).await;
-                param.res = match res {
+                param.result = match res {
                     Ok(res) => {
                         let res = serde_json::to_string(&res).unwrap();
                         Ok(res)
@@ -87,20 +86,23 @@ pub fn dubbo_server(attr: DubboAttr, item: TokenStream) -> TokenStream {
         vec
     });
     let service_unique = match &attr.package {
-        None => { quote!(stringify!(#item_trait)) }
-        Some(attr) => { quote!(#attr.to_owned() + "." + stringify!(#item_trait)) }
+        None => {
+            quote!(stringify!(#item_trait))
+        }
+        Some(attr) => {
+            let service_unique = attr.to_owned() + "." + &item_trait.to_string();
+            quote!(&#service_unique)
+        }
     };
     let expanded = quote! {
+
         #server_item
-        use dubbo::triple::server::support::RpcServer;
-        use dubbo::triple::server::support::RpcFuture;
-        use dubbo::triple::server::support::RpcMsg;
-        impl RpcServer for #item_self {
-            fn invoke (&self, param : RpcMsg) -> RpcFuture<RpcMsg> {
+        impl dubbo::triple::server::support::RpcServer for #item_self {
+            fn invoke (&self, param : dubbo::triple::server::support::RpcContext) -> dubbo::triple::server::support::RpcFuture<dubbo::triple::server::support::RpcContext> {
                 let mut rpc = self.clone();
                 Box::pin(async move {rpc.prv_invoke(param).await})
             }
-            fn get_info(&self) -> (&str , &str , Option<&str> , Vec<String>) {
+            fn get_info(&self) -> (&str, Option<&str>, Vec<String>) {
                let mut methods = vec![];
                #(
                   methods.push(stringify!(#items_ident_fn).to_string());
@@ -110,9 +112,9 @@ pub fn dubbo_server(attr: DubboAttr, item: TokenStream) -> TokenStream {
         }
 
         impl #item_self {
-            async fn prv_invoke (&self, mut param : RpcMsg) -> RpcMsg {
+            async fn prv_invoke (&self, mut param : dubbo::triple::server::support::RpcContext) -> dubbo::triple::server::support::RpcContext {
                 #(#items_fn)*
-                param.res = Err(
+                param.result = Err(
                     dubbo::status::Status::new(dubbo::status::Code::NotFound,format!("not find method by {}",param.method_name))
                 );
                 return param;
@@ -121,7 +123,6 @@ pub fn dubbo_server(attr: DubboAttr, item: TokenStream) -> TokenStream {
     };
     expanded.into()
 }
-
 
 fn get_server_item(item: ItemImpl) -> proc_macro2::TokenStream {
     let impl_item = item.impl_token;

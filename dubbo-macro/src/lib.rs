@@ -16,20 +16,18 @@
  */
 
 use proc_macro::TokenStream;
-use quote::{ToTokens};
+use quote::ToTokens;
 use syn::parse::Parser;
 
 mod server_macro;
 mod trait_macro;
 
-
-
 #[proc_macro_attribute]
 pub fn dubbo_trait(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = DubboAttr::from_attr(attr);
     match attr {
-        Ok(attr) => { trait_macro::dubbo_trait(attr, item) }
-        Err(err) => { err.into_compile_error().into() }
+        Ok(attr) => trait_macro::dubbo_trait(attr, item),
+        Err(err) => err.into_compile_error().into(),
     }
 }
 
@@ -37,11 +35,10 @@ pub fn dubbo_trait(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn dubbo_server(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = DubboAttr::from_attr(attr);
     match attr {
-        Ok(attr) => { server_macro::dubbo_server(attr, item) }
-        Err(err) => { err.into_compile_error().into() }
+        Ok(attr) => server_macro::dubbo_server(attr, item),
+        Err(err) => err.into_compile_error().into(),
     }
 }
-
 
 #[derive(Default)]
 struct DubboAttr {
@@ -56,7 +53,9 @@ impl DubboAttr {
             .and_then(|args| Self::build_attr(args))
     }
 
-    fn build_attr(args: syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>) -> Result<DubboAttr, syn::Error> {
+    fn build_attr(
+        args: syn::punctuated::Punctuated<syn::Meta, syn::Token![,]>,
+    ) -> Result<DubboAttr, syn::Error> {
         let mut package = None;
         let mut version = None;
         for arg in args {
@@ -71,10 +70,12 @@ impl DubboAttr {
                         .to_string()
                         .to_lowercase();
                     let lit = match &namevalue.value {
-                        syn::Expr::Lit(syn::ExprLit { lit, .. }) => lit.to_token_stream().to_string(),
+                        syn::Expr::Lit(syn::ExprLit { lit, .. }) => {
+                            lit.to_token_stream().to_string()
+                        }
                         expr => expr.to_token_stream().to_string(),
                     }
-                        .replace("\"", "");
+                    .replace("\"", "");
                     match ident.as_str() {
                         "package" => {
                             let _ = package.insert(lit);
@@ -99,9 +100,6 @@ impl DubboAttr {
                 }
             }
         }
-        Ok(DubboAttr {
-            package,
-            version,
-        })
+        Ok(DubboAttr { package, version })
     }
 }
