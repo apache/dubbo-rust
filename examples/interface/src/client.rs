@@ -15,20 +15,28 @@
  * limitations under the License.
  */
 
-pub mod triple_exporter;
-pub mod triple_invoker;
-pub mod triple_protocol;
-pub mod triple_server;
+use dubbo::codegen::{ClientBuilder};
+use dubbo::extension;
+use example_interface::{DemoServiceClient, ReqDto};
+use registry_nacos::NacosRegistry;
 
-use lazy_static::lazy_static;
-use std::{collections::HashMap, sync::RwLock};
-
-use crate::{utils::boxed_clone::BoxCloneService, BoxBody};
-
-pub type GrpcBoxCloneService =
-BoxCloneService<http::Request<hyper::Body>, http::Response<BoxBody>, std::convert::Infallible>;
-
-lazy_static! {
-    pub static ref TRIPLE_SERVICES: RwLock<HashMap<String, GrpcBoxCloneService>> =
-        RwLock::new(HashMap::new());
+#[tokio::main]
+async fn main() {
+    dubbo::logger::init();
+    let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
+    let builder = ClientBuilder::new().with_registry("nacos://127.0.0.1:8848".parse().unwrap());
+    let mut client = DemoServiceClient::new(builder);
+    let res = client.sayHello("world1".to_string()).await;
+    println!("server response : {:?}", res);
+    let res = client
+        .sayHelloV2(
+            ReqDto {
+                str: "world2".to_string(),
+            },
+            ReqDto {
+                str: "world3".to_string(),
+            },
+        )
+        .await;
+    println!("server response : {:?}", res);
 }

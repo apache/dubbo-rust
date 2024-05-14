@@ -27,6 +27,7 @@ use crate::{
     Url,
 };
 use futures::{future, Future};
+use crate::triple::server::support::{RpcHttp2Server, RpcServer};
 
 // Invoker是否可以基于hyper写一个通用的
 
@@ -57,6 +58,20 @@ impl Dubbo {
         let url: Url = registry.parse().unwrap();
         let url = extension::registry_extension::to_extension_url(url);
         self.registries.push(url);
+        self
+    }
+
+    pub fn register_server<T: RpcServer>(self, server: T) -> Self {
+        let info = server.get_info();
+        let server_name = info.0.to_owned();
+        let s: RpcHttp2Server<T> = RpcHttp2Server::new(server);
+        crate::protocol::triple::TRIPLE_SERVICES
+            .write()
+            .unwrap()
+            .insert(
+                server_name,
+                crate::utils::boxed_clone::BoxCloneService::new(s),
+            );
         self
     }
 
@@ -127,7 +142,7 @@ impl Dubbo {
                 .with_registries(registry_extensions.clone())
                 .with_services(self.service_registry.clone()),
         );
-        let mut async_vec: Vec<Pin<Box<dyn Future<Output = BoxExporter> + Send>>> = Vec::new();
+        let mut async_vec: Vec<Pin<Box<dyn Future<Output=BoxExporter> + Send>>> = Vec::new();
         for (name, items) in self.protocols.iter() {
             for url in items.iter() {
                 info!("base: {:?}, service url: {:?}", name, url);
