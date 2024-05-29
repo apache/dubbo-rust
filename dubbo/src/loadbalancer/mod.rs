@@ -14,10 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::StdError;
+
+pub mod random;
+
+use crate::{invocation::Metadata, StdError};
 use futures_core::future::BoxFuture;
-use tower::{discover::ServiceList, ServiceExt};
+use tower::{balance::p2c::Balance, discover::ServiceList, load::Constant, ServiceExt};
 use tower_service::Service;
+use tracing::debug;
 
 use crate::{
     codegen::RpcInvocation,
@@ -33,7 +37,7 @@ pub struct NewLoadBalancer<N> {
 }
 
 #[derive(Clone)]
-pub struct LoadBalancer<S> {
+pub struct LoadBalancerSvc<S> {
     inner: S, // Routes service
 }
 
@@ -53,17 +57,17 @@ where
     // NewRoutes
     N: NewService<T>,
 {
-    type Service = LoadBalancer<N::Service>;
+    type Service = LoadBalancerSvc<N::Service>;
 
     fn new_service(&self, target: T) -> Self::Service {
         // Routes service
         let svc = self.inner.new_service(target);
 
-        LoadBalancer { inner: svc }
+        LoadBalancerSvc { inner: svc }
     }
 }
 
-impl<N> Service<http::Request<CloneBody>> for LoadBalancer<N>
+impl<N> Service<http::Request<CloneBody>> for LoadBalancerSvc<N>
 where
     // Routes service
     N: Service<(), Response = Vec<CloneInvoker<TripleInvoker>>> + Clone,
@@ -94,18 +98,63 @@ where
                 Ok(routes) => routes,
             };
 
-            let service_list: Vec<_> = routes
-                .into_iter()
-                .map(|invoker| tower::load::Constant::new(invoker, 1))
-                .collect();
+            // let service_list: Vec<_> = routes
+            //     .into_iter()
+            //     // .map(|invoker| tower::load::Constant::new(invoker, 1))
+            //     .collect();
 
-            let service_list = ServiceList::new(service_list);
+            // let rdm = RandomLoadBalancer::default();
+            let metadata = Metadata::from_headers(req.headers().clone());
+            // let invks = rdm.select_invokers(service_list, metadata);
+            // invks.oneshot(req).await
+            // let service_list = ServiceList::new(service_list);
 
-            let p2c = tower::balance::p2c::Balance::new(service_list);
+            // let p2c = tower::balance::p2c::Balance::new(service_list);
+            let p = P2cBalanceer::default();
+            let ivk: Balance<
+                ServiceList<Vec<Constant<CloneInvoker<TripleInvoker>, i32>>>,
+                http::Request<CloneBody>,
+            > = p.select_invokers(routes, metadata);
 
-            p2c.oneshot(req).await
+            ivk.oneshot(req).await
         };
 
         Box::pin(fut)
+    }
+}
+
+pub trait LoadBalancer {
+    type Invoker;
+
+    fn select_invokers(
+        self,
+        invokers: Vec<CloneInvoker<TripleInvoker>>,
+        metadata: Metadata,
+    ) -> Self::Invoker;
+}
+
+#[derive(Debug, Default)]
+pub struct P2cBalanceer {}
+
+impl LoadBalancer for P2cBalanceer {
+    type Invoker = Balance<
+        ServiceList<Vec<Constant<CloneInvoker<TripleInvoker>, i32>>>,
+        http::Request<CloneBody>,
+    >;
+
+    fn select_invokers(
+        self,
+        invokers: Vec<CloneInvoker<TripleInvoker>>,
+        _metadata: Metadata,
+    ) -> Self::Invoker {
+        debug!("p2c load balancer");
+        let service_list: Vec<_> = invokers
+            .into_iter()
+            .map(|invoker| tower::load::Constant::new(invoker, 1))
+            .collect();
+        let service_list = ServiceList::new(service_list);
+
+        let p = tower::balance::p2c::Balance::new(service_list);
+        p
     }
 }

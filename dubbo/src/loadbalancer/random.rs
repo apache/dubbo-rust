@@ -15,34 +15,23 @@
  * limitations under the License.
  */
 
-use serde::{Deserialize, Serialize};
+use rand::prelude::SliceRandom;
+use tracing::debug;
 
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub struct ServiceConfig {
-    pub version: String,
-    pub group: String,
-    pub protocol: String,
-    pub interface: String,
-    pub tag: String,
-}
+use super::LoadBalancer;
+use crate::{
+    invocation::Metadata, loadbalancer::CloneInvoker,
+    protocol::triple::triple_invoker::TripleInvoker,
+};
 
-impl ServiceConfig {
-    pub fn interface(self, interface: String) -> Self {
-        Self { interface, ..self }
-    }
+#[derive(Clone, Default)]
+pub struct RandomLoadBalancer {}
 
-    pub fn version(self, version: String) -> Self {
-        Self { version, ..self }
-    }
+impl LoadBalancer for RandomLoadBalancer {
+    type Invoker = CloneInvoker<TripleInvoker>;
 
-    pub fn group(self, group: String) -> Self {
-        Self { group, ..self }
-    }
-
-    pub fn protocol(self, protocol: String) -> Self {
-        Self { protocol, ..self }
-    }
-    pub fn tag(self, tag: String) -> Self {
-        Self { tag, ..self }
+    fn select_invokers(self, invokers: Vec<Self::Invoker>, _metadata: Metadata) -> Self::Invoker {
+        debug!("random loadbalance");
+        invokers.choose(&mut rand::thread_rng()).unwrap().clone()
     }
 }

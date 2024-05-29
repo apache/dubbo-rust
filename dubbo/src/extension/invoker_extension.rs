@@ -40,25 +40,25 @@ pub trait Invoker {
     async fn url(&self) -> Result<Url, StdError>;
 }
 
-pub enum CallType {
-    Unary,
-    ClientStream,
-    ServerStream,
-    BiStream,
-}
+// pub enum CallType {
+//     Unary,
+//     ClientStream,
+//     ServerStream,
+//     BiStream,
+// }
 
 pub struct GrpcInvocation {
-    service_name: String,
-    method_name: String,
-    arguments: Vec<Argument>,
-    attachments: HashMap<String, String>,
-    call_type: CallType,
+    // service_name: String,
+    // method_name: String,
+    // arguments: Vec<Argument>,
+    // attachments: HashMap<String, String>,
+    // call_type: CallType,
 }
 
-pub struct Argument {
-    name: String,
-    value: Box<dyn Stream<Item = Box<dyn Serializable + Send + 'static>> + Send + 'static>,
-}
+// pub struct Argument {
+// name: String,
+// value: Box<dyn Stream<Item = Box<dyn Serializable + Send + 'static>> + Send + 'static>,
+// }
 
 pub trait Serializable {
     fn serialize(&self, serialization_type: String) -> Result<Bytes, StdError>;
@@ -138,8 +138,8 @@ pub mod proxy {
         }
     }
 
-    impl From<Box<dyn Invoker + Send + 'static>> for InvokerProxy {
-        fn from(invoker: Box<dyn Invoker + Send + 'static>) -> Self {
+    impl From<Box<dyn Invoker + Send + Sync + 'static>> for InvokerProxy {
+        fn from(invoker: Box<dyn Invoker + Send + Sync + 'static>) -> Self {
             let (tx, mut rx) = tokio::sync::mpsc::channel(64);
             tokio::spawn(async move {
                 while let Some(opt) = rx.recv().await {
@@ -220,7 +220,11 @@ impl InvokerExtensionLoader {
 type InvokerExtensionConstructor = fn(
     Url,
 ) -> Pin<
-    Box<dyn Future<Output = Result<Box<dyn Invoker + Send + 'static>, StdError>> + Send + 'static>,
+    Box<
+        dyn Future<Output = Result<Box<dyn Invoker + Send + Sync + 'static>, StdError>>
+            + Send
+            + 'static,
+    >,
 >;
 pub(crate) struct InvokerExtensionFactory {
     constructor: InvokerExtensionConstructor,
@@ -275,7 +279,7 @@ where
 impl<T> ExtensionMetaInfo for InvokerExtension<T>
 where
     T: Invoker + Send + 'static,
-    T: Extension<Target = Box<dyn Invoker + Send + 'static>>,
+    T: Extension<Target = Box<dyn Invoker + Send + Sync + 'static>>,
 {
     fn name() -> String {
         T::name()
