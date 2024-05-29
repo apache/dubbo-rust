@@ -51,6 +51,7 @@ impl FromStr for ExtensionName {
 
 pub enum ExtensionType {
     Registry,
+    Invoker,
 }
 
 impl UrlParam for ExtensionType {
@@ -63,12 +64,14 @@ impl UrlParam for ExtensionType {
     fn value(&self) -> Self::TargetType {
         match self {
             ExtensionType::Registry => "registry".to_owned(),
+            ExtensionType::Invoker => "invoker".to_owned(),
         }
     }
 
     fn as_str(&self) -> Cow<str> {
         match self {
             ExtensionType::Registry => Cow::Borrowed("registry"),
+            ExtensionType::Invoker => Cow::Borrowed("invoker"),
         }
     }
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use std::{collections::HashMap, future::Future, pin::Pin};
+use std::{collections::HashMap, future::Future, marker::PhantomData, pin::Pin};
 
 use async_trait::async_trait;
 use thiserror::Error;
@@ -30,8 +30,7 @@ use crate::{
 use proxy::RegistryProxy;
 
 use crate::extension::{
-    ConvertToExtensionFactories, Extension, ExtensionFactories, ExtensionMetaInfo, ExtensionType,
-    LoadExtensionPromise,
+    Extension, ExtensionFactories, ExtensionMetaInfo, ExtensionType, LoadExtensionPromise,
 };
 
 // extension://0.0.0.0/?extension-type=registry&extension-name=nacos&registry-url=nacos://127.0.0.1:8848
@@ -63,24 +62,24 @@ pub trait Registry {
     fn url(&self) -> &Url;
 }
 
-impl<T> crate::extension::Sealed for T where T: Registry + Send + Sync + 'static {}
+pub struct RegistryExtension<T>(PhantomData<T>)
+where
+    T: Registry + Send + Sync + 'static;
 
-impl<T> ExtensionMetaInfo for T
+impl<T> ExtensionMetaInfo for RegistryExtension<T>
 where
     T: Registry + Send + Sync + 'static,
     T: Extension<Target = Box<dyn Registry + Send + Sync + 'static>>,
 {
+    fn name() -> String {
+        T::name()
+    }
+
     fn extension_type() -> ExtensionType {
         ExtensionType::Registry
     }
-}
 
-impl<T> ConvertToExtensionFactories for T
-where
-    T: Registry + Send + Sync + 'static,
-    T: Extension<Target = Box<dyn Registry + Send + Sync + 'static>>,
-{
-    fn convert_to_extension_factories() -> ExtensionFactories {
+    fn extension_factory() -> ExtensionFactories {
         ExtensionFactories::RegistryExtensionFactory(RegistryExtensionFactory::new(
             <T as Extension>::create,
         ))

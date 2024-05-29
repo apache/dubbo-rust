@@ -15,10 +15,14 @@
  * limitations under the License.
  */
 
+mod invoker_extension;
 pub mod registry_extension;
 
 use crate::{
-    extension::registry_extension::proxy::RegistryProxy,
+    extension::{
+        invoker_extension::proxy::InvokerProxy,
+        registry_extension::{proxy::RegistryProxy, RegistryExtension},
+    },
     logger::tracing::{error, info},
     params::extension_param::ExtensionType,
     registry::registry::StaticRegistry,
@@ -35,6 +39,7 @@ pub static EXTENSIONS: once_cell::sync::Lazy<ExtensionDirectoryCommander> =
 #[derive(Default)]
 struct ExtensionDirectory {
     registry_extension_loader: registry_extension::RegistryExtensionLoader,
+    invoker_extension_loader: invoker_extension::InvokerExtensionLoader,
 }
 
 impl ExtensionDirectory {
@@ -47,8 +52,8 @@ impl ExtensionDirectory {
             // register static registry extension
             let _ = extension_directory.register(
                 StaticRegistry::name(),
-                StaticRegistry::convert_to_extension_factories(),
-                ExtensionType::Registry,
+                RegistryExtension::<StaticRegistry>::extension_factory(),
+                RegistryExtension::<StaticRegistry>::extension_type(),
             );
 
             while let Some(extension_opt) = rx.recv().await {
@@ -93,6 +98,15 @@ impl ExtensionDirectory {
                         .register(extension_name, registry_extension_factory);
                     Ok(())
                 }
+                _ => Ok(()),
+            },
+            ExtensionType::Invoker => match extension_factories {
+                ExtensionFactories::InvokerExtensionFactory(invoker_extension_factory) => {
+                    self.invoker_extension_loader
+                        .register(extension_name, invoker_extension_factory);
+                    Ok(())
+                }
+                _ => Ok(()),
             },
         }
     }
@@ -105,6 +119,10 @@ impl ExtensionDirectory {
         match extension_type {
             ExtensionType::Registry => {
                 self.registry_extension_loader.remove(extension_name);
+                Ok(())
+            }
+            ExtensionType::Invoker => {
+                self.invoker_extension_loader.remove(extension_name);
                 Ok(())
             }
         }
@@ -128,14 +146,37 @@ impl ExtensionDirectory {
                                     let _ = callback.send(Ok(Extensions::Registry(extension)));
                                 }
                                 Err(err) => {
-                                    error!("load extension failed: {}", err);
+                                    error!("load registry extension failed: {}", err);
                                     let _ = callback.send(Err(err));
                                 }
                             }
                         });
                     }
                     Err(err) => {
-                        error!("load extension failed: {}", err);
+                        error!("load registry extension failed: {}", err);
+                        let _ = callback.send(Err(err));
+                    }
+                }
+            }
+            ExtensionType::Invoker => {
+                let extension = self.invoker_extension_loader.load(url);
+                match extension {
+                    Ok(mut extension) => {
+                        tokio::spawn(async move {
+                            let invoker = extension.resolve().await;
+                            match invoker {
+                                Ok(invoker) => {
+                                    let _ = callback.send(Ok(Extensions::Invoker(invoker)));
+                                }
+                                Err(err) => {
+                                    error!("load invoker extension failed: {}", err);
+                                    let _ = callback.send(Err(err));
+                                }
+                            }
+                        });
+                    }
+                    Err(err) => {
+                        error!("load invoker extension failed: {}", err);
                         let _ = callback.send(Err(err));
                     }
                 }
@@ -241,12 +282,10 @@ impl ExtensionDirectoryCommander {
     #[allow(private_bounds)]
     pub async fn register<T>(&self) -> Result<(), StdError>
     where
-        T: Extension,
         T: ExtensionMetaInfo,
-        T: ConvertToExtensionFactories,
     {
         let extension_name = T::name();
-        let extension_factories = T::convert_to_extension_factories();
+        let extension_factories = T::extension_factory();
         let extension_type = T::extension_type();
 
         info!(
@@ -286,7 +325,6 @@ impl ExtensionDirectoryCommander {
     #[allow(private_bounds)]
     pub async fn remove<T>(&self) -> Result<(), StdError>
     where
-        T: Extension,
         T: ExtensionMetaInfo,
     {
         let extension_name = T::name();
@@ -355,6 +393,45 @@ impl ExtensionDirectoryCommander {
 
         match extensions {
             Extensions::Registry(proxy) => Ok(proxy),
+            _ => {
+                panic!("load registry extension failed: invalid extension type");
+            }
+        }
+    }
+
+    pub async fn load_invoker(&self, url: Url) -> Result<InvokerProxy, StdError> {
+        let url_str = url.to_string();
+        info!("load invoker extension: {}", url_str);
+
+        let (tx, rx) = oneshot::channel();
+
+        let send = self
+            .sender
+            .send(ExtensionOpt::Load(url, ExtensionType::Invoker, tx))
+            .await;
+
+        let Ok(_) = send else {
+            let err_msg = format!("load invoker extension failed: {}", url_str);
+            return Err(LoadExtensionError::new(err_msg).into());
+        };
+
+        let extensions = rx.await;
+
+        let Ok(extension) = extensions else {
+            let err_msg = format!("load invoker extension failed: {}", url_str);
+            return Err(LoadExtensionError::new(err_msg).into());
+        };
+
+        let Ok(extensions) = extension else {
+            let err_msg = format!("load invoker extension failed: {}", url_str);
+            return Err(LoadExtensionError::new(err_msg).into());
+        };
+
+        match extensions {
+            Extensions::Invoker(proxy) => Ok(proxy),
+            _ => {
+                panic!("load invoker extension failed: invalid extension type");
+            }
         }
     }
 }
@@ -374,11 +451,9 @@ enum ExtensionOpt {
     ),
 }
 
-pub(crate) trait Sealed {}
-
 #[allow(private_bounds)]
 #[async_trait::async_trait]
-pub trait Extension: Sealed {
+pub trait Extension {
     type Target;
 
     fn name() -> String;
@@ -388,20 +463,19 @@ pub trait Extension: Sealed {
 
 #[allow(private_bounds)]
 pub(crate) trait ExtensionMetaInfo {
+    fn name() -> String;
     fn extension_type() -> ExtensionType;
+    fn extension_factory() -> ExtensionFactories;
 }
 
 pub(crate) enum Extensions {
     Registry(RegistryProxy),
+    Invoker(InvokerProxy),
 }
 
 pub(crate) enum ExtensionFactories {
     RegistryExtensionFactory(registry_extension::RegistryExtensionFactory),
-}
-
-#[allow(private_bounds)]
-pub(crate) trait ConvertToExtensionFactories {
-    fn convert_to_extension_factories() -> ExtensionFactories;
+    InvokerExtensionFactory(invoker_extension::InvokerExtensionFactory),
 }
 
 #[derive(Error, Debug)]

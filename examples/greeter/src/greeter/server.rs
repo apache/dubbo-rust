@@ -27,6 +27,7 @@ use dubbo::{
     codegen::*,
     config::RootConfig,
     extension,
+    extension::registry_extension::RegistryExtension,
     logger::{
         tracing::{info, span},
         Level,
@@ -60,7 +61,9 @@ async fn main() {
         Err(_err) => panic!("err: {:?}", _err), // response was droped
     };
 
-    let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
+    let _ = extension::EXTENSIONS
+        .register::<RegistryExtension<NacosRegistry>>()
+        .await;
     let mut f = Dubbo::new()
         .with_config(r)
         .add_registry("nacos://127.0.0.1:8848/");
