@@ -378,8 +378,7 @@ impl NacosServiceName {
         let group = url.query::<Group>().unwrap_or_default();
         let group = group.value();
 
-        let value = format!("{}:{}:{}:{}", category, interface, version, group);
-
+        let value = format!("{}:{}:{}:{}", "providers", interface, version, group);
         Self {
             category,
             interface,

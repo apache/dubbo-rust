@@ -15,12 +15,27 @@
  * limitations under the License.
  */
 
-pub mod client;
-pub mod codec;
-pub mod compression;
-pub mod consts;
-pub mod decode;
-pub mod encode;
-pub mod server;
-pub mod transport;
-pub mod triple_wrapper;
+use dubbo::{codegen::ClientBuilder, extension};
+use example_interface::{DemoServiceClient, ReqDto};
+use registry_nacos::NacosRegistry;
+
+#[tokio::main]
+async fn main() {
+    dubbo::logger::init();
+    let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
+    let builder = ClientBuilder::new().with_registry("nacos://127.0.0.1:8848".parse().unwrap());
+    let mut client = DemoServiceClient::new(builder);
+    let res = client.sayHello("world1".to_string()).await;
+    println!("server response : {:?}", res);
+    let res = client
+        .sayHelloV2(
+            ReqDto {
+                str: "world2".to_string(),
+            },
+            ReqDto {
+                str: "world3".to_string(),
+            },
+        )
+        .await;
+    println!("server response : {:?}", res);
+}

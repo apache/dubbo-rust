@@ -1,0 +1,17 @@
+[package]
+name = "dubbo-macro"
+version = "0.3.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "dubbo-macro"
+documentation = "https://github.com/apache/dubbo-rust"
+repository = "https://github.com/apache/dubbo-rust.git"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }

@@ -24,6 +24,7 @@ use crate::{
     logger::tracing::{debug, info},
     protocol::{BoxExporter, Protocol},
     registry::protocol::RegistryProtocol,
+    triple::server::support::{RpcHttp2Server, RpcServer},
     Url,
 };
 use futures::{future, Future};
@@ -60,6 +61,20 @@ impl Dubbo {
         self
     }
 
+    pub fn register_server<T: RpcServer>(self, server: T) -> Self {
+        let info = server.get_info();
+        let server_name = info.0.to_owned();
+        let s: RpcHttp2Server<T> = RpcHttp2Server::new(server);
+        crate::protocol::triple::TRIPLE_SERVICES
+            .write()
+            .unwrap()
+            .insert(
+                server_name,
+                crate::utils::boxed_clone::BoxCloneService::new(s),
+            );
+        self
+    }
+
     pub fn init(&mut self) -> Result<(), Box<dyn Error>> {
         if self.config.is_none() {
             self.config = Some(get_global_config())
@@ -78,12 +93,17 @@ impl Dubbo {
                     .protocols
                     .get_protocol_or_default(service_config.protocol.as_str());
                 let interface_name = service_config.interface.clone();
-                let protocol_url = format!(
-                    "{}/{}?interface={}",
+                let mut protocol_url = format!(
+                    "{}/{}?interface={}&category={}&protocol={}",
                     protocol.to_url(),
                     interface_name,
-                    interface_name
+                    interface_name,
+                    "providers",
+                    "tri"
                 );
+                if let Some(serialization) = &service_config.serialization {
+                    protocol_url.push_str(&format!("&prefer.serialization={}", serialization));
+                }
                 info!("protocol_url: {:?}", protocol_url);
                 protocol_url.parse().ok()
             } else {

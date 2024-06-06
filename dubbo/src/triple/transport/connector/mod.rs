@@ -17,7 +17,7 @@
 
 pub mod http_connector;
 pub mod https_connector;
-#[cfg(any(target_os = "macos", target_os = "unix"))]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub mod unix_connector;
 
 use hyper::Uri;
@@ -84,7 +84,7 @@ pub fn get_connector(connector: &str) -> BoxCloneService<Uri, BoxIO, crate::Erro
             let c = https_connector::HttpsConnector::new();
             BoxCloneService::new(Connector::new(c))
         }
-        #[cfg(any(target_os = "macos", target_os = "unix"))]
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
         "unix" => {
             let c = unix_connector::UnixConnector::new();
             BoxCloneService::new(Connector::new(c))

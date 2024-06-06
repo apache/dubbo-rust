@@ -6,7 +6,8 @@ members = [
   "dubbo",
   "examples/echo",
   "examples/greeter",
-  "dubbo-build",
+  "examples/interface",
+  "dubbo-build", "dubbo-macro",
 ]
 
 
