@@ -18,7 +18,7 @@
 use rand::prelude::SliceRandom;
 use tracing::debug;
 
-use super::LoadBalancer;
+use super::{DubboBoxService, LoadBalancer};
 use crate::{
     invocation::Metadata, loadbalancer::CloneInvoker,
     protocol::triple::triple_invoker::TripleInvoker,
@@ -28,10 +28,15 @@ use crate::{
 pub struct RandomLoadBalancer {}
 
 impl LoadBalancer for RandomLoadBalancer {
-    type Invoker = CloneInvoker<TripleInvoker>;
+    type Invoker = DubboBoxService;
 
-    fn select_invokers(self, invokers: Vec<Self::Invoker>, _metadata: Metadata) -> Self::Invoker {
-        debug!("random loadbalance");
-        invokers.choose(&mut rand::thread_rng()).unwrap().clone()
+    fn select_invokers(
+        &self,
+        invokers: Vec<CloneInvoker<TripleInvoker>>,
+        metadata: Metadata,
+    ) -> Self::Invoker {
+        debug!("random loadbalance {:?}", metadata);
+        let ivk = invokers.choose(&mut rand::thread_rng()).unwrap().clone();
+        DubboBoxService::new(ivk)
     }
 }
