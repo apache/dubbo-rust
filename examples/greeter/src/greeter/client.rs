@@ -48,9 +48,7 @@ async fn main() {
     );
 
     println!("# unary call");
-    let resp = cli
-        .greet(req)
-        .await;
+    let resp = cli.greet(req).await;
     let resp = match resp {
         Ok(resp) => resp,
         Err(err) => return println!("response error: {:?}", err),
