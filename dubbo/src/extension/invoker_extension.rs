@@ -60,10 +60,12 @@ pub struct GrpcInvocation {
 // value: Box<dyn Stream<Item = Box<dyn Serializable + Send + 'static>> + Send + 'static>,
 // }
 
+#[allow(dead_code)]
 pub trait Serializable {
     fn serialize(&self, serialization_type: String) -> Result<Bytes, StdError>;
 }
 
+#[allow(dead_code)]
 pub trait Deserializable {
     fn deserialize(&self, bytes: Bytes, deserialization_type: String) -> Result<Self, StdError>
     where
