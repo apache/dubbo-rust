@@ -15,5 +15,6 @@ dubbo:
       GreeterProvider:
         version: 1.0.0
         group: test
+        tag: red
         protocol: triple
         interface: org.apache.dubbo.sample.tri.Greeter
