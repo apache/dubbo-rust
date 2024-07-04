@@ -19,7 +19,7 @@ use std::env;
 
 use dubbo::{
     config::RootConfig,
-    extension,
+    extension::{self, registry_extension::RegistryExtension},
     logger::{tracing::span, Level},
     Dubbo,
 };
@@ -57,7 +57,9 @@ async fn main() {
         Ok(config) => config,
         Err(_err) => panic!("err: {:?}", _err), // response was droped
     };
-    let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
+    let _ = extension::EXTENSIONS
+        .register::<RegistryExtension<NacosRegistry>>()
+        .await;    
     let server = DemoServiceImpl {
         _db: "i am db".to_owned(),
     };

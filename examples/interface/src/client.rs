@@ -15,14 +15,19 @@
  * limitations under the License.
  */
 
-use dubbo::{codegen::ClientBuilder, extension};
+use dubbo::{
+    codegen::ClientBuilder,
+    extension::{self, registry_extension::RegistryExtension},
+};
 use example_interface::{DemoServiceClient, ReqDto};
 use registry_nacos::NacosRegistry;
 
 #[tokio::main]
 async fn main() {
     dubbo::logger::init();
-    let _ = extension::EXTENSIONS.register::<NacosRegistry>().await;
+    let _ = extension::EXTENSIONS
+        .register::<RegistryExtension<NacosRegistry>>()
+        .await;
     let builder = ClientBuilder::new().with_registry("nacos://127.0.0.1:8848".parse().unwrap());
     let mut client = DemoServiceClient::new(builder);
     let res = client.sayHello("world1".to_string()).await;
