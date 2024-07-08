@@ -41,7 +41,7 @@ async-trait = "0.1.56"
 tokio-stream = "0.1"
 
 dubbo = {path = "../../dubbo"}
-registry-zookeeper.workspace=true
+dubbo-registry-zookeeper = {path="../../registry/zookeeper"}
 
 [build-dependencies]
 dubbo-build = {path = "../../dubbo-build", version = "0.3.0" }

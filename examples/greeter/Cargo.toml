@@ -32,8 +32,8 @@ prost-serde-derive = "0.1.2"
 async-trait = "0.1.56"
 tokio-stream = "0.1"
 dubbo = { path = "../../dubbo"}
-registry-zookeeper.workspace = true
-registry-nacos.workspace = true
+dubbo-registry-zookeeper = {path="../../registry/zookeeper"}
+dubbo-registry-nacos = {path="../../registry/nacos"}
 
 [build-dependencies]
 dubbo-build = { path = "../../dubbo-build", version = "0.3.0" }

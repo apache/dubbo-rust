@@ -25,7 +25,7 @@ use dubbo::codegen::*;
 use dubbo::{extension, extension::registry_extension::RegistryExtension};
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
-use registry_nacos::NacosRegistry;
+use dubbo_registry_nacos::NacosRegistry;
 
 #[tokio::main]
 async fn main() {
