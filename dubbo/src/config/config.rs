@@ -119,7 +119,8 @@ impl RootConfig {
                 .group("test".to_string())
                 .version("1.0.0".to_string())
                 .interface("helloworld.Greeter".to_string())
-                .protocol("triple".to_string()),
+                .protocol("triple".to_string())
+                .tag("read".to_string()),
         );
         self.protocols.insert(
             "triple".to_string(),

@@ -38,13 +38,17 @@ async fn main() {
     let builder = ClientBuilder::new().with_registry("nacos://127.0.0.1:8848".parse().unwrap());
 
     let mut cli = GreeterClient::new(builder);
+    let mut mtdata = Metadata::default();
+    mtdata = mtdata.insert("static_tag".to_string(), "red".to_string());
+    let req = Request::from_parts(
+        mtdata.clone(),
+        GreeterRequest {
+            name: "message from client".to_string(),
+        },
+    );
 
     println!("# unary call");
-    let resp = cli
-        .greet(Request::new(GreeterRequest {
-            name: "message from client".to_string(),
-        }))
-        .await;
+    let resp = cli.greet(req).await;
     let resp = match resp {
         Ok(resp) => resp,
         Err(err) => return println!("response error: {:?}", err),
@@ -64,7 +68,9 @@ async fn main() {
             name: "msg3 from client streaming".to_string(),
         },
     ];
-    let req = futures_util::stream::iter(data);
+    let mut mtdata = Metadata::default();
+    mtdata = mtdata.insert("client_streaming".to_string(), "true".to_string());
+    let req = Request::from_parts(mtdata, futures_util::stream::iter(data));
     let resp = cli.greet_client_stream(req).await;
     let client_streaming_resp = match resp {
         Ok(resp) => resp,

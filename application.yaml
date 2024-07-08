@@ -13,6 +13,7 @@ dubbo:
   provider:
     services:
       GreeterProvider:
+        tag: red
         version: 1.0.0
         group: test
         protocol: triple
