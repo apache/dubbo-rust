@@ -23,9 +23,9 @@ pub mod protos {
 use dubbo::codegen::*;
 
 use dubbo::{extension, extension::registry_extension::RegistryExtension};
+use dubbo_registry_nacos::NacosRegistry;
 use futures_util::StreamExt;
 use protos::{greeter_client::GreeterClient, GreeterRequest};
-use dubbo_registry_nacos::NacosRegistry;
 
 #[tokio::main]
 async fn main() {
