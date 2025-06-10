@@ -21,10 +21,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@main
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          default: true
+      - run: |
+           rustup toolchain add nightly
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -69,9 +67,8 @@ jobs:
           MODE: standalone
     steps:
       - uses: actions/checkout@main
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+      - run: |
+           rustup toolchain add stable
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
