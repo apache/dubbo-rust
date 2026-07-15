@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 bytes.workspace = true
-dubbo-runtime = { path = "../dubbo-runtime", version = "0.1.0" }
+dubbo-rs-core = { path = "../dubbo-rs-core", version = "0.1.0" }
 napi = { version = "2", features = ["napi8", "tokio_rt"] }
 napi-derive = "2"
 tokio = { workspace = true, features = ["rt-multi-thread"] }

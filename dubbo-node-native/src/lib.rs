@@ -21,7 +21,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use dubbo_runtime::{RawMetadata, RawTripleClient, RawUnaryRequest as RuntimeUnaryRequest};
+use dubbo_rs_core::{RawMetadata, RawTripleClient, RawUnaryRequest as CoreUnaryRequest};
 use napi::{
     bindgen_prelude::{AsyncTask, Buffer},
     Error, Result, Status, Task,
@@ -156,9 +156,7 @@ impl Task for UnaryTask {
             .lock()
             .map_err(|_| Error::new(Status::GenericFailure, "native transport lock poisoned"))?;
 
-        let response = self
-            .runtime
-            .block_on(client.unary(runtime_request(request)));
+        let response = self.runtime.block_on(client.unary(core_request(request)));
 
         response
             .map(native_response)
@@ -170,7 +168,7 @@ impl Task for UnaryTask {
     }
 }
 
-fn runtime_request(request: NativeUnaryRequest) -> RuntimeUnaryRequest {
+fn core_request(request: NativeUnaryRequest) -> CoreUnaryRequest {
     let mut metadata = request
         .headers
         .unwrap_or_default()
@@ -186,7 +184,7 @@ fn runtime_request(request: NativeUnaryRequest) -> RuntimeUnaryRequest {
         metadata = metadata.insert("tri-service-version", version);
     }
 
-    RuntimeUnaryRequest {
+    CoreUnaryRequest {
         service: request.service,
         method: request.method,
         path: request.path,
@@ -195,7 +193,7 @@ fn runtime_request(request: NativeUnaryRequest) -> RuntimeUnaryRequest {
     }
 }
 
-fn native_response(response: dubbo_runtime::RawUnaryResponse) -> NativeUnaryResponse {
+fn native_response(response: dubbo_rs_core::RawUnaryResponse) -> NativeUnaryResponse {
     NativeUnaryResponse {
         code: 0,
         message: None,

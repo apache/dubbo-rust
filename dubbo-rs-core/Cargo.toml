@@ -1,13 +1,12 @@
 [package]
-name = "dubbo-runtime"
+name = "dubbo-rs-core"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-description = "Stable runtime facade for embedding Dubbo Rust core"
+description = "Stable core facade for embedding Dubbo Rust in other runtimes"
 repository = "https://github.com/apache/dubbo-rust.git"
 
 [dependencies]
 bytes.workspace = true
 dubbo = { path = "../dubbo", version = "0.4.0" }
 http = "0.2"
-

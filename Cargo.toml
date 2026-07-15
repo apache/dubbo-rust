@@ -4,7 +4,7 @@ members = [
   "registry/zookeeper",
   "registry/nacos",
   "dubbo",
-  "dubbo-runtime",
+  "dubbo-rs-core",
   "dubbo-node-native",
   "examples/echo",
   "examples/greeter",
