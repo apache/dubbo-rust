@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use crate::{
-    cluster::NewCluster,
+    cluster::{ClusterStrategy, NewCluster},
     directory::NewCachedDirectory,
     extension,
     loadbalancer::{LoadBalanceStrategy, NewLoadBalancer},
@@ -46,6 +46,7 @@ pub struct ClientBuilder {
     registry_extension_url: Option<Url>,
     pub direct: bool,
     pub load_balance: LoadBalanceStrategy,
+    pub cluster: ClusterStrategy,
 }
 
 impl ClientBuilder {
@@ -56,6 +57,7 @@ impl ClientBuilder {
             registry_extension_url: None,
             direct: false,
             load_balance: LoadBalanceStrategy::default(),
+            cluster: ClusterStrategy::default(),
         }
     }
 
@@ -83,6 +85,7 @@ impl ClientBuilder {
             registry_extension_url: Some(registry_extension_url),
             direct: true,
             load_balance: LoadBalanceStrategy::default(),
+            cluster: ClusterStrategy::default(),
         }
     }
 
@@ -125,6 +128,10 @@ impl ClientBuilder {
         }
     }
 
+    pub fn with_cluster(self, cluster: ClusterStrategy) -> Self {
+        Self { cluster, ..self }
+    }
+
     pub fn build(mut self) -> ServiceMK {
         let registry = self
             .registry_extension_url
@@ -132,7 +139,7 @@ impl ClientBuilder {
             .expect("registry must not be empty");
 
         let mk_service = ServiceBuilder::new()
-            .layer(NewCluster::layer())
+            .layer(NewCluster::layer(self.cluster))
             .layer(NewLoadBalancer::layer(self.load_balance))
             .layer(NewRoutes::layer())
             .layer(NewCachedDirectory::layer())

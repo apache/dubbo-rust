@@ -19,6 +19,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use dubbo::{
+    cluster::ClusterStrategy,
     codegen::{ClientBuilder, Request, RpcInvocation, TripleClient},
     invocation::Metadata,
     loadbalancer::LoadBalanceStrategy,
@@ -147,11 +148,12 @@ impl RawTripleClient {
 #[derive(Debug, Clone, Default)]
 pub struct RawTripleClientOptions {
     pub load_balance: Option<String>,
+    pub cluster: Option<String>,
 }
 
 impl RawTripleClientOptions {
     fn apply(&self, builder: ClientBuilder) -> Result<ClientBuilder, Status> {
-        match self.load_balance.as_deref() {
+        let builder = match self.load_balance.as_deref() {
             Some(load_balance) => {
                 let strategy = LoadBalanceStrategy::parse(load_balance).ok_or_else(|| {
                     Status::new(
@@ -161,10 +163,25 @@ impl RawTripleClientOptions {
                         ),
                     )
                 })?;
-                Ok(builder.with_load_balance(strategy))
+                builder.with_load_balance(strategy)
             }
-            None => Ok(builder),
-        }
+            None => builder,
+        };
+
+        let builder = match self.cluster.as_deref() {
+            Some(cluster) => {
+                let strategy = ClusterStrategy::parse(cluster).ok_or_else(|| {
+                    Status::new(
+                        Code::InvalidArgument,
+                        format!("unsupported cluster {cluster}; expected failfast or failover"),
+                    )
+                })?;
+                builder.with_cluster(strategy)
+            }
+            None => builder,
+        };
+
+        Ok(builder)
     }
 }
 
@@ -269,10 +286,26 @@ mod tests {
             ["http://127.0.0.1:50051?interface=example.Echo"],
             RawTripleClientOptions {
                 load_balance: Some("least_active".to_string()),
+                ..RawTripleClientOptions::default()
             },
         );
         match result {
             Ok(_) => panic!("client should reject unsupported load balance strategy"),
+            Err(err) => assert_eq!(err.code(), Code::InvalidArgument),
+        }
+    }
+
+    #[test]
+    fn static_client_rejects_unknown_cluster() {
+        let result = RawTripleClient::from_static_endpoints_with_options(
+            ["http://127.0.0.1:50051?interface=example.Echo"],
+            RawTripleClientOptions {
+                cluster: Some("failsafe".to_string()),
+                ..RawTripleClientOptions::default()
+            },
+        );
+        match result {
+            Ok(_) => panic!("client should reject unsupported cluster strategy"),
             Err(err) => assert_eq!(err.code(), Code::InvalidArgument),
         }
     }
