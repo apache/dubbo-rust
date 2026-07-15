@@ -18,8 +18,12 @@
 use std::sync::Arc;
 
 use crate::{
-    cluster::NewCluster, directory::NewCachedDirectory, extension, loadbalancer::NewLoadBalancer,
-    route::NewRoutes, utils::boxed_clone::BoxCloneService,
+    cluster::NewCluster,
+    directory::NewCachedDirectory,
+    extension,
+    loadbalancer::{LoadBalanceStrategy, NewLoadBalancer},
+    route::NewRoutes,
+    utils::boxed_clone::BoxCloneService,
 };
 
 use crate::{
@@ -41,6 +45,7 @@ pub struct ClientBuilder {
     pub connector: &'static str,
     registry_extension_url: Option<Url>,
     pub direct: bool,
+    pub load_balance: LoadBalanceStrategy,
 }
 
 impl ClientBuilder {
@@ -50,6 +55,7 @@ impl ClientBuilder {
             connector: "",
             registry_extension_url: None,
             direct: false,
+            load_balance: LoadBalanceStrategy::default(),
         }
     }
 
@@ -76,6 +82,7 @@ impl ClientBuilder {
             connector: "",
             registry_extension_url: Some(registry_extension_url),
             direct: true,
+            load_balance: LoadBalanceStrategy::default(),
         }
     }
 
@@ -111,6 +118,13 @@ impl ClientBuilder {
         Self { direct, ..self }
     }
 
+    pub fn with_load_balance(self, load_balance: LoadBalanceStrategy) -> Self {
+        Self {
+            load_balance,
+            ..self
+        }
+    }
+
     pub fn build(mut self) -> ServiceMK {
         let registry = self
             .registry_extension_url
@@ -119,7 +133,7 @@ impl ClientBuilder {
 
         let mk_service = ServiceBuilder::new()
             .layer(NewCluster::layer())
-            .layer(NewLoadBalancer::layer())
+            .layer(NewLoadBalancer::layer(self.load_balance))
             .layer(NewRoutes::layer())
             .layer(NewCachedDirectory::layer())
             .service(MkRegistryService::new(registry));

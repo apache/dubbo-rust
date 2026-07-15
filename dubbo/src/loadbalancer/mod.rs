@@ -18,7 +18,13 @@
 pub mod random;
 
 use futures_core::future::BoxFuture;
-use std::error::Error;
+use std::{
+    error::Error,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 use tokio::time::Duration;
 use tower::{discover::ServiceList, ServiceExt};
 use tower_service::Service;
@@ -37,18 +43,22 @@ use crate::{
 
 pub struct NewLoadBalancer<N> {
     inner: N,
+    strategy: LoadBalanceStrategy,
 }
 
 #[derive(Clone)]
 pub struct LoadBalancerSvc<S> {
     inner: S, // Routes service
+    strategy: LoadBalanceStrategy,
+    round_robin_next: Arc<AtomicUsize>,
 }
 
 impl<N> NewLoadBalancer<N> {
-    pub fn layer() -> impl tower_layer::Layer<N, Service = Self> {
-        tower_layer::layer_fn(|inner| {
+    pub fn layer(strategy: LoadBalanceStrategy) -> impl tower_layer::Layer<N, Service = Self> {
+        tower_layer::layer_fn(move |inner| {
             NewLoadBalancer {
                 inner, // NewRoutes
+                strategy: strategy.clone(),
             }
         })
     }
@@ -66,7 +76,11 @@ where
         // Routes service
         let svc = self.inner.new_service(target);
 
-        LoadBalancerSvc { inner: svc }
+        LoadBalancerSvc {
+            inner: svc,
+            strategy: self.strategy.clone(),
+            round_robin_next: Arc::new(AtomicUsize::new(0)),
+        }
     }
 }
 
@@ -92,6 +106,8 @@ where
 
     fn call(&mut self, req: http::Request<CloneBody>) -> Self::Future {
         let routes = self.inner.call(());
+        let strategy = self.strategy.clone();
+        let round_robin_next = Arc::clone(&self.round_robin_next);
 
         let fut = async move {
             let routes = routes.await;
@@ -114,7 +130,7 @@ where
 
             // let p2c = tower::balance::p2c::Balance::new(service_list);
             // let p: Box<dyn LoadBalancer<Invoker = BoxService<http::Request<CloneBody>, http::Response<UnsyncBoxBody<bytes::Bytes, status::Status>>, Box<dyn std::error::Error + std::marker::Send + std::marker::Sync>>> + std::marker::Send + std::marker::Sync> = get_loadbalancer("p2c").into();
-            let p = get_loadbalancer("p2c");
+            let p = get_loadbalancer(&strategy, round_robin_next);
             // let ivk = p.select_invokers(invokers, metadata);
             let ivk = p.select_invokers(routes, metadata);
 
@@ -141,16 +157,33 @@ pub trait LoadBalancer {
     ) -> Self::Invoker;
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum LoadBalanceStrategy {
+    Random,
+    RoundRobin,
+    #[default]
+    P2c,
+}
+
+impl LoadBalanceStrategy {
+    pub fn parse(strategy: &str) -> Option<Self> {
+        match strategy {
+            "random" => Some(Self::Random),
+            "round_robin" | "roundrobin" => Some(Self::RoundRobin),
+            "p2c" => Some(Self::P2c),
+            _ => None,
+        }
+    }
+}
+
 fn get_loadbalancer(
-    loadbalancer: &str,
+    loadbalancer: &LoadBalanceStrategy,
+    round_robin_next: Arc<AtomicUsize>,
 ) -> Box<dyn LoadBalancer<Invoker = DubboBoxService> + Send + Sync + 'static> {
     match loadbalancer {
-        "random" => {
-            println!("random!");
-            Box::new(RandomLoadBalancer::default())
-        }
-        "p2c" => Box::new(P2cBalancer::default()),
-        _ => Box::new(P2cBalancer::default()),
+        LoadBalanceStrategy::Random => Box::new(RandomLoadBalancer::default()),
+        LoadBalanceStrategy::RoundRobin => Box::new(RoundRobinLoadBalancer::new(round_robin_next)),
+        LoadBalanceStrategy::P2c => Box::new(P2cBalancer::default()),
     }
 }
 const DEFAULT_RTT: Duration = Duration::from_millis(30);
@@ -183,5 +216,30 @@ impl LoadBalancer for P2cBalancer {
         let p = tower::balance::p2c::Balance::new(s);
         let svc = DubboBoxService::new(p);
         svc
+    }
+}
+
+#[derive(Debug)]
+pub struct RoundRobinLoadBalancer {
+    next: Arc<AtomicUsize>,
+}
+
+impl RoundRobinLoadBalancer {
+    pub fn new(next: Arc<AtomicUsize>) -> Self {
+        Self { next }
+    }
+}
+
+impl LoadBalancer for RoundRobinLoadBalancer {
+    type Invoker = DubboBoxService;
+
+    fn select_invokers(
+        &self,
+        invokers: Vec<CloneInvoker<TripleInvoker>>,
+        _metadata: Metadata,
+    ) -> Self::Invoker {
+        debug!("round-robin load balancer");
+        let index = self.next.fetch_add(1, Ordering::Relaxed) % invokers.len();
+        DubboBoxService::new(invokers[index].clone())
     }
 }

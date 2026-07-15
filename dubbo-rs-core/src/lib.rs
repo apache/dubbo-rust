@@ -21,6 +21,7 @@ use bytes::Bytes;
 use dubbo::{
     codegen::{ClientBuilder, Request, RpcInvocation, TripleClient},
     invocation::Metadata,
+    loadbalancer::LoadBalanceStrategy,
     status::{Code, Status},
     Url,
 };
@@ -46,6 +47,16 @@ impl RawTripleClient {
     where
         I: IntoIterator<Item = &'a str>,
     {
+        Self::from_static_endpoints_with_options(endpoints, RawTripleClientOptions::default())
+    }
+
+    pub fn from_static_endpoints_with_options<'a, I>(
+        endpoints: I,
+        options: RawTripleClientOptions,
+    ) -> Result<Self, Status>
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
         let endpoints = endpoints
             .into_iter()
             .map(|endpoint| {
@@ -63,13 +74,21 @@ impl RawTripleClient {
                 "at least one static endpoint is required".to_string(),
             ));
         }
-        let builder = ClientBuilder::from_static_urls(endpoints).with_direct(true);
+        let builder =
+            options.apply(ClientBuilder::from_static_urls(endpoints).with_direct(true))?;
         Ok(Self {
             inner: TripleClient::new(builder),
         })
     }
 
     pub async fn from_registry(registry_url: &str) -> Result<Self, Status> {
+        Self::from_registry_with_options(registry_url, RawTripleClientOptions::default()).await
+    }
+
+    pub async fn from_registry_with_options(
+        registry_url: &str,
+        options: RawTripleClientOptions,
+    ) -> Result<Self, Status> {
         let registry_url = registry_url.parse::<Url>().map_err(|err| {
             Status::new(
                 Code::InvalidArgument,
@@ -79,7 +98,7 @@ impl RawTripleClient {
 
         register_registry_extension(registry_url.protocol()).await?;
 
-        let builder = ClientBuilder::new().with_registry(registry_url);
+        let builder = options.apply(ClientBuilder::new().with_registry(registry_url))?;
         Ok(Self {
             inner: TripleClient::new(builder),
         })
@@ -122,6 +141,30 @@ impl RawTripleClient {
             metadata: metadata.into(),
             body,
         })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct RawTripleClientOptions {
+    pub load_balance: Option<String>,
+}
+
+impl RawTripleClientOptions {
+    fn apply(&self, builder: ClientBuilder) -> Result<ClientBuilder, Status> {
+        match self.load_balance.as_deref() {
+            Some(load_balance) => {
+                let strategy = LoadBalanceStrategy::parse(load_balance).ok_or_else(|| {
+                    Status::new(
+                        Code::InvalidArgument,
+                        format!(
+                            "unsupported load balance {load_balance}; expected random, round_robin, or p2c"
+                        ),
+                    )
+                })?;
+                Ok(builder.with_load_balance(strategy))
+            }
+            None => Ok(builder),
+        }
     }
 }
 
@@ -219,6 +262,20 @@ impl From<Metadata> for RawMetadata {
 ))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn static_client_rejects_unknown_load_balance() {
+        let result = RawTripleClient::from_static_endpoints_with_options(
+            ["http://127.0.0.1:50051?interface=example.Echo"],
+            RawTripleClientOptions {
+                load_balance: Some("least_active".to_string()),
+            },
+        );
+        match result {
+            Ok(_) => panic!("client should reject unsupported load balance strategy"),
+            Err(err) => assert_eq!(err.code(), Code::InvalidArgument),
+        }
+    }
 
     #[tokio::test]
     async fn from_registry_reports_disabled_backend() {
