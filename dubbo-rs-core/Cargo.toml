@@ -10,3 +10,10 @@ repository = "https://github.com/apache/dubbo-rust.git"
 bytes.workspace = true
 dubbo = { path = "../dubbo", version = "0.4.0" }
 http = "0.2"
+tokio = { workspace = true, features = ["time"] }
+
+[dev-dependencies]
+http-body = "0.4.4"
+hyper = { version = "0.14.26", features = ["full"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tower-service.workspace = true

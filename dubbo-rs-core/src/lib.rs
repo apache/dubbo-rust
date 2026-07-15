@@ -15,10 +15,13 @@
  * limitations under the License.
  */
 
+use std::time::Duration;
+
 use bytes::Bytes;
 use dubbo::{
     codegen::{ClientBuilder, Request, RpcInvocation, TripleClient},
     invocation::Metadata,
+    status::{Code, Status},
 };
 
 /// A stable raw Triple client facade for embedding Dubbo Rust in other runtimes.
@@ -50,14 +53,24 @@ impl RawTripleClient {
         let invocation = RpcInvocation::default()
             .with_service_unique_name(request.service)
             .with_method_name(request.method);
-        let response = self
-            .inner
-            .raw_unary(
-                Request::from_parts(request.metadata.into(), request.body),
-                path,
-                invocation,
-            )
-            .await?;
+        let timeout_ms = request.timeout_ms;
+        let call = self.inner.raw_unary(
+            Request::from_parts(request.metadata.into(), request.body),
+            path,
+            invocation,
+        );
+        let response = if let Some(timeout_ms) = timeout_ms {
+            tokio::time::timeout(Duration::from_millis(timeout_ms), call)
+                .await
+                .map_err(|_| {
+                    Status::new(
+                        Code::DeadlineExceeded,
+                        format!("request timed out after {timeout_ms}ms"),
+                    )
+                })??
+        } else {
+            call.await?
+        };
         let (metadata, body) = response.into_parts();
 
         Ok(RawUnaryResponse {
@@ -74,6 +87,7 @@ pub struct RawUnaryRequest {
     pub path: String,
     pub metadata: RawMetadata,
     pub body: Bytes,
+    pub timeout_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
