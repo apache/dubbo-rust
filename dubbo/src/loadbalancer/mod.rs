@@ -37,7 +37,6 @@ use crate::{
     loadbalancer::random::RandomLoadBalancer,
     param::Param,
     protocol::triple::triple_invoker::TripleInvoker,
-    status::DubboError,
     svc::NewService,
     StdError,
 };
@@ -117,12 +116,6 @@ where
                 Err(e) => return Err(Into::<StdError>::into(e)),
                 Ok(routes) => routes,
             };
-            if routes.is_empty() {
-                return Err(DubboError::new(
-                    "no provider matched request routing metadata".to_string(),
-                )
-                .into());
-            }
 
             // let service_list: Vec<_> = routes
             //     .into_iter()

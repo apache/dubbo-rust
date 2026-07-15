@@ -244,7 +244,7 @@ async fn raw_unary_errors_when_routing_metadata_matches_no_provider() {
         .await
         .unwrap_err();
 
-    assert_eq!(err.code(), Code::Internal);
+    assert_eq!(err.code(), Code::Unavailable);
 
     let _ = shutdown_tx.send(());
     server_task.await.unwrap();

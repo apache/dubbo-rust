@@ -28,6 +28,7 @@ use crate::{
     invocation::Metadata,
     invoker::clone_invoker::CloneInvoker,
     param::Param,
+    status::{Code, Status},
     svc::NewService,
     Url,
 };
@@ -171,7 +172,7 @@ where
     }
 
     fn call(&mut self, _: ()) -> Self::Future {
-        futures_util::future::ok(route_invokers(
+        futures_util::future::ready(route_invokers(
             self.invokers.clone(),
             self.target.param().get_metadata(),
         ))
@@ -181,23 +182,24 @@ where
 fn route_invokers(
     invokers: Vec<CloneInvoker<TripleInvoker>>,
     metadata: Metadata,
-) -> Vec<CloneInvoker<TripleInvoker>> {
-    let invokers = route_by_service_metadata(invokers, metadata.clone());
-    route_by_tag(invokers, metadata)
+) -> Result<Vec<CloneInvoker<TripleInvoker>>, StdError> {
+    let invokers = route_by_service_metadata(invokers, metadata.clone())?;
+    Ok(route_by_tag(invokers, metadata))
 }
 
 fn route_by_service_metadata(
     invokers: Vec<CloneInvoker<TripleInvoker>>,
     metadata: Metadata,
-) -> Vec<CloneInvoker<TripleInvoker>> {
+) -> Result<Vec<CloneInvoker<TripleInvoker>>, StdError> {
     let group = metadata_value(metadata.clone(), &[TRIPLE_SERVICE_GROUP_KEY, GROUP_KEY]);
     let version = metadata_value(metadata, &[TRIPLE_SERVICE_VERSION_KEY, VERSION_KEY]);
 
     if group.is_none() && version.is_none() {
-        return invokers;
+        return Ok(invokers);
     }
 
-    invokers
+    let has_candidates = !invokers.is_empty();
+    let filtered = invokers
         .into_iter()
         .filter(|invoker| {
             invoker.url().is_some_and(|url| {
@@ -212,7 +214,17 @@ fn route_by_service_metadata(
                 )
             })
         })
-        .collect()
+        .collect::<Vec<_>>();
+
+    if has_candidates && filtered.is_empty() {
+        return Err(Status::new(
+            Code::Unavailable,
+            "no provider matched request routing metadata".to_string(),
+        )
+        .into());
+    }
+
+    Ok(filtered)
 }
 
 fn route_by_tag(
