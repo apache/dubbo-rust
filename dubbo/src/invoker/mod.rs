@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::{codegen::TripleInvoker, invoker::clone_invoker::CloneInvoker, svc::NewService};
+use crate::{codegen::TripleInvoker, invoker::clone_invoker::CloneInvoker, svc::NewService, Url};
 
 pub mod clone_body;
 pub mod clone_invoker;
@@ -27,7 +27,7 @@ impl NewService<String> for NewInvoker {
     fn new_service(&self, url: String) -> Self::Service {
         // todo create another invoker by url protocol
 
-        let url = url.parse().unwrap();
-        CloneInvoker::new(TripleInvoker::new(url))
+        let url: Url = url.parse().unwrap();
+        CloneInvoker::new_with_url(TripleInvoker::new(url.clone()), url)
     }
 }

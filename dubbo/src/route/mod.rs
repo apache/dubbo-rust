@@ -25,10 +25,16 @@ use tower_service::Service;
 
 use crate::{
     codegen::{RpcInvocation, TripleInvoker},
+    invocation::Metadata,
     invoker::clone_invoker::CloneInvoker,
     param::Param,
     svc::NewService,
+    Url,
 };
+
+const DUBBO_TAG_KEY: &str = "dubbo.tag";
+const TRIPLE_SERVICE_TAG_KEY: &str = "tri-service-tag";
+const TAG_KEY: &str = "tag";
 
 pub struct NewRoutes<N> {
     inner: N,
@@ -161,8 +167,67 @@ where
     }
 
     fn call(&mut self, _: ()) -> Self::Future {
-        // some router operator
-        // if new_invokers changed, send new invokers to routes_rx after router operator
-        futures_util::future::ok(self.invokers.clone())
+        futures_util::future::ok(route_by_tag(
+            self.invokers.clone(),
+            self.target.param().get_metadata(),
+        ))
     }
+}
+
+fn route_by_tag(
+    invokers: Vec<CloneInvoker<TripleInvoker>>,
+    metadata: Metadata,
+) -> Vec<CloneInvoker<TripleInvoker>> {
+    let Some(request_tag) = request_tag(metadata) else {
+        return prefer_untagged(invokers);
+    };
+
+    let mut tagged = Vec::new();
+    let mut untagged = Vec::new();
+    for invoker in invokers.iter() {
+        match invoker.url().and_then(provider_tag) {
+            Some(provider_tag) if provider_tag == request_tag => tagged.push(invoker.clone()),
+            None => untagged.push(invoker.clone()),
+            _ => {}
+        }
+    }
+
+    if !tagged.is_empty() {
+        return tagged;
+    }
+    if !untagged.is_empty() {
+        return untagged;
+    }
+
+    invokers
+}
+
+fn prefer_untagged(invokers: Vec<CloneInvoker<TripleInvoker>>) -> Vec<CloneInvoker<TripleInvoker>> {
+    let untagged = invokers
+        .iter()
+        .filter(|invoker| invoker.url().and_then(provider_tag).is_none())
+        .cloned()
+        .collect::<Vec<_>>();
+
+    if untagged.is_empty() {
+        invokers
+    } else {
+        untagged
+    }
+}
+
+fn request_tag(metadata: Metadata) -> Option<String> {
+    let headers = metadata.into_headers();
+    [DUBBO_TAG_KEY, TRIPLE_SERVICE_TAG_KEY, TAG_KEY]
+        .into_iter()
+        .find_map(|key| headers.get(key).and_then(|value| value.to_str().ok()))
+        .filter(|tag| !tag.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn provider_tag(url: &Url) -> Option<String> {
+    [DUBBO_TAG_KEY, TRIPLE_SERVICE_TAG_KEY, TAG_KEY]
+        .into_iter()
+        .find_map(|key| url.query_param_by_key(key))
+        .filter(|tag| !tag.is_empty())
 }

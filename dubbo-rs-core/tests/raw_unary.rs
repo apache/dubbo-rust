@@ -33,6 +33,7 @@ use tower_service::Service;
 #[derive(Clone)]
 struct SlowRawUnaryService {
     delay: Duration,
+    response_payload: Bytes,
 }
 
 impl Service<http::Request<hyper::Body>> for SlowRawUnaryService {
@@ -46,9 +47,9 @@ impl Service<http::Request<hyper::Body>> for SlowRawUnaryService {
 
     fn call(&mut self, _req: http::Request<hyper::Body>) -> Self::Future {
         let delay = self.delay;
+        let response_payload = self.response_payload.clone();
         Box::pin(async move {
             tokio::time::sleep(delay).await;
-            let response_payload = Bytes::from_static(b"\x0a\x0draw response");
             let body = http_body::combinators::UnsyncBoxBody::new(
                 hyper::Body::from(grpc_frame(response_payload)).map_err(|err| {
                     dubbo::status::Status::new(dubbo::status::Code::Internal, err.to_string())
@@ -107,6 +108,57 @@ async fn raw_unary_uses_static_endpoint_list() {
     server_task.await.unwrap();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_routes_static_endpoints_by_tag() {
+    const SERVICE: &str = "grpc.examples.echo.TaggedEndpointEcho";
+    let blue_addr = unused_local_addr();
+    let green_addr = unused_local_addr();
+    let (blue_shutdown_tx, blue_shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let (green_shutdown_tx, green_shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let blue_server_task = spawn_server_with_payload(
+        blue_addr,
+        blue_shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(0),
+        Bytes::from_static(b"\x0a\x04blue"),
+    );
+    let green_server_task = spawn_server_with_payload(
+        green_addr,
+        green_shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(0),
+        Bytes::from_static(b"\x0a\x05green"),
+    );
+
+    wait_for_server(blue_addr).await;
+    wait_for_server(green_addr).await;
+
+    let blue_endpoint = format!("http://{blue_addr}?interface={SERVICE}&tag=blue");
+    let green_endpoint = format!("http://{green_addr}?interface={SERVICE}&tag=green");
+    let mut client =
+        RawTripleClient::from_static_endpoints([green_endpoint.as_str(), blue_endpoint.as_str()])
+            .unwrap();
+    let response = client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new().insert("dubbo.tag", "blue"),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: Some(10_000),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.body, Bytes::from_static(b"\x0a\x04blue"));
+
+    let _ = blue_shutdown_tx.send(());
+    let _ = green_shutdown_tx.send(());
+    blue_server_task.await.unwrap();
+    green_server_task.await.unwrap();
+}
+
 async fn raw_unary_timeout_returns_deadline_exceeded() {
     const SERVICE: &str = "grpc.examples.echo.TimeoutEcho";
     let addr = unused_local_addr();
@@ -147,10 +199,32 @@ fn spawn_server(
     service_name: String,
     delay: Duration,
 ) -> tokio::task::JoinHandle<()> {
+    spawn_server_with_payload(
+        addr,
+        shutdown_rx,
+        service_name,
+        delay,
+        Bytes::from_static(b"\x0a\x0draw response"),
+    )
+}
+
+fn spawn_server_with_payload(
+    addr: SocketAddr,
+    shutdown_rx: tokio::sync::oneshot::Receiver<()>,
+    service_name: String,
+    delay: Duration,
+    response_payload: Bytes,
+) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         DubboServer::new()
             .with_listener("tcp".to_string())
-            .add_service(service_name, SlowRawUnaryService { delay })
+            .add_service(
+                service_name,
+                SlowRawUnaryService {
+                    delay,
+                    response_payload,
+                },
+            )
             .serve_with_graceful(addr, async move {
                 let _ = shutdown_rx.await;
             })
