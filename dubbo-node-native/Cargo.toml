@@ -1,0 +1,20 @@
+[package]
+name = "dubbo-node-native"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "N-API bindings for embedding Dubbo Rust core in dubbo-js"
+repository = "https://github.com/apache/dubbo-rust.git"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+bytes.workspace = true
+dubbo-runtime = { path = "../dubbo-runtime", version = "0.1.0" }
+napi = { version = "2", features = ["napi8", "tokio_rt"] }
+napi-derive = "2"
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+
+[build-dependencies]
+napi-build = "2"

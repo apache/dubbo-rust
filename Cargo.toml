@@ -5,6 +5,7 @@ members = [
   "registry/nacos",
   "dubbo",
   "dubbo-runtime",
+  "dubbo-node-native",
   "examples/echo",
   "examples/greeter",
   "dubbo-build",
