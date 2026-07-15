@@ -159,6 +159,97 @@ async fn raw_unary_routes_static_endpoints_by_tag() {
     green_server_task.await.unwrap();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_routes_static_endpoints_by_group_and_version() {
+    const SERVICE: &str = "grpc.examples.echo.GroupVersionEndpointEcho";
+    let blue_addr = unused_local_addr();
+    let green_addr = unused_local_addr();
+    let (blue_shutdown_tx, blue_shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let (green_shutdown_tx, green_shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let blue_server_task = spawn_server_with_payload(
+        blue_addr,
+        blue_shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(0),
+        Bytes::from_static(b"\x0a\x04blue"),
+    );
+    let green_server_task = spawn_server_with_payload(
+        green_addr,
+        green_shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(0),
+        Bytes::from_static(b"\x0a\x05green"),
+    );
+
+    wait_for_server(blue_addr).await;
+    wait_for_server(green_addr).await;
+
+    let blue_endpoint = format!("http://{blue_addr}?interface={SERVICE}&group=blue&version=1.0.0");
+    let green_endpoint =
+        format!("http://{green_addr}?interface={SERVICE}&group=green&version=1.0.0");
+    let mut client =
+        RawTripleClient::from_static_endpoints([green_endpoint.as_str(), blue_endpoint.as_str()])
+            .unwrap();
+    let response = client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new()
+                .insert("tri-service-group", "blue")
+                .insert("tri-service-version", "1.0.0"),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: Some(10_000),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.body, Bytes::from_static(b"\x0a\x04blue"));
+
+    let _ = blue_shutdown_tx.send(());
+    let _ = green_shutdown_tx.send(());
+    blue_server_task.await.unwrap();
+    green_server_task.await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_errors_when_routing_metadata_matches_no_provider() {
+    const SERVICE: &str = "grpc.examples.echo.NoMatchedEndpointEcho";
+    let addr = unused_local_addr();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let server_task = spawn_server(
+        addr,
+        shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(0),
+    );
+
+    wait_for_server(addr).await;
+
+    let endpoint = format!("http://{addr}?interface={SERVICE}&group=green&version=1.0.0");
+    let mut client = RawTripleClient::from_static(&endpoint);
+    let err = client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new()
+                .insert("tri-service-group", "blue")
+                .insert("tri-service-version", "1.0.0"),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: Some(10_000),
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(err.code(), Code::Internal);
+
+    let _ = shutdown_tx.send(());
+    server_task.await.unwrap();
+}
+
 async fn raw_unary_timeout_returns_deadline_exceeded() {
     const SERVICE: &str = "grpc.examples.echo.TimeoutEcho";
     let addr = unused_local_addr();
