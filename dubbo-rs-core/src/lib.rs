@@ -24,6 +24,10 @@ use dubbo::{
     status::{Code, Status},
     Url,
 };
+#[cfg(feature = "registry-nacos")]
+use dubbo_registry_nacos::NacosRegistry;
+#[cfg(feature = "registry-zookeeper")]
+use dubbo_registry_zookeeper::ZookeeperRegistry;
 
 /// A stable raw Triple client facade for embedding Dubbo Rust in other runtimes.
 ///
@@ -60,6 +64,22 @@ impl RawTripleClient {
             ));
         }
         let builder = ClientBuilder::from_static_urls(endpoints).with_direct(true);
+        Ok(Self {
+            inner: TripleClient::new(builder),
+        })
+    }
+
+    pub async fn from_registry(registry_url: &str) -> Result<Self, Status> {
+        let registry_url = registry_url.parse::<Url>().map_err(|err| {
+            Status::new(
+                Code::InvalidArgument,
+                format!("invalid registry URL {registry_url}: {err}"),
+            )
+        })?;
+
+        register_registry_extension(registry_url.protocol()).await?;
+
+        let builder = ClientBuilder::new().with_registry(registry_url);
         Ok(Self {
             inner: TripleClient::new(builder),
         })
@@ -103,6 +123,34 @@ impl RawTripleClient {
             body,
         })
     }
+}
+
+async fn register_registry_extension(protocol: &str) -> Result<(), Status> {
+    match protocol {
+        #[cfg(feature = "registry-nacos")]
+        "nacos" => dubbo::extension::EXTENSIONS
+            .register::<dubbo::extension::registry_extension::RegistryExtension<NacosRegistry>>()
+            .await
+            .map_err(registry_extension_error),
+        #[cfg(feature = "registry-zookeeper")]
+        "zookeeper" => dubbo::extension::EXTENSIONS
+            .register::<dubbo::extension::registry_extension::RegistryExtension<ZookeeperRegistry>>(
+            )
+            .await
+            .map_err(registry_extension_error),
+        protocol => Err(Status::new(
+            Code::Unimplemented,
+            format!("registry protocol {protocol} is not enabled in dubbo-rs-core"),
+        )),
+    }
+}
+
+#[cfg(any(feature = "registry-nacos", feature = "registry-zookeeper"))]
+fn registry_extension_error(err: dubbo::StdError) -> Status {
+    Status::new(
+        Code::Internal,
+        format!("failed to register registry extension: {err}"),
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -162,5 +210,22 @@ impl From<Metadata> for RawMetadata {
             .collect();
 
         Self { entries }
+    }
+}
+
+#[cfg(all(
+    test,
+    not(any(feature = "registry-nacos", feature = "registry-zookeeper"))
+))]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn from_registry_reports_disabled_backend() {
+        let result = RawTripleClient::from_registry("nacos://127.0.0.1:8848").await;
+        match result {
+            Ok(_) => panic!("registry client should not be created without registry features"),
+            Err(err) => assert_eq!(err.code(), Code::Unimplemented),
+        }
     }
 }

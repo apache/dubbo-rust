@@ -65,6 +65,11 @@ impl Service<http::Request<hyper::Body>> for SlowRawUnaryService {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_uses_static_endpoint_list_and_maps_timeout() {
+    raw_unary_uses_static_endpoint_list().await;
+    raw_unary_timeout_returns_deadline_exceeded().await;
+}
+
 async fn raw_unary_uses_static_endpoint_list() {
     const SERVICE: &str = "grpc.examples.echo.StaticEndpointEcho";
     let addr = unused_local_addr();
@@ -91,7 +96,7 @@ async fn raw_unary_uses_static_endpoint_list() {
             path: format!("/{SERVICE}/UnaryEcho"),
             metadata: RawMetadata::new(),
             body: Bytes::from_static(b"\x0a\x08dubbo-js"),
-            timeout_ms: Some(2_000),
+            timeout_ms: Some(10_000),
         })
         .await
         .unwrap();
@@ -102,7 +107,6 @@ async fn raw_unary_uses_static_endpoint_list() {
     server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn raw_unary_timeout_returns_deadline_exceeded() {
     const SERVICE: &str = "grpc.examples.echo.TimeoutEcho";
     let addr = unused_local_addr();

@@ -9,8 +9,16 @@ repository = "https://github.com/apache/dubbo-rust.git"
 [dependencies]
 bytes.workspace = true
 dubbo = { path = "../dubbo", version = "0.4.0" }
+dubbo-registry-nacos = { path = "../registry/nacos", version = "0.4.0", optional = true }
+dubbo-registry-zookeeper = { path = "../registry/zookeeper", version = "0.4.0", optional = true }
 http = "0.2"
 tokio = { workspace = true, features = ["time"] }
+
+[features]
+default = []
+registry-nacos = ["dep:dubbo-registry-nacos"]
+registry-zookeeper = ["dep:dubbo-registry-zookeeper"]
+registry = ["registry-nacos", "registry-zookeeper"]
 
 [dev-dependencies]
 http-body = "0.4.4"

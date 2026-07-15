@@ -141,9 +141,7 @@ impl RegistryExtensionFactory {
         &mut self,
         url: Url,
     ) -> Result<LoadExtensionPromise<RegistryProxy>, StdError> {
-        let registry_url = url.query::<RegistryUrl>().unwrap();
-        let registry_url = registry_url.value();
-        let url_str = registry_url.as_str().to_string();
+        let url_str = url.as_str().to_string();
         match self.instances.get(&url_str) {
             Some(proxy) => {
                 let proxy = proxy.clone();
