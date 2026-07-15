@@ -54,7 +54,23 @@ impl ClientBuilder {
     }
 
     pub fn from_static(host: &str) -> ClientBuilder {
-        let registry_extension_url = StaticRegistry::to_extension_url(vec![host.parse().unwrap()]);
+        Self::from_static_hosts([host])
+    }
+
+    pub fn from_static_hosts<'a, I>(hosts: I) -> ClientBuilder
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
+        Self::from_static_urls(
+            hosts
+                .into_iter()
+                .map(|host| host.parse().unwrap())
+                .collect(),
+        )
+    }
+
+    pub fn from_static_urls(urls: Vec<Url>) -> ClientBuilder {
+        let registry_extension_url = StaticRegistry::to_extension_url(urls);
         Self {
             timeout: None,
             connector: "",

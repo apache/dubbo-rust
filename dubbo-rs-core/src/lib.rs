@@ -22,6 +22,7 @@ use dubbo::{
     codegen::{ClientBuilder, Request, RpcInvocation, TripleClient},
     invocation::Metadata,
     status::{Code, Status},
+    Url,
 };
 
 /// A stable raw Triple client facade for embedding Dubbo Rust in other runtimes.
@@ -34,10 +35,34 @@ pub struct RawTripleClient {
 
 impl RawTripleClient {
     pub fn from_static(endpoint: &str) -> Self {
-        let builder = ClientBuilder::from_static(endpoint).with_direct(true);
-        Self {
-            inner: TripleClient::new(builder),
+        Self::from_static_endpoints([endpoint]).expect("static endpoint must be a valid Dubbo URL")
+    }
+
+    pub fn from_static_endpoints<'a, I>(endpoints: I) -> Result<Self, Status>
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
+        let endpoints = endpoints
+            .into_iter()
+            .map(|endpoint| {
+                endpoint.parse::<Url>().map_err(|err| {
+                    Status::new(
+                        Code::InvalidArgument,
+                        format!("invalid static endpoint {endpoint}: {err}"),
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if endpoints.is_empty() {
+            return Err(Status::new(
+                Code::InvalidArgument,
+                "at least one static endpoint is required".to_string(),
+            ));
         }
+        let builder = ClientBuilder::from_static_urls(endpoints).with_direct(true);
+        Ok(Self {
+            inner: TripleClient::new(builder),
+        })
     }
 
     pub async fn unary(

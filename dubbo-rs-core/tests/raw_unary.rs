@@ -64,36 +64,66 @@ impl Service<http::Request<hyper::Body>> for SlowRawUnaryService {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn raw_unary_timeout_returns_deadline_exceeded() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_uses_static_endpoint_list() {
+    const SERVICE: &str = "grpc.examples.echo.StaticEndpointEcho";
     let addr = unused_local_addr();
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
-    let server_task = tokio::spawn(async move {
-        DubboServer::new()
-            .with_listener("tcp".to_string())
-            .add_service(
-                "grpc.examples.echo.Echo".to_string(),
-                SlowRawUnaryService {
-                    delay: Duration::from_millis(100),
-                },
-            )
-            .serve_with_graceful(addr, async move {
-                let _ = shutdown_rx.await;
-            })
-            .await
+    let server_task = spawn_server(
+        addr,
+        shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(0),
+    );
+
+    wait_for_server(addr).await;
+
+    let first_endpoint = format!("http://{addr}?interface={SERVICE}&instance=one");
+    let second_endpoint = format!("http://{addr}?interface={SERVICE}&instance=two");
+    let mut client =
+        RawTripleClient::from_static_endpoints([first_endpoint.as_str(), second_endpoint.as_str()])
             .unwrap();
-    });
+    let response = client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new(),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: Some(2_000),
+        })
+        .await
+        .unwrap();
 
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(response.body, Bytes::from_static(b"\x0a\x0draw response"));
 
-    let endpoint = format!("http://{addr}?interface=grpc.examples.echo.Echo");
+    let _ = shutdown_tx.send(());
+    server_task.await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn raw_unary_timeout_returns_deadline_exceeded() {
+    const SERVICE: &str = "grpc.examples.echo.TimeoutEcho";
+    let addr = unused_local_addr();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let server_task = spawn_server(
+        addr,
+        shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(100),
+    );
+
+    wait_for_server(addr).await;
+
+    let endpoint = format!("http://{addr}?interface={SERVICE}");
     let mut client = RawTripleClient::from_static(&endpoint);
     let err = client
         .unary(RawUnaryRequest {
-            service: "grpc.examples.echo.Echo".to_string(),
+            service: SERVICE.to_string(),
             method: "UnaryEcho".to_string(),
-            path: "/grpc.examples.echo.Echo/UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
             metadata: RawMetadata::new(),
             body: Bytes::from_static(b"\x0a\x08dubbo-js"),
             timeout_ms: Some(10),
@@ -105,6 +135,37 @@ async fn raw_unary_timeout_returns_deadline_exceeded() {
 
     let _ = shutdown_tx.send(());
     server_task.await.unwrap();
+}
+
+fn spawn_server(
+    addr: SocketAddr,
+    shutdown_rx: tokio::sync::oneshot::Receiver<()>,
+    service_name: String,
+    delay: Duration,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        DubboServer::new()
+            .with_listener("tcp".to_string())
+            .add_service(service_name, SlowRawUnaryService { delay })
+            .serve_with_graceful(addr, async move {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .unwrap();
+    })
+}
+
+async fn wait_for_server(addr: SocketAddr) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
+    loop {
+        if tokio::net::TcpStream::connect(addr).await.is_ok() {
+            return;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            panic!("server did not start listening on {addr}");
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
 }
 
 fn grpc_frame(payload: Bytes) -> Bytes {
