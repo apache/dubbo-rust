@@ -4,6 +4,7 @@ members = [
   "registry/zookeeper",
   "registry/nacos",
   "dubbo",
+  "dubbo-runtime",
   "examples/echo",
   "examples/greeter",
   "dubbo-build",
