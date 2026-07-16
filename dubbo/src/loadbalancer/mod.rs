@@ -39,8 +39,11 @@ use crate::{
     protocol::triple::triple_invoker::TripleInvoker,
     status::{Code, Status},
     svc::NewService,
-    StdError,
+    StdError, Url,
 };
+
+const DEFAULT_PROVIDER_WEIGHT: u32 = 100;
+const PROVIDER_WEIGHT_KEY: &str = "weight";
 
 pub struct NewLoadBalancer<N> {
     inner: N,
@@ -248,7 +251,95 @@ impl LoadBalancer for RoundRobinLoadBalancer {
         _metadata: Metadata,
     ) -> Self::Invoker {
         debug!("round-robin load balancer");
-        let index = self.next.fetch_add(1, Ordering::Relaxed) % invokers.len();
+        let next = self.next.fetch_add(1, Ordering::Relaxed);
+        let index =
+            weighted_round_robin_index(&invokers, next).unwrap_or_else(|| next % invokers.len());
         DubboBoxService::new(invokers[index].clone())
+    }
+}
+
+fn weighted_round_robin_index(
+    invokers: &[CloneInvoker<TripleInvoker>],
+    next: usize,
+) -> Option<usize> {
+    let weights = invokers
+        .iter()
+        .map(|invoker| provider_weight(invoker.url()))
+        .collect::<Vec<_>>();
+
+    weighted_round_robin_index_for_weights(&weights, next)
+}
+
+fn weighted_round_robin_index_for_weights(weights: &[u32], next: usize) -> Option<usize> {
+    let total_weight = weights.iter().try_fold(0usize, |total, weight| {
+        total.checked_add(usize::try_from(*weight).ok()?)
+    })?;
+    if total_weight == 0 {
+        return None;
+    }
+
+    let selected_weight = next % total_weight;
+    let mut cumulative_weight = 0usize;
+    for (index, weight) in weights.iter().enumerate() {
+        cumulative_weight += usize::try_from(*weight).ok()?;
+        if selected_weight < cumulative_weight {
+            return Some(index);
+        }
+    }
+
+    None
+}
+
+fn provider_weight(url: Option<&Url>) -> u32 {
+    url.and_then(|url| url.query_param_by_key(PROVIDER_WEIGHT_KEY))
+        .and_then(|weight| weight.parse::<u32>().ok())
+        .unwrap_or(DEFAULT_PROVIDER_WEIGHT)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn provider_weight_defaults_invalid_or_missing_weight() {
+        let no_weight = "http://127.0.0.1:50051?interface=example.Echo"
+            .parse::<Url>()
+            .unwrap();
+        let invalid_weight = "http://127.0.0.1:50051?interface=example.Echo&weight=bad"
+            .parse::<Url>()
+            .unwrap();
+        let explicit_weight = "http://127.0.0.1:50051?interface=example.Echo&weight=25"
+            .parse::<Url>()
+            .unwrap();
+
+        assert_eq!(provider_weight(Some(&no_weight)), DEFAULT_PROVIDER_WEIGHT);
+        assert_eq!(
+            provider_weight(Some(&invalid_weight)),
+            DEFAULT_PROVIDER_WEIGHT
+        );
+        assert_eq!(provider_weight(Some(&explicit_weight)), 25);
+    }
+
+    #[test]
+    fn weighted_round_robin_index_skips_zero_weight_when_positive_weight_exists() {
+        for next in 0..10 {
+            assert_eq!(
+                weighted_round_robin_index_for_weights(&[0, 100], next),
+                Some(1)
+            );
+        }
+    }
+
+    #[test]
+    fn weighted_round_robin_index_uses_weighted_slots() {
+        assert_eq!(weighted_round_robin_index_for_weights(&[1, 2], 0), Some(0));
+        assert_eq!(weighted_round_robin_index_for_weights(&[1, 2], 1), Some(1));
+        assert_eq!(weighted_round_robin_index_for_weights(&[1, 2], 2), Some(1));
+        assert_eq!(weighted_round_robin_index_for_weights(&[1, 2], 3), Some(0));
+    }
+
+    #[test]
+    fn weighted_round_robin_index_returns_none_when_all_weights_are_zero() {
+        assert_eq!(weighted_round_robin_index_for_weights(&[0, 0], 0), None);
     }
 }
