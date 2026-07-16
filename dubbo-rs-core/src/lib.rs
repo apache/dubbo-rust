@@ -23,13 +23,14 @@ use dubbo::{
     codegen::{ClientBuilder, Request, RpcInvocation, TripleClient},
     invocation::Metadata,
     loadbalancer::LoadBalanceStrategy,
-    status::{Code, Status},
     Url,
 };
 #[cfg(feature = "registry-nacos")]
 use dubbo_registry_nacos::NacosRegistry;
 #[cfg(feature = "registry-zookeeper")]
 use dubbo_registry_zookeeper::ZookeeperRegistry;
+
+pub use dubbo::status::{Code, Status};
 
 /// A stable raw Triple client facade for embedding Dubbo Rust in other runtimes.
 ///

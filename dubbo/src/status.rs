@@ -284,6 +284,10 @@ impl Status {
         self.code
     }
 
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
     pub fn to_http(&self) -> http::Response<crate::BoxBody> {
         let (mut parts, _) = http::Response::new(()).into_parts();
 
