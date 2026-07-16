@@ -16,7 +16,7 @@
  */
 use std::{mem, pin::Pin, task::Poll};
 
-use crate::{logger::tracing::debug, StdError};
+use crate::{logger::tracing::debug, StdError, Url};
 use futures_core::{future::BoxFuture, ready, Future, TryFuture};
 use futures_util::FutureExt;
 use pin_project::pin_project;
@@ -173,6 +173,7 @@ where
     Inv::Future: Send,
 {
     inner: Buffer<ReadyService<Inv>, http::Request<CloneBody>>,
+    url: Option<Url>,
     rx: Receiver<ObserveState>,
     poll: ReusableBoxFuture<'static, ObserveState>,
     polling: bool,
@@ -194,10 +195,22 @@ where
 
         Self {
             inner: buffer,
+            url: None,
             rx,
             polling: false,
             poll: ReusableBoxFuture::new(futures::future::pending()),
         }
+    }
+
+    pub fn new_with_url(invoker: Inv, url: Url) -> Self {
+        Self {
+            url: Some(url),
+            ..Self::new(invoker)
+        }
+    }
+
+    pub fn url(&self) -> Option<&Url> {
+        self.url.as_ref()
     }
 }
 
@@ -262,6 +275,7 @@ where
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
+            url: self.url.clone(),
             rx: self.rx.clone(),
             polling: false,
             poll: ReusableBoxFuture::new(futures::future::pending()),

@@ -88,36 +88,36 @@ impl TripleInvoker {
             "authority",
             HeaderValue::from_str(uri.authority().unwrap().as_str()).unwrap(),
         );
-        req.headers_mut().insert(
+        insert_default_header(
+            req.headers_mut(),
             "content-type",
             HeaderValue::from_static("application/grpc+proto"),
         );
-        req.headers_mut()
-            .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
-        req.headers_mut()
-            .insert("te", HeaderValue::from_static("trailers"));
-        req.headers_mut().insert(
+        insert_default_header(
+            req.headers_mut(),
+            "user-agent",
+            HeaderValue::from_static("dubbo-rust/0.1.0"),
+        );
+        insert_default_header(
+            req.headers_mut(),
+            "te",
+            HeaderValue::from_static("trailers"),
+        );
+        insert_default_header(
+            req.headers_mut(),
             "tri-service-version",
             HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
-        req.headers_mut()
-            .insert("tri-service-group", HeaderValue::from_static("cluster"));
-        req.headers_mut().insert(
+        insert_default_header(
+            req.headers_mut(),
+            "tri-service-group",
+            HeaderValue::from_static("cluster"),
+        );
+        insert_default_header(
+            req.headers_mut(),
             "tri-unit-info",
             HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
-        // if let Some(_encoding) = self.send_compression_encoding {
-
-        // }
-
-        req.headers_mut()
-            .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
-
-        req.headers_mut().insert(
-            "grpc-accept-encoding",
-            http::HeaderValue::from_static("gzip"),
-        );
-
         // // const (
         // //     TripleContentType    = "application/grpc+proto"
         // //     TripleUserAgent      = "grpc-go/1.35.0-dev"
@@ -131,6 +131,12 @@ impl TripleInvoker {
         // //     TripleUnitInfo       = "tri-unit-info"
         // // )
         req
+    }
+}
+
+fn insert_default_header(headers: &mut http::HeaderMap, name: &'static str, value: HeaderValue) {
+    if !headers.contains_key(name) {
+        headers.insert(name, value);
     }
 }
 

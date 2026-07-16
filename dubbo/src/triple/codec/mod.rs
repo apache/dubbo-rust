@@ -16,6 +16,7 @@
  */
 
 pub mod buffer;
+pub mod bytes;
 pub mod prost;
 pub mod serde_codec;
 

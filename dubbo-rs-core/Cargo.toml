@@ -1,0 +1,30 @@
+[package]
+name = "dubbo-rs-core"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Stable core facade for embedding Dubbo Rust in other runtimes"
+repository = "https://github.com/apache/dubbo-rust.git"
+readme = "README.md"
+keywords = ["dubbo", "triple", "rpc", "napi"]
+categories = ["network-programming", "api-bindings"]
+
+[dependencies]
+bytes.workspace = true
+dubbo = { path = "../dubbo", version = "0.4.0" }
+dubbo-registry-nacos = { path = "../registry/nacos", version = "0.4.0", optional = true }
+dubbo-registry-zookeeper = { path = "../registry/zookeeper", version = "0.4.0", optional = true }
+http = "0.2"
+tokio = { workspace = true, features = ["time"] }
+
+[features]
+default = []
+registry-nacos = ["dep:dubbo-registry-nacos"]
+registry-zookeeper = ["dep:dubbo-registry-zookeeper"]
+registry = ["registry-nacos", "registry-zookeeper"]
+
+[dev-dependencies]
+http-body = "0.4.4"
+hyper = { version = "0.14.26", features = ["full"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tower-service.workspace = true

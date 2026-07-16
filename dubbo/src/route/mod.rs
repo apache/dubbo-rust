@@ -25,10 +25,21 @@ use tower_service::Service;
 
 use crate::{
     codegen::{RpcInvocation, TripleInvoker},
+    invocation::Metadata,
     invoker::clone_invoker::CloneInvoker,
     param::Param,
+    status::{Code, Status},
     svc::NewService,
+    Url,
 };
+
+const DUBBO_TAG_KEY: &str = "dubbo.tag";
+const TRIPLE_SERVICE_TAG_KEY: &str = "tri-service-tag";
+const TAG_KEY: &str = "tag";
+const TRIPLE_SERVICE_GROUP_KEY: &str = "tri-service-group";
+const GROUP_KEY: &str = "group";
+const TRIPLE_SERVICE_VERSION_KEY: &str = "tri-service-version";
+const VERSION_KEY: &str = "version";
 
 pub struct NewRoutes<N> {
     inner: N,
@@ -161,8 +172,128 @@ where
     }
 
     fn call(&mut self, _: ()) -> Self::Future {
-        // some router operator
-        // if new_invokers changed, send new invokers to routes_rx after router operator
-        futures_util::future::ok(self.invokers.clone())
+        futures_util::future::ready(route_invokers(
+            self.invokers.clone(),
+            self.target.param().get_metadata(),
+        ))
     }
+}
+
+fn route_invokers(
+    invokers: Vec<CloneInvoker<TripleInvoker>>,
+    metadata: Metadata,
+) -> Result<Vec<CloneInvoker<TripleInvoker>>, StdError> {
+    let invokers = route_by_service_metadata(invokers, metadata.clone())?;
+    Ok(route_by_tag(invokers, metadata))
+}
+
+fn route_by_service_metadata(
+    invokers: Vec<CloneInvoker<TripleInvoker>>,
+    metadata: Metadata,
+) -> Result<Vec<CloneInvoker<TripleInvoker>>, StdError> {
+    let group = metadata_value(metadata.clone(), &[TRIPLE_SERVICE_GROUP_KEY, GROUP_KEY]);
+    let version = metadata_value(metadata, &[TRIPLE_SERVICE_VERSION_KEY, VERSION_KEY]);
+
+    if group.is_none() && version.is_none() {
+        return Ok(invokers);
+    }
+
+    let has_candidates = !invokers.is_empty();
+    let filtered = invokers
+        .into_iter()
+        .filter(|invoker| {
+            invoker.url().is_some_and(|url| {
+                matches_provider_param(
+                    url,
+                    &[TRIPLE_SERVICE_GROUP_KEY, GROUP_KEY],
+                    group.as_deref(),
+                ) && matches_provider_param(
+                    url,
+                    &[TRIPLE_SERVICE_VERSION_KEY, VERSION_KEY],
+                    version.as_deref(),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+
+    if has_candidates && filtered.is_empty() {
+        return Err(Status::new(
+            Code::Unavailable,
+            "no provider matched request routing metadata".to_string(),
+        )
+        .into());
+    }
+
+    Ok(filtered)
+}
+
+fn route_by_tag(
+    invokers: Vec<CloneInvoker<TripleInvoker>>,
+    metadata: Metadata,
+) -> Vec<CloneInvoker<TripleInvoker>> {
+    let Some(request_tag) = request_tag(metadata) else {
+        return prefer_untagged(invokers);
+    };
+
+    let mut tagged = Vec::new();
+    let mut untagged = Vec::new();
+    for invoker in invokers.iter() {
+        match invoker.url().and_then(provider_tag) {
+            Some(provider_tag) if provider_tag == request_tag => tagged.push(invoker.clone()),
+            None => untagged.push(invoker.clone()),
+            _ => {}
+        }
+    }
+
+    if !tagged.is_empty() {
+        return tagged;
+    }
+    if !untagged.is_empty() {
+        return untagged;
+    }
+
+    invokers
+}
+
+fn prefer_untagged(invokers: Vec<CloneInvoker<TripleInvoker>>) -> Vec<CloneInvoker<TripleInvoker>> {
+    let untagged = invokers
+        .iter()
+        .filter(|invoker| invoker.url().and_then(provider_tag).is_none())
+        .cloned()
+        .collect::<Vec<_>>();
+
+    if untagged.is_empty() {
+        invokers
+    } else {
+        untagged
+    }
+}
+
+fn request_tag(metadata: Metadata) -> Option<String> {
+    metadata_value(metadata, &[DUBBO_TAG_KEY, TRIPLE_SERVICE_TAG_KEY, TAG_KEY])
+}
+
+fn provider_tag(url: &Url) -> Option<String> {
+    [DUBBO_TAG_KEY, TRIPLE_SERVICE_TAG_KEY, TAG_KEY]
+        .into_iter()
+        .find_map(|key| url.query_param_by_key(key))
+        .filter(|tag| !tag.is_empty())
+}
+
+fn metadata_value(metadata: Metadata, keys: &[&str]) -> Option<String> {
+    let headers = metadata.into_headers();
+    keys.iter()
+        .find_map(|key| headers.get(*key).and_then(|value| value.to_str().ok()))
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn matches_provider_param(url: &Url, keys: &[&str], expected: Option<&str>) -> bool {
+    let Some(expected) = expected else {
+        return true;
+    };
+
+    keys.iter()
+        .find_map(|key| url.query_param_by_key(key))
+        .is_some_and(|actual| actual == expected)
 }

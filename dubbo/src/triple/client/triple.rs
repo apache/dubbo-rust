@@ -16,6 +16,7 @@
  */
 
 use aws_smithy_http::body::SdkBody;
+use bytes::Bytes;
 use futures_util::{future, stream, StreamExt, TryStreamExt};
 use http::HeaderValue;
 use prost::Message;
@@ -29,7 +30,7 @@ use crate::{
     status::Status,
     svc::NewService,
     triple::{
-        codec::{Codec, Decoder, Encoder},
+        codec::{bytes::BytesCodec, Codec, Decoder, Encoder},
         compression::CompressionEncoding,
         decode::Decoding,
         encode::encode,
@@ -56,8 +57,9 @@ impl TripleClient {
     }
 
     pub fn new(builder: ClientBuilder) -> Self {
+        let send_compression_encoding = builder.send_compression_encoding;
         TripleClient {
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
+            send_compression_encoding,
             mk: builder.build(),
         }
     }
@@ -92,28 +94,44 @@ impl TripleClient {
             "authority",
             HeaderValue::from_str(uri.authority().unwrap().as_str()).unwrap(),
         );
-        req.headers_mut().insert(
+        insert_default_header(
+            req.headers_mut(),
             "content-type",
             HeaderValue::from_static("application/grpc+proto"),
         );
-        req.headers_mut()
-            .insert("user-agent", HeaderValue::from_static("dubbo-rust/0.1.0"));
-        req.headers_mut()
-            .insert("te", HeaderValue::from_static("trailers"));
-        req.headers_mut().insert(
+        insert_default_header(
+            req.headers_mut(),
+            "user-agent",
+            HeaderValue::from_static("dubbo-rust/0.1.0"),
+        );
+        insert_default_header(
+            req.headers_mut(),
+            "te",
+            HeaderValue::from_static("trailers"),
+        );
+        insert_default_header(
+            req.headers_mut(),
             "tri-service-version",
             HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
-        req.headers_mut()
-            .insert("tri-service-group", HeaderValue::from_static("cluster"));
-        req.headers_mut().insert(
+        insert_default_header(
+            req.headers_mut(),
+            "tri-service-group",
+            HeaderValue::from_static("cluster"),
+        );
+        insert_default_header(
+            req.headers_mut(),
             "tri-unit-info",
             HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
         if let Some(_encoding) = self.send_compression_encoding {
-            req.headers_mut()
-                .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
-            req.headers_mut().insert(
+            insert_default_header(
+                req.headers_mut(),
+                "grpc-encoding",
+                http::HeaderValue::from_static("gzip"),
+            );
+            insert_default_header(
+                req.headers_mut(),
                 "grpc-accept-encoding",
                 http::HeaderValue::from_static("gzip"),
             );
@@ -167,6 +185,7 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+        self.set_compression_headers(request.headers_mut());
 
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
@@ -199,6 +218,89 @@ impl TripleClient {
                 }
 
                 Ok(Response::from_parts(parts, message))
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    pub async fn raw_unary(
+        &mut self,
+        req: Request<Bytes>,
+        path: http::uri::PathAndQuery,
+        invocation: RpcInvocation,
+    ) -> Result<Response<Bytes>, crate::status::Status> {
+        let (response, trailers) = self.raw_unary_with_trailers(req, path, invocation).await?;
+        let (mut parts, message) = response.into_parts();
+
+        if let Some(trailers) = trailers {
+            let mut h = parts.into_headers();
+            h.extend(trailers.into_headers());
+            parts = Metadata::from_headers(h);
+        }
+
+        Ok(Response::from_parts(parts, message))
+    }
+
+    pub async fn raw_unary_with_trailers(
+        &mut self,
+        req: Request<Bytes>,
+        path: http::uri::PathAndQuery,
+        mut invocation: RpcInvocation,
+    ) -> Result<(Response<Bytes>, Option<Metadata>), crate::status::Status> {
+        let mut codec = BytesCodec::default();
+        let decoder: Box<dyn Decoder<Item = Bytes, Error = Status> + Send + 'static> =
+            Box::new(codec.decoder());
+        let encoder: Box<dyn Encoder<Item = Bytes, Error = Status> + Send + 'static> =
+            Box::new(codec.encoder());
+
+        let mt = req.metadata.clone();
+
+        let req = req.map(|m| stream::once(future::ready(m)));
+        let body_stream = encode(
+            encoder,
+            req.into_inner().map(Ok),
+            self.send_compression_encoding,
+            true,
+        )
+        .into_stream();
+        let body = hyper::Body::wrap_stream(body_stream);
+
+        invocation = invocation.with_metadata(mt.clone());
+        let mut invoker = self.mk.new_service(invocation);
+
+        let mut request = http::Request::builder()
+            .header("path", path.to_string())
+            .body(body)
+            .unwrap();
+        self.set_compression_headers(request.headers_mut());
+
+        for (k, v) in mt.into_headers().iter() {
+            request.headers_mut().insert(k, v.to_owned());
+        }
+
+        let response = invoker
+            .call(request)
+            .await
+            .map_err(|err| crate::status::Status::from_error(err.into()));
+
+        match response {
+            Ok(v) => {
+                let resp = v
+                    .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
+                let (parts, body) = Response::from_http(resp).into_parts();
+
+                futures_util::pin_mut!(body);
+
+                let message = body.try_next().await?.ok_or_else(|| {
+                    crate::status::Status::new(
+                        crate::status::Code::Internal,
+                        "Missing response message.".to_string(),
+                    )
+                })?;
+
+                let trailers = body.trailer().await?;
+
+                Ok((Response::from_parts(parts, message), trailers))
             }
             Err(err) => Err(err),
         }
@@ -238,6 +340,7 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+        self.set_compression_headers(request.headers_mut());
 
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
@@ -292,6 +395,7 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+        self.set_compression_headers(request.headers_mut());
 
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
@@ -363,6 +467,7 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+        self.set_compression_headers(request.headers_mut());
 
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
@@ -382,6 +487,19 @@ impl TripleClient {
             }
             Err(err) => Err(err),
         }
+    }
+
+    fn set_compression_headers(&self, headers: &mut http::HeaderMap) {
+        if let Some(encoding) = self.send_compression_encoding {
+            headers.insert("grpc-encoding", encoding.into_header_value());
+            headers.insert("grpc-accept-encoding", encoding.into_header_value());
+        }
+    }
+}
+
+fn insert_default_header(headers: &mut http::HeaderMap, name: &'static str, value: HeaderValue) {
+    if !headers.contains_key(name) {
+        headers.insert(name, value);
     }
 }
 

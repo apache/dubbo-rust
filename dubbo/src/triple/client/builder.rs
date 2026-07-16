@@ -15,11 +15,16 @@
  * limitations under the License.
  */
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use crate::{
-    cluster::NewCluster, directory::NewCachedDirectory, extension, loadbalancer::NewLoadBalancer,
-    route::NewRoutes, utils::boxed_clone::BoxCloneService,
+    cluster::{ClusterStrategy, NewCluster},
+    directory::NewCachedDirectory,
+    extension,
+    loadbalancer::{LoadBalanceStrategy, NewLoadBalancer},
+    route::NewRoutes,
+    triple::compression::CompressionEncoding,
+    utils::boxed_clone::BoxCloneService,
 };
 
 use crate::{
@@ -41,6 +46,9 @@ pub struct ClientBuilder {
     pub connector: &'static str,
     registry_extension_url: Option<Url>,
     pub direct: bool,
+    pub load_balance: LoadBalanceStrategy,
+    pub cluster: ClusterStrategy,
+    pub send_compression_encoding: Option<CompressionEncoding>,
 }
 
 impl ClientBuilder {
@@ -50,16 +58,38 @@ impl ClientBuilder {
             connector: "",
             registry_extension_url: None,
             direct: false,
+            load_balance: LoadBalanceStrategy::default(),
+            cluster: ClusterStrategy::default(),
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
     }
 
     pub fn from_static(host: &str) -> ClientBuilder {
-        let registry_extension_url = StaticRegistry::to_extension_url(vec![host.parse().unwrap()]);
+        Self::from_static_hosts([host])
+    }
+
+    pub fn from_static_hosts<'a, I>(hosts: I) -> ClientBuilder
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
+        Self::from_static_urls(
+            hosts
+                .into_iter()
+                .map(|host| host.parse().unwrap())
+                .collect(),
+        )
+    }
+
+    pub fn from_static_urls(urls: Vec<Url>) -> ClientBuilder {
+        let registry_extension_url = StaticRegistry::to_extension_url(urls);
         Self {
             timeout: None,
             connector: "",
             registry_extension_url: Some(registry_extension_url),
             direct: true,
+            load_balance: LoadBalanceStrategy::default(),
+            cluster: ClusterStrategy::default(),
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
     }
 
@@ -95,6 +125,38 @@ impl ClientBuilder {
         Self { direct, ..self }
     }
 
+    pub fn with_load_balance(self, load_balance: LoadBalanceStrategy) -> Self {
+        Self {
+            load_balance,
+            ..self
+        }
+    }
+
+    pub fn with_cluster(self, cluster: ClusterStrategy) -> Self {
+        Self { cluster, ..self }
+    }
+
+    pub fn with_failover_attempts(self, attempts: usize) -> Self {
+        Self {
+            cluster: self.cluster.with_failover_attempts(attempts),
+            ..self
+        }
+    }
+
+    pub fn with_failover_retry_delay(self, retry_delay: Duration) -> Self {
+        Self {
+            cluster: self.cluster.with_failover_retry_delay(retry_delay),
+            ..self
+        }
+    }
+
+    pub fn with_compression(self, compression: Option<CompressionEncoding>) -> Self {
+        Self {
+            send_compression_encoding: compression,
+            ..self
+        }
+    }
+
     pub fn build(mut self) -> ServiceMK {
         let registry = self
             .registry_extension_url
@@ -102,8 +164,8 @@ impl ClientBuilder {
             .expect("registry must not be empty");
 
         let mk_service = ServiceBuilder::new()
-            .layer(NewCluster::layer())
-            .layer(NewLoadBalancer::layer())
+            .layer(NewCluster::layer(self.cluster))
+            .layer(NewLoadBalancer::layer(self.load_balance))
             .layer(NewRoutes::layer())
             .layer(NewCachedDirectory::layer())
             .service(MkRegistryService::new(registry));

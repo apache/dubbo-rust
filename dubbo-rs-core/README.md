@@ -1,0 +1,89 @@
+# dubbo-rs-core
+
+`dubbo-rs-core` is a small, byte-oriented facade for embedding Dubbo Rust in
+other runtimes.
+
+The crate is intentionally lower level than the generated Rust client APIs. It
+keeps the host language in control of service descriptors, protobuf
+serialization, and public API shape, while Rust owns Dubbo transport and
+governance behavior such as Triple calls, registry discovery, load balancing,
+cluster strategy, routing, and timeouts.
+
+This boundary is useful for packages such as `dubbo-js`, where JavaScript should
+keep the user-facing client API while a N-API addon reuses the Rust core.
+
+## Current Surface
+
+- Raw unary Triple requests and responses.
+- Static provider endpoints.
+- Registry-backed clients behind optional features.
+- Request-level and client-default unary timeouts.
+- Load balancing: `random`, `round_robin`, and `p2c`; `random` and
+  `round_robin` honor provider `weight` URL parameters.
+- Cluster strategy: `failfast` and `failover`, with configurable failover
+  retries and retry delay.
+- Compression: `gzip` or `identity`.
+- Metadata routing for tag, group, and version.
+- Stable status code and message access for host-language error mapping.
+
+## Features
+
+- `registry-nacos`: enable Nacos registry support.
+- `registry-zookeeper`: enable Zookeeper registry support.
+- `registry`: enable all registry backends currently wired into this crate.
+
+## Publishing And Host Usage
+
+This crate is intended to be consumed by host-language bindings, such as a
+Node.js N-API package. During local development those bindings can depend on the
+crate by path. After publishing, switch them to a normal version dependency and
+enable only the registry features they need:
+
+```toml
+dubbo-rs-core = { version = "0.1", features = ["registry"] }
+```
+
+The crate keeps protobuf encoding and generated service shape outside the Rust
+boundary. Host runtimes pass raw request bytes, metadata, and endpoint or
+registry options into Rust, then decode raw response bytes themselves.
+
+## Example
+
+```rust
+use bytes::Bytes;
+use dubbo_rs_core::{
+    RawMetadata, RawTripleClient, RawTripleClientOptions, RawUnaryRequest,
+};
+
+# async fn call() -> Result<(), Box<dyn std::error::Error>> {
+let mut client = RawTripleClient::from_static_endpoints_with_options(
+    ["http://127.0.0.1:50051?interface=example.EchoService"],
+    RawTripleClientOptions {
+        timeout_ms: Some(3_000),
+        load_balance: Some("round_robin".to_string()),
+        cluster: Some("failfast".to_string()),
+        failover_retries: None,
+        failover_retry_delay_ms: None,
+        compression: Some("gzip".to_string()),
+        ..RawTripleClientOptions::default()
+    },
+)?;
+
+let response = client
+    .unary(RawUnaryRequest {
+        service: "example.EchoService".to_string(),
+        method: "Echo".to_string(),
+        path: "/example.EchoService/Echo".to_string(),
+        metadata: RawMetadata::new().insert("tri-service-group", "default"),
+        body: Bytes::from_static(b"\x0a\x05hello"),
+        timeout_ms: None,
+    })
+    .await?;
+
+let _bytes = response.body;
+# Ok(())
+# }
+```
+
+The request and response bodies are protobuf bytes. Host runtimes should encode
+and decode messages using their own protobuf toolchain.

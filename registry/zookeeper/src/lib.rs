@@ -31,8 +31,11 @@ use tokio::{select, sync::mpsc};
 use zookeeper::{Acl, CreateMode, WatchedEvent, WatchedEventType, Watcher, ZooKeeper};
 
 use dubbo::{
-    extension::registry_extension::{DiscoverStream, Registry, ServiceChange},
-    params::registry_param::InterfaceName,
+    extension::{
+        registry_extension::{DiscoverStream, Registry, ServiceChange},
+        Extension,
+    },
+    params::registry_param::{InterfaceName, RegistryUrl},
 };
 
 // Get metadata of a service registration from a URL
@@ -257,6 +260,27 @@ impl Default for ZookeeperRegistry {
             zk_connect_string.as_str()
         );
         ZookeeperRegistry::new(zk_connect_string.as_str())
+    }
+}
+
+#[async_trait]
+impl Extension for ZookeeperRegistry {
+    type Target = Box<dyn Registry + Send + Sync + 'static>;
+
+    fn name() -> String {
+        "zookeeper".to_string()
+    }
+
+    async fn create(url: Url) -> Result<Self::Target, StdError> {
+        // url example:
+        // extension://0.0.0.0?extension-type=registry&extension-name=zookeeper&registry=zookeeper://127.0.0.1:2181
+        let registry_url = url.query::<RegistryUrl>().unwrap();
+        let registry_url = registry_url.value();
+        let host = registry_url.host().unwrap_or("127.0.0.1");
+        let port = registry_url.port().unwrap_or(2181);
+        let connect_string = format!("{host}:{port}");
+
+        Ok(Box::new(ZookeeperRegistry::new(&connect_string)))
     }
 }
 

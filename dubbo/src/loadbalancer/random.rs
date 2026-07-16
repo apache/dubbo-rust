@@ -15,10 +15,13 @@
  * limitations under the License.
  */
 
-use rand::prelude::SliceRandom;
+use rand::{
+    distributions::{Distribution, WeightedIndex},
+    Rng,
+};
 use tracing::debug;
 
-use super::{DubboBoxService, LoadBalancer};
+use super::{provider_weight, DubboBoxService, LoadBalancer};
 use crate::{
     invocation::Metadata, loadbalancer::CloneInvoker,
     protocol::triple::triple_invoker::TripleInvoker,
@@ -36,7 +39,51 @@ impl LoadBalancer for RandomLoadBalancer {
         metadata: Metadata,
     ) -> Self::Invoker {
         debug!("random loadbalance {:?}", metadata);
-        let ivk = invokers.choose(&mut rand::thread_rng()).unwrap().clone();
+        let mut rng = rand::thread_rng();
+        let index = weighted_random_index(&invokers, &mut rng)
+            .unwrap_or_else(|| rng.gen_range(0..invokers.len()));
+        let ivk = invokers[index].clone();
         DubboBoxService::new(ivk)
+    }
+}
+
+fn weighted_random_index<R: Rng + ?Sized>(
+    invokers: &[CloneInvoker<TripleInvoker>],
+    rng: &mut R,
+) -> Option<usize> {
+    let weights = invokers
+        .iter()
+        .map(|invoker| provider_weight(invoker.url()))
+        .collect::<Vec<_>>();
+
+    weighted_index(&weights, rng)
+}
+
+fn weighted_index<R: Rng + ?Sized>(weights: &[u32], rng: &mut R) -> Option<usize> {
+    WeightedIndex::new(weights)
+        .ok()
+        .map(|dist| dist.sample(rng))
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::{rngs::StdRng, SeedableRng};
+
+    use super::*;
+
+    #[test]
+    fn weighted_index_ignores_zero_weight_when_positive_weight_exists() {
+        let mut rng = StdRng::seed_from_u64(7);
+
+        for _ in 0..100 {
+            assert_eq!(weighted_index(&[0, 100], &mut rng), Some(1));
+        }
+    }
+
+    #[test]
+    fn weighted_index_returns_none_when_all_weights_are_zero() {
+        let mut rng = StdRng::seed_from_u64(7);
+
+        assert_eq!(weighted_index(&[0, 0], &mut rng), None);
     }
 }

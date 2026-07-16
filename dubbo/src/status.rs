@@ -274,11 +274,18 @@ impl Status {
     }
 
     pub fn from_error(err: crate::Error) -> Self {
-        Status::new(Code::Internal, err.to_string())
+        match err.downcast::<Status>() {
+            Ok(status) => *status,
+            Err(err) => Status::new(Code::Internal, err.to_string()),
+        }
     }
 
     pub fn code(&self) -> Code {
         self.code
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
     }
 
     pub fn to_http(&self) -> http::Response<crate::BoxBody> {
