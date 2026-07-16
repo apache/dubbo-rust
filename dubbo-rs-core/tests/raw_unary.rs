@@ -26,7 +26,7 @@ use std::{
 
 use bytes::{BufMut, Bytes, BytesMut};
 use dubbo::{status::Code, triple::transport::DubboServer, BoxBody};
-use dubbo_rs_core::{RawMetadata, RawTripleClient, RawUnaryRequest};
+use dubbo_rs_core::{RawMetadata, RawTripleClient, RawTripleClientOptions, RawUnaryRequest};
 use http_body::Body;
 use tower_service::Service;
 
@@ -279,6 +279,90 @@ async fn raw_unary_timeout_returns_deadline_exceeded() {
         .unwrap_err();
 
     assert_eq!(err.code(), Code::DeadlineExceeded);
+
+    let _ = shutdown_tx.send(());
+    server_task.await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_uses_client_default_timeout() {
+    const SERVICE: &str = "grpc.examples.echo.DefaultTimeoutEcho";
+    let addr = unused_local_addr();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let server_task = spawn_server(
+        addr,
+        shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(100),
+    );
+
+    wait_for_server(addr).await;
+
+    let endpoint = format!("http://{addr}?interface={SERVICE}");
+    let mut client = RawTripleClient::from_static_endpoints_with_options(
+        [endpoint.as_str()],
+        RawTripleClientOptions {
+            timeout_ms: Some(10),
+            ..RawTripleClientOptions::default()
+        },
+    )
+    .unwrap();
+    let err = client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new(),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: None,
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(err.code(), Code::DeadlineExceeded);
+
+    let _ = shutdown_tx.send(());
+    server_task.await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_request_timeout_overrides_client_default_timeout() {
+    const SERVICE: &str = "grpc.examples.echo.OverrideTimeoutEcho";
+    let addr = unused_local_addr();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let server_task = spawn_server(
+        addr,
+        shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(20),
+    );
+
+    wait_for_server(addr).await;
+
+    let endpoint = format!("http://{addr}?interface={SERVICE}");
+    let mut client = RawTripleClient::from_static_endpoints_with_options(
+        [endpoint.as_str()],
+        RawTripleClientOptions {
+            timeout_ms: Some(1),
+            ..RawTripleClientOptions::default()
+        },
+    )
+    .unwrap();
+    let response = client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new(),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: Some(10_000),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.body, Bytes::from_static(b"\x0a\x0draw response"));
 
     let _ = shutdown_tx.send(());
     server_task.await.unwrap();

@@ -37,6 +37,7 @@ use dubbo_registry_zookeeper::ZookeeperRegistry;
 /// protobuf message shape and use this facade for Dubbo transport and governance.
 pub struct RawTripleClient {
     inner: TripleClient,
+    default_timeout_ms: Option<u64>,
 }
 
 impl RawTripleClient {
@@ -79,6 +80,7 @@ impl RawTripleClient {
             options.apply(ClientBuilder::from_static_urls(endpoints).with_direct(true))?;
         Ok(Self {
             inner: TripleClient::new(builder),
+            default_timeout_ms: options.timeout_ms,
         })
     }
 
@@ -102,6 +104,7 @@ impl RawTripleClient {
         let builder = options.apply(ClientBuilder::new().with_registry(registry_url))?;
         Ok(Self {
             inner: TripleClient::new(builder),
+            default_timeout_ms: options.timeout_ms,
         })
     }
 
@@ -118,7 +121,7 @@ impl RawTripleClient {
         let invocation = RpcInvocation::default()
             .with_service_unique_name(request.service)
             .with_method_name(request.method);
-        let timeout_ms = request.timeout_ms;
+        let timeout_ms = request.timeout_ms.or(self.default_timeout_ms);
         let call = self.inner.raw_unary(
             Request::from_parts(request.metadata.into(), request.body),
             path,
@@ -147,6 +150,7 @@ impl RawTripleClient {
 
 #[derive(Debug, Clone, Default)]
 pub struct RawTripleClientOptions {
+    pub timeout_ms: Option<u64>,
     pub load_balance: Option<String>,
     pub cluster: Option<String>,
 }
