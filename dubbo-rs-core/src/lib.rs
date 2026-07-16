@@ -39,6 +39,7 @@ pub use dubbo::status::{Code, Status};
 pub struct RawTripleClient {
     inner: TripleClient,
     default_timeout_ms: Option<u64>,
+    default_metadata: RawMetadata,
 }
 
 impl RawTripleClient {
@@ -82,6 +83,7 @@ impl RawTripleClient {
         Ok(Self {
             inner: TripleClient::new(builder),
             default_timeout_ms: options.timeout_ms,
+            default_metadata: options.default_metadata,
         })
     }
 
@@ -106,6 +108,7 @@ impl RawTripleClient {
         Ok(Self {
             inner: TripleClient::new(builder),
             default_timeout_ms: options.timeout_ms,
+            default_metadata: options.default_metadata,
         })
     }
 
@@ -124,7 +127,10 @@ impl RawTripleClient {
             .with_method_name(request.method);
         let timeout_ms = request.timeout_ms.or(self.default_timeout_ms);
         let call = self.inner.raw_unary(
-            Request::from_parts(request.metadata.into(), request.body),
+            Request::from_parts(
+                self.default_metadata.clone().merge(request.metadata).into(),
+                request.body,
+            ),
             path,
             invocation,
         );
@@ -154,6 +160,7 @@ pub struct RawTripleClientOptions {
     pub timeout_ms: Option<u64>,
     pub load_balance: Option<String>,
     pub cluster: Option<String>,
+    pub default_metadata: RawMetadata,
 }
 
 impl RawTripleClientOptions {
@@ -246,6 +253,11 @@ impl RawMetadata {
 
     pub fn insert(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.entries.push((key.into(), value.into()));
+        self
+    }
+
+    pub fn merge(mut self, other: RawMetadata) -> Self {
+        self.entries.extend(other.entries);
         self
     }
 }

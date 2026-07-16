@@ -36,6 +36,9 @@ struct SlowRawUnaryService {
     response_payload: Bytes,
 }
 
+#[derive(Clone)]
+struct MetadataEchoService;
+
 impl Service<http::Request<hyper::Body>> for SlowRawUnaryService {
     type Response = http::Response<BoxBody>;
     type Error = Infallible;
@@ -52,6 +55,48 @@ impl Service<http::Request<hyper::Body>> for SlowRawUnaryService {
             tokio::time::sleep(delay).await;
             let body = http_body::combinators::UnsyncBoxBody::new(
                 hyper::Body::from(grpc_frame(response_payload)).map_err(|err| {
+                    dubbo::status::Status::new(dubbo::status::Code::Internal, err.to_string())
+                }),
+            );
+
+            Ok(http::Response::builder()
+                .status(http::StatusCode::OK)
+                .header("content-type", "application/grpc+proto")
+                .body(body)
+                .unwrap())
+        })
+    }
+}
+
+impl Service<http::Request<hyper::Body>> for MetadataEchoService {
+    type Response = http::Response<BoxBody>;
+    type Error = Infallible;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: http::Request<hyper::Body>) -> Self::Future {
+        let default_header = req
+            .headers()
+            .get("x-client-app")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        let call_header = req
+            .headers()
+            .get("x-call-id")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+
+        Box::pin(async move {
+            let body = http_body::combinators::UnsyncBoxBody::new(
+                hyper::Body::from(grpc_frame(protobuf_string(format!(
+                    "{default_header}:{call_header}"
+                ))))
+                .map_err(|err| {
                     dubbo::status::Status::new(dubbo::status::Code::Internal, err.to_string())
                 }),
             );
@@ -103,6 +148,54 @@ async fn raw_unary_uses_static_endpoint_list() {
         .unwrap();
 
     assert_eq!(response.body, Bytes::from_static(b"\x0a\x0draw response"));
+
+    let _ = shutdown_tx.send(());
+    server_task.await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_applies_default_metadata_and_allows_request_override() {
+    const SERVICE: &str = "grpc.examples.echo.DefaultMetadataEcho";
+    let addr = unused_local_addr();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let server_task = tokio::spawn(async move {
+        DubboServer::new()
+            .with_listener("tcp".to_string())
+            .add_service(SERVICE.to_string(), MetadataEchoService)
+            .serve_with_graceful(addr, async move {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .unwrap();
+    });
+
+    wait_for_server(addr).await;
+
+    let endpoint = format!("http://{addr}?interface={SERVICE}");
+    let mut client = RawTripleClient::from_static_endpoints_with_options(
+        [endpoint.as_str()],
+        RawTripleClientOptions {
+            default_metadata: RawMetadata::new()
+                .insert("x-client-app", "default-app")
+                .insert("x-call-id", "default-call"),
+            ..RawTripleClientOptions::default()
+        },
+    )
+    .unwrap();
+    let response = client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new().insert("x-call-id", "request-call"),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: Some(10_000),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.body, protobuf_string("default-app:request-call"));
 
     let _ = shutdown_tx.send(());
     server_task.await.unwrap();
@@ -427,6 +520,15 @@ fn grpc_frame(payload: Bytes) -> Bytes {
     frame.put_u32(payload.len() as u32);
     frame.extend_from_slice(&payload);
     frame.freeze()
+}
+
+fn protobuf_string(value: impl AsRef<str>) -> Bytes {
+    let value = value.as_ref().as_bytes();
+    let mut message = BytesMut::with_capacity(2 + value.len());
+    message.put_u8(0x0a);
+    message.put_u8(value.len() as u8);
+    message.extend_from_slice(value);
+    message.freeze()
 }
 
 fn unused_local_addr() -> SocketAddr {
