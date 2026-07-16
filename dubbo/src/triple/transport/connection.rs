@@ -101,7 +101,9 @@ impl Service<http::Request<CloneBody>> for Connection {
                 let uri = self.host.clone();
                 let call_fut = connect.call(uri);
                 let fut = async move {
-                    let mut con = call_fut.await.unwrap();
+                    let mut con = call_fut
+                        .await
+                        .map_err(|err| -> crate::Error { Box::new(err) })?;
                     con.call(req)
                         .await
                         .map_err(|err| err.into())

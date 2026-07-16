@@ -132,6 +132,13 @@ impl ClientBuilder {
         Self { cluster, ..self }
     }
 
+    pub fn with_failover_attempts(self, attempts: usize) -> Self {
+        Self {
+            cluster: self.cluster.with_failover_attempts(attempts),
+            ..self
+        }
+    }
+
     pub fn build(mut self) -> ServiceMK {
         let registry = self
             .registry_extension_url

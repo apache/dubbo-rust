@@ -61,21 +61,37 @@ where
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClusterStrategy {
     Failfast,
-    #[default]
-    Failover,
+    Failover { attempts: usize },
+}
+
+impl Default for ClusterStrategy {
+    fn default() -> Self {
+        Self::Failover {
+            attempts: Self::DEFAULT_FAILOVER_ATTEMPTS,
+        }
+    }
 }
 
 impl ClusterStrategy {
-    const DEFAULT_FAILOVER_ATTEMPTS: usize = 2;
+    pub const DEFAULT_FAILOVER_ATTEMPTS: usize = 2;
 
     pub fn parse(strategy: &str) -> Option<Self> {
         match strategy {
             "failfast" => Some(Self::Failfast),
-            "failover" => Some(Self::Failover),
+            "failover" => Some(Self::default()),
             _ => None,
+        }
+    }
+
+    pub fn with_failover_attempts(self, attempts: usize) -> Self {
+        match self {
+            Self::Failover { .. } => Self::Failover {
+                attempts: attempts.max(1),
+            },
+            Self::Failfast => Self::Failfast,
         }
     }
 }
@@ -131,11 +147,11 @@ where
                         .oneshot(make_request(clone_body, Some(extensions)))
                         .await
                 }
-                ClusterStrategy::Failover => {
+                ClusterStrategy::Failover { attempts } => {
                     let mut last_error = None;
                     let mut first_body = Some(clone_body);
                     let mut first_extensions = Some(extensions);
-                    for _ in 0..ClusterStrategy::DEFAULT_FAILOVER_ATTEMPTS {
+                    for _ in 0..attempts {
                         let body = first_body.take().unwrap_or_else(|| replay_body.clone());
                         let extensions = first_extensions.take();
                         match inner.clone().oneshot(make_request(body, extensions)).await {
@@ -148,5 +164,88 @@ where
                 }
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+        task::{Context, Poll},
+    };
+
+    use crate::invoker::clone_body::CloneBody;
+    use http::Request;
+    use tower_service::Service;
+
+    use super::{Cluster, ClusterStrategy};
+
+    #[derive(Clone)]
+    struct FailsBeforeSuccess {
+        calls: Arc<AtomicUsize>,
+        failures: usize,
+    }
+
+    impl Service<Request<CloneBody>> for FailsBeforeSuccess {
+        type Response = http::Response<()>;
+        type Error = crate::Error;
+        type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
+
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn call(&mut self, _req: Request<CloneBody>) -> Self::Future {
+            let call = self.calls.fetch_add(1, Ordering::SeqCst);
+            if call < self.failures {
+                std::future::ready(Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::ConnectionRefused,
+                    "provider unavailable",
+                ))))
+            } else {
+                std::future::ready(Ok(http::Response::new(())))
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn failover_honors_configured_attempts() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let mut cluster = Cluster {
+            inner: FailsBeforeSuccess {
+                calls: Arc::clone(&calls),
+                failures: 1,
+            },
+            strategy: ClusterStrategy::Failover { attempts: 2 },
+        };
+
+        cluster
+            .call(Request::new(hyper::Body::empty()))
+            .await
+            .unwrap();
+
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn failover_returns_last_error_after_attempts_are_exhausted() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let mut cluster = Cluster {
+            inner: FailsBeforeSuccess {
+                calls: Arc::clone(&calls),
+                failures: 2,
+            },
+            strategy: ClusterStrategy::Failover { attempts: 1 },
+        };
+
+        cluster
+            .call(Request::new(hyper::Body::empty()))
+            .await
+            .unwrap_err();
+
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
     }
 }

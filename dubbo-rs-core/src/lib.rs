@@ -160,6 +160,7 @@ pub struct RawTripleClientOptions {
     pub timeout_ms: Option<u64>,
     pub load_balance: Option<String>,
     pub cluster: Option<String>,
+    pub failover_retries: Option<u32>,
     pub default_metadata: RawMetadata,
 }
 
@@ -189,6 +190,22 @@ impl RawTripleClientOptions {
                     )
                 })?;
                 builder.with_cluster(strategy)
+            }
+            None => builder,
+        };
+
+        let builder = match self.failover_retries {
+            Some(retries) => {
+                let attempts = usize::try_from(retries)
+                    .ok()
+                    .and_then(|retries| retries.checked_add(1))
+                    .ok_or_else(|| {
+                        Status::new(
+                            Code::InvalidArgument,
+                            format!("unsupported failover retries {retries}"),
+                        )
+                    })?;
+                builder.with_failover_attempts(attempts)
             }
             None => builder,
         };

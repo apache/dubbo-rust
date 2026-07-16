@@ -19,7 +19,7 @@ keep the user-facing client API while a N-API addon reuses the Rust core.
 - Registry-backed clients behind optional features.
 - Request-level and client-default unary timeouts.
 - Load balancing: `random`, `round_robin`, and `p2c`.
-- Cluster strategy: `failfast` and `failover`.
+- Cluster strategy: `failfast` and `failover`, with configurable failover retries.
 - Metadata routing for tag, group, and version.
 - Stable status code and message access for host-language error mapping.
 
@@ -44,6 +44,8 @@ let mut client = RawTripleClient::from_static_endpoints_with_options(
         timeout_ms: Some(3_000),
         load_balance: Some("round_robin".to_string()),
         cluster: Some("failfast".to_string()),
+        failover_retries: None,
+        ..RawTripleClientOptions::default()
     },
 )?;
 
