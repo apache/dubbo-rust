@@ -567,7 +567,7 @@ async fn raw_unary_timeout_returns_deadline_exceeded() {
         addr,
         shutdown_rx,
         SERVICE.to_string(),
-        Duration::from_millis(100),
+        Duration::from_millis(500),
     );
 
     wait_for_server(addr).await;
@@ -581,7 +581,7 @@ async fn raw_unary_timeout_returns_deadline_exceeded() {
             path: format!("/{SERVICE}/UnaryEcho"),
             metadata: RawMetadata::new(),
             body: Bytes::from_static(b"\x0a\x08dubbo-js"),
-            timeout_ms: Some(10),
+            timeout_ms: Some(50),
         })
         .await
         .unwrap_err();

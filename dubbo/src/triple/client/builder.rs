@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use crate::{
     cluster::{ClusterStrategy, NewCluster},
@@ -139,6 +139,13 @@ impl ClientBuilder {
     pub fn with_failover_attempts(self, attempts: usize) -> Self {
         Self {
             cluster: self.cluster.with_failover_attempts(attempts),
+            ..self
+        }
+    }
+
+    pub fn with_failover_retry_delay(self, retry_delay: Duration) -> Self {
+        Self {
+            cluster: self.cluster.with_failover_retry_delay(retry_delay),
             ..self
         }
     }

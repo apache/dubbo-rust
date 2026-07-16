@@ -162,6 +162,7 @@ pub struct RawTripleClientOptions {
     pub load_balance: Option<String>,
     pub cluster: Option<String>,
     pub failover_retries: Option<u32>,
+    pub failover_retry_delay_ms: Option<u64>,
     pub compression: Option<String>,
     pub default_metadata: RawMetadata,
 }
@@ -209,6 +210,11 @@ impl RawTripleClientOptions {
                     })?;
                 builder.with_failover_attempts(attempts)
             }
+            None => builder,
+        };
+
+        let builder = match self.failover_retry_delay_ms {
+            Some(delay_ms) => builder.with_failover_retry_delay(Duration::from_millis(delay_ms)),
             None => builder,
         };
 

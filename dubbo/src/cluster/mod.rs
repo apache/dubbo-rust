@@ -17,6 +17,7 @@
 
 use futures_core::future::BoxFuture;
 use http::Request;
+use std::time::Duration;
 use tower::ServiceExt;
 use tower_service::Service;
 
@@ -64,13 +65,17 @@ where
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClusterStrategy {
     Failfast,
-    Failover { attempts: usize },
+    Failover {
+        attempts: usize,
+        retry_delay: Duration,
+    },
 }
 
 impl Default for ClusterStrategy {
     fn default() -> Self {
         Self::Failover {
             attempts: Self::DEFAULT_FAILOVER_ATTEMPTS,
+            retry_delay: Duration::from_millis(0),
         }
     }
 }
@@ -88,8 +93,19 @@ impl ClusterStrategy {
 
     pub fn with_failover_attempts(self, attempts: usize) -> Self {
         match self {
-            Self::Failover { .. } => Self::Failover {
+            Self::Failover { retry_delay, .. } => Self::Failover {
                 attempts: attempts.max(1),
+                retry_delay,
+            },
+            Self::Failfast => Self::Failfast,
+        }
+    }
+
+    pub fn with_failover_retry_delay(self, retry_delay: Duration) -> Self {
+        match self {
+            Self::Failover { attempts, .. } => Self::Failover {
+                attempts,
+                retry_delay,
             },
             Self::Failfast => Self::Failfast,
         }
@@ -147,16 +163,24 @@ where
                         .oneshot(make_request(clone_body, Some(extensions)))
                         .await
                 }
-                ClusterStrategy::Failover { attempts } => {
+                ClusterStrategy::Failover {
+                    attempts,
+                    retry_delay,
+                } => {
                     let mut last_error = None;
                     let mut first_body = Some(clone_body);
                     let mut first_extensions = Some(extensions);
-                    for _ in 0..attempts {
+                    for attempt in 0..attempts {
                         let body = first_body.take().unwrap_or_else(|| replay_body.clone());
                         let extensions = first_extensions.take();
                         match inner.clone().oneshot(make_request(body, extensions)).await {
                             Ok(response) => return Ok(response),
-                            Err(err) => last_error = Some(err),
+                            Err(err) => {
+                                last_error = Some(err);
+                                if attempt + 1 < attempts && !retry_delay.is_zero() {
+                                    tokio::time::sleep(retry_delay).await;
+                                }
+                            }
                         }
                     }
 
@@ -175,6 +199,7 @@ mod tests {
             Arc,
         },
         task::{Context, Poll},
+        time::Duration,
     };
 
     use crate::invoker::clone_body::CloneBody;
@@ -219,7 +244,10 @@ mod tests {
                 calls: Arc::clone(&calls),
                 failures: 1,
             },
-            strategy: ClusterStrategy::Failover { attempts: 2 },
+            strategy: ClusterStrategy::Failover {
+                attempts: 2,
+                retry_delay: Duration::from_millis(0),
+            },
         };
 
         cluster
@@ -238,7 +266,10 @@ mod tests {
                 calls: Arc::clone(&calls),
                 failures: 2,
             },
-            strategy: ClusterStrategy::Failover { attempts: 1 },
+            strategy: ClusterStrategy::Failover {
+                attempts: 1,
+                retry_delay: Duration::from_millis(0),
+            },
         };
 
         cluster
@@ -247,5 +278,29 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn failover_waits_between_attempts() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let mut cluster = Cluster {
+            inner: FailsBeforeSuccess {
+                calls: Arc::clone(&calls),
+                failures: 1,
+            },
+            strategy: ClusterStrategy::Failover {
+                attempts: 2,
+                retry_delay: Duration::from_millis(20),
+            },
+        };
+
+        let started = std::time::Instant::now();
+        cluster
+            .call(Request::new(hyper::Body::empty()))
+            .await
+            .unwrap();
+
+        assert!(started.elapsed() >= Duration::from_millis(20));
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
     }
 }
