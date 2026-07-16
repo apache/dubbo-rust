@@ -39,6 +39,9 @@ struct SlowRawUnaryService {
 #[derive(Clone)]
 struct MetadataEchoService;
 
+#[derive(Clone)]
+struct CompressionEchoService;
+
 impl Service<http::Request<hyper::Body>> for SlowRawUnaryService {
     type Response = http::Response<BoxBody>;
     type Error = Infallible;
@@ -97,6 +100,39 @@ impl Service<http::Request<hyper::Body>> for MetadataEchoService {
                     "{default_header}:{call_header}"
                 ))))
                 .map_err(|err| {
+                    dubbo::status::Status::new(dubbo::status::Code::Internal, err.to_string())
+                }),
+            );
+
+            Ok(http::Response::builder()
+                .status(http::StatusCode::OK)
+                .header("content-type", "application/grpc+proto")
+                .body(body)
+                .unwrap())
+        })
+    }
+}
+
+impl Service<http::Request<hyper::Body>> for CompressionEchoService {
+    type Response = http::Response<BoxBody>;
+    type Error = Infallible;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: http::Request<hyper::Body>) -> Self::Future {
+        let compression = req
+            .headers()
+            .get("grpc-encoding")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("identity")
+            .to_string();
+
+        Box::pin(async move {
+            let body = http_body::combinators::UnsyncBoxBody::new(
+                hyper::Body::from(grpc_frame(protobuf_string(compression))).map_err(|err| {
                     dubbo::status::Status::new(dubbo::status::Code::Internal, err.to_string())
                 }),
             );
@@ -196,6 +232,67 @@ async fn raw_unary_applies_default_metadata_and_allows_request_override() {
         .unwrap();
 
     assert_eq!(response.body, protobuf_string("default-app:request-call"));
+
+    let _ = shutdown_tx.send(());
+    server_task.await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_configures_compression() {
+    const SERVICE: &str = "grpc.examples.echo.CompressionEcho";
+    let addr = unused_local_addr();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let server_task = tokio::spawn(async move {
+        DubboServer::new()
+            .with_listener("tcp".to_string())
+            .add_service(SERVICE.to_string(), CompressionEchoService)
+            .serve_with_graceful(addr, async move {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .unwrap();
+    });
+
+    wait_for_server(addr).await;
+
+    let endpoint = format!("http://{addr}?interface={SERVICE}");
+    let mut gzip_client = RawTripleClient::from_static(&endpoint);
+    let gzip_response = gzip_client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new(),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: Some(10_000),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(gzip_response.body, protobuf_string("gzip"));
+
+    let mut identity_client = RawTripleClient::from_static_endpoints_with_options(
+        [endpoint.as_str()],
+        RawTripleClientOptions {
+            compression: Some("identity".to_string()),
+            ..RawTripleClientOptions::default()
+        },
+    )
+    .unwrap();
+    let identity_response = identity_client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new(),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: Some(10_000),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(identity_response.body, protobuf_string("identity"));
 
     let _ = shutdown_tx.send(());
     server_task.await.unwrap();

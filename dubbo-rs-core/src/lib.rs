@@ -23,6 +23,7 @@ use dubbo::{
     codegen::{ClientBuilder, Request, RpcInvocation, TripleClient},
     invocation::Metadata,
     loadbalancer::LoadBalanceStrategy,
+    triple::compression::CompressionEncoding,
     Url,
 };
 #[cfg(feature = "registry-nacos")]
@@ -161,6 +162,7 @@ pub struct RawTripleClientOptions {
     pub load_balance: Option<String>,
     pub cluster: Option<String>,
     pub failover_retries: Option<u32>,
+    pub compression: Option<String>,
     pub default_metadata: RawMetadata,
 }
 
@@ -206,6 +208,18 @@ impl RawTripleClientOptions {
                         )
                     })?;
                 builder.with_failover_attempts(attempts)
+            }
+            None => builder,
+        };
+
+        let builder = match self.compression.as_deref() {
+            Some("gzip") => builder.with_compression(Some(CompressionEncoding::Gzip)),
+            Some("identity") | Some("none") => builder.with_compression(None),
+            Some(compression) => {
+                return Err(Status::new(
+                    Code::InvalidArgument,
+                    format!("unsupported compression {compression}; expected gzip or identity"),
+                ));
             }
             None => builder,
         };
@@ -340,6 +354,21 @@ mod tests {
         );
         match result {
             Ok(_) => panic!("client should reject unsupported cluster strategy"),
+            Err(err) => assert_eq!(err.code(), Code::InvalidArgument),
+        }
+    }
+
+    #[test]
+    fn static_client_rejects_unknown_compression() {
+        let result = RawTripleClient::from_static_endpoints_with_options(
+            ["http://127.0.0.1:50051?interface=example.Echo"],
+            RawTripleClientOptions {
+                compression: Some("brotli".to_string()),
+                ..RawTripleClientOptions::default()
+            },
+        );
+        match result {
+            Ok(_) => panic!("client should reject unsupported compression"),
             Err(err) => assert_eq!(err.code(), Code::InvalidArgument),
         }
     }

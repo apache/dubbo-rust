@@ -118,22 +118,6 @@ impl TripleInvoker {
             "tri-unit-info",
             HeaderValue::from_static("dubbo-rust/0.1.0"),
         );
-        // if let Some(_encoding) = self.send_compression_encoding {
-
-        // }
-
-        insert_default_header(
-            req.headers_mut(),
-            "grpc-encoding",
-            http::HeaderValue::from_static("gzip"),
-        );
-
-        insert_default_header(
-            req.headers_mut(),
-            "grpc-accept-encoding",
-            http::HeaderValue::from_static("gzip"),
-        );
-
         // // const (
         // //     TripleContentType    = "application/grpc+proto"
         // //     TripleUserAgent      = "grpc-go/1.35.0-dev"

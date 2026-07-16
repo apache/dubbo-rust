@@ -23,6 +23,7 @@ use crate::{
     extension,
     loadbalancer::{LoadBalanceStrategy, NewLoadBalancer},
     route::NewRoutes,
+    triple::compression::CompressionEncoding,
     utils::boxed_clone::BoxCloneService,
 };
 
@@ -47,6 +48,7 @@ pub struct ClientBuilder {
     pub direct: bool,
     pub load_balance: LoadBalanceStrategy,
     pub cluster: ClusterStrategy,
+    pub send_compression_encoding: Option<CompressionEncoding>,
 }
 
 impl ClientBuilder {
@@ -58,6 +60,7 @@ impl ClientBuilder {
             direct: false,
             load_balance: LoadBalanceStrategy::default(),
             cluster: ClusterStrategy::default(),
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
     }
 
@@ -86,6 +89,7 @@ impl ClientBuilder {
             direct: true,
             load_balance: LoadBalanceStrategy::default(),
             cluster: ClusterStrategy::default(),
+            send_compression_encoding: Some(CompressionEncoding::Gzip),
         }
     }
 
@@ -135,6 +139,13 @@ impl ClientBuilder {
     pub fn with_failover_attempts(self, attempts: usize) -> Self {
         Self {
             cluster: self.cluster.with_failover_attempts(attempts),
+            ..self
+        }
+    }
+
+    pub fn with_compression(self, compression: Option<CompressionEncoding>) -> Self {
+        Self {
+            send_compression_encoding: compression,
             ..self
         }
     }

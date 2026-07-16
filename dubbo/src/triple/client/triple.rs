@@ -57,8 +57,9 @@ impl TripleClient {
     }
 
     pub fn new(builder: ClientBuilder) -> Self {
+        let send_compression_encoding = builder.send_compression_encoding;
         TripleClient {
-            send_compression_encoding: Some(CompressionEncoding::Gzip),
+            send_compression_encoding,
             mk: builder.build(),
         }
     }
@@ -184,6 +185,7 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+        self.set_compression_headers(request.headers_mut());
 
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
@@ -252,6 +254,7 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+        self.set_compression_headers(request.headers_mut());
 
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
@@ -323,6 +326,7 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+        self.set_compression_headers(request.headers_mut());
 
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
@@ -377,6 +381,7 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+        self.set_compression_headers(request.headers_mut());
 
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
@@ -448,6 +453,7 @@ impl TripleClient {
             .header("path", path.to_string())
             .body(body)
             .unwrap();
+        self.set_compression_headers(request.headers_mut());
 
         for (k, v) in mt.into_headers().iter() {
             request.headers_mut().insert(k, v.to_owned());
@@ -466,6 +472,13 @@ impl TripleClient {
                 Ok(Response::from_http(resp))
             }
             Err(err) => Err(err),
+        }
+    }
+
+    fn set_compression_headers(&self, headers: &mut http::HeaderMap) {
+        if let Some(encoding) = self.send_compression_encoding {
+            headers.insert("grpc-encoding", encoding.into_header_value());
+            headers.insert("grpc-accept-encoding", encoding.into_header_value());
         }
     }
 }
