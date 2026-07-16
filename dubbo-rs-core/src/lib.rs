@@ -127,7 +127,7 @@ impl RawTripleClient {
             .with_service_unique_name(request.service)
             .with_method_name(request.method);
         let timeout_ms = request.timeout_ms.or(self.default_timeout_ms);
-        let call = self.inner.raw_unary(
+        let call = self.inner.raw_unary_with_trailers(
             Request::from_parts(
                 self.default_metadata.clone().merge(request.metadata).into(),
                 request.body,
@@ -147,10 +147,12 @@ impl RawTripleClient {
         } else {
             call.await?
         };
+        let (response, trailers) = response;
         let (metadata, body) = response.into_parts();
 
         Ok(RawUnaryResponse {
             metadata: metadata.into(),
+            trailers: trailers.map(Into::into).unwrap_or_default(),
             body,
         })
     }
@@ -275,6 +277,7 @@ pub struct RawUnaryRequest {
 #[derive(Debug, Clone)]
 pub struct RawUnaryResponse {
     pub metadata: RawMetadata,
+    pub trailers: RawMetadata,
     pub body: Bytes,
 }
 
@@ -296,6 +299,13 @@ impl RawMetadata {
     pub fn merge(mut self, other: RawMetadata) -> Self {
         self.entries.extend(other.entries);
         self
+    }
+
+    pub fn get(&self, key: &str) -> Option<&String> {
+        self.entries
+            .iter()
+            .rev()
+            .find_map(|(entry_key, value)| (entry_key == key).then_some(value))
     }
 }
 

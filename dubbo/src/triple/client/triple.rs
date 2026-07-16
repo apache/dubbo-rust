@@ -227,8 +227,26 @@ impl TripleClient {
         &mut self,
         req: Request<Bytes>,
         path: http::uri::PathAndQuery,
-        mut invocation: RpcInvocation,
+        invocation: RpcInvocation,
     ) -> Result<Response<Bytes>, crate::status::Status> {
+        let (response, trailers) = self.raw_unary_with_trailers(req, path, invocation).await?;
+        let (mut parts, message) = response.into_parts();
+
+        if let Some(trailers) = trailers {
+            let mut h = parts.into_headers();
+            h.extend(trailers.into_headers());
+            parts = Metadata::from_headers(h);
+        }
+
+        Ok(Response::from_parts(parts, message))
+    }
+
+    pub async fn raw_unary_with_trailers(
+        &mut self,
+        req: Request<Bytes>,
+        path: http::uri::PathAndQuery,
+        mut invocation: RpcInvocation,
+    ) -> Result<(Response<Bytes>, Option<Metadata>), crate::status::Status> {
         let mut codec = BytesCodec::default();
         let decoder: Box<dyn Decoder<Item = Bytes, Error = Status> + Send + 'static> =
             Box::new(codec.decoder());
@@ -269,7 +287,7 @@ impl TripleClient {
             Ok(v) => {
                 let resp = v
                     .map(|body| Decoding::new(body, decoder, self.send_compression_encoding, true));
-                let (mut parts, body) = Response::from_http(resp).into_parts();
+                let (parts, body) = Response::from_http(resp).into_parts();
 
                 futures_util::pin_mut!(body);
 
@@ -280,13 +298,9 @@ impl TripleClient {
                     )
                 })?;
 
-                if let Some(trailers) = body.trailer().await? {
-                    let mut h = parts.into_headers();
-                    h.extend(trailers.into_headers());
-                    parts = Metadata::from_headers(h);
-                }
+                let trailers = body.trailer().await?;
 
-                Ok(Response::from_parts(parts, message))
+                Ok((Response::from_parts(parts, message), trailers))
             }
             Err(err) => Err(err),
         }

@@ -42,6 +42,9 @@ struct MetadataEchoService;
 #[derive(Clone)]
 struct CompressionEchoService;
 
+#[derive(Clone)]
+struct HeaderTrailerEchoService;
+
 impl Service<http::Request<hyper::Body>> for SlowRawUnaryService {
     type Response = http::Response<BoxBody>;
     type Error = Infallible;
@@ -146,10 +149,55 @@ impl Service<http::Request<hyper::Body>> for CompressionEchoService {
     }
 }
 
+impl Service<http::Request<hyper::Body>> for HeaderTrailerEchoService {
+    type Response = http::Response<BoxBody>;
+    type Error = Infallible;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _req: http::Request<hyper::Body>) -> Self::Future {
+        Box::pin(async move {
+            let (mut sender, body) = hyper::Body::channel();
+            tokio::spawn(async move {
+                let _ = sender
+                    .send_data(grpc_frame(Bytes::from_static(b"\x0a\x0draw response")))
+                    .await;
+                let mut trailers = http::HeaderMap::new();
+                trailers.insert("x-trailer", http::HeaderValue::from_static("done"));
+                let _ = sender.send_trailers(trailers).await;
+            });
+
+            let body = http_body::combinators::UnsyncBoxBody::new(body.map_err(|err| {
+                dubbo::status::Status::new(dubbo::status::Code::Internal, err.to_string())
+            }));
+
+            Ok(http::Response::builder()
+                .status(http::StatusCode::OK)
+                .header("content-type", "application/grpc+proto")
+                .header("x-response-header", "ready")
+                .body(body)
+                .unwrap())
+        })
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn raw_unary_uses_static_endpoint_list_and_maps_timeout() {
+async fn raw_unary_core_integration_suite() {
     raw_unary_uses_static_endpoint_list().await;
     raw_unary_timeout_returns_deadline_exceeded().await;
+    raw_unary_applies_default_metadata_and_allows_request_override().await;
+    raw_unary_separates_response_headers_and_trailers().await;
+    raw_unary_configures_compression().await;
+    raw_unary_routes_static_endpoints_by_tag().await;
+    raw_unary_random_load_balance_honors_provider_weight().await;
+    raw_unary_round_robin_load_balance_honors_provider_weight().await;
+    raw_unary_routes_static_endpoints_by_group_and_version().await;
+    raw_unary_errors_when_routing_metadata_matches_no_provider().await;
+    raw_unary_uses_client_default_timeout().await;
+    raw_unary_request_timeout_overrides_client_default_timeout().await;
 }
 
 async fn raw_unary_uses_static_endpoint_list() {
@@ -189,7 +237,54 @@ async fn raw_unary_uses_static_endpoint_list() {
     server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_separates_response_headers_and_trailers() {
+    const SERVICE: &str = "grpc.examples.echo.HeaderTrailerEcho";
+    let addr = unused_local_addr();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let server_task = tokio::spawn(async move {
+        DubboServer::new()
+            .with_listener("tcp".to_string())
+            .add_service(SERVICE.to_string(), HeaderTrailerEchoService)
+            .serve_with_graceful(addr, async move {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .unwrap();
+    });
+
+    wait_for_server(addr).await;
+
+    let endpoint = format!("http://{addr}?interface={SERVICE}");
+    let mut client = RawTripleClient::from_static(&endpoint);
+    let response = client
+        .unary(RawUnaryRequest {
+            service: SERVICE.to_string(),
+            method: "UnaryEcho".to_string(),
+            path: format!("/{SERVICE}/UnaryEcho"),
+            metadata: RawMetadata::new(),
+            body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+            timeout_ms: Some(10_000),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response
+            .metadata
+            .get("x-response-header")
+            .map(String::as_str),
+        Some("ready")
+    );
+    assert_eq!(
+        response.trailers.get("x-trailer").map(String::as_str),
+        Some("done")
+    );
+
+    let _ = shutdown_tx.send(());
+    server_task.await.unwrap();
+}
+
 async fn raw_unary_applies_default_metadata_and_allows_request_override() {
     const SERVICE: &str = "grpc.examples.echo.DefaultMetadataEcho";
     let addr = unused_local_addr();
@@ -237,7 +332,6 @@ async fn raw_unary_applies_default_metadata_and_allows_request_override() {
     server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn raw_unary_configures_compression() {
     const SERVICE: &str = "grpc.examples.echo.CompressionEcho";
     let addr = unused_local_addr();
@@ -298,7 +392,6 @@ async fn raw_unary_configures_compression() {
     server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn raw_unary_routes_static_endpoints_by_tag() {
     const SERVICE: &str = "grpc.examples.echo.TaggedEndpointEcho";
     let blue_addr = unused_local_addr();
@@ -349,7 +442,6 @@ async fn raw_unary_routes_static_endpoints_by_tag() {
     green_server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn raw_unary_random_load_balance_honors_provider_weight() {
     const SERVICE: &str = "grpc.examples.echo.WeightedEndpointEcho";
     let zero_addr = unused_local_addr();
@@ -408,7 +500,6 @@ async fn raw_unary_random_load_balance_honors_provider_weight() {
     weighted_server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn raw_unary_round_robin_load_balance_honors_provider_weight() {
     const SERVICE: &str = "grpc.examples.echo.WeightedRoundRobinEndpointEcho";
     let zero_addr = unused_local_addr();
@@ -467,7 +558,6 @@ async fn raw_unary_round_robin_load_balance_honors_provider_weight() {
     weighted_server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn raw_unary_routes_static_endpoints_by_group_and_version() {
     const SERVICE: &str = "grpc.examples.echo.GroupVersionEndpointEcho";
     let blue_addr = unused_local_addr();
@@ -521,7 +611,6 @@ async fn raw_unary_routes_static_endpoints_by_group_and_version() {
     green_server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn raw_unary_errors_when_routing_metadata_matches_no_provider() {
     const SERVICE: &str = "grpc.examples.echo.NoMatchedEndpointEcho";
     let addr = unused_local_addr();
@@ -592,7 +681,6 @@ async fn raw_unary_timeout_returns_deadline_exceeded() {
     server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn raw_unary_uses_client_default_timeout() {
     const SERVICE: &str = "grpc.examples.echo.DefaultTimeoutEcho";
     let addr = unused_local_addr();
@@ -634,7 +722,6 @@ async fn raw_unary_uses_client_default_timeout() {
     server_task.await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn raw_unary_request_timeout_overrides_client_default_timeout() {
     const SERVICE: &str = "grpc.examples.echo.OverrideTimeoutEcho";
     let addr = unused_local_addr();
