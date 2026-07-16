@@ -18,7 +18,8 @@ keep the user-facing client API while a N-API addon reuses the Rust core.
 - Static provider endpoints.
 - Registry-backed clients behind optional features.
 - Request-level and client-default unary timeouts.
-- Load balancing: `random`, `round_robin`, and `p2c`.
+- Load balancing: `random`, `round_robin`, and `p2c`; `random` honors provider
+  `weight` URL parameters.
 - Cluster strategy: `failfast` and `failover`, with configurable failover retries.
 - Compression: `gzip` or `identity`.
 - Metadata routing for tag, group, and version.

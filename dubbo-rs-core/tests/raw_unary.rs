@@ -350,6 +350,65 @@ async fn raw_unary_routes_static_endpoints_by_tag() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn raw_unary_random_load_balance_honors_provider_weight() {
+    const SERVICE: &str = "grpc.examples.echo.WeightedEndpointEcho";
+    let zero_addr = unused_local_addr();
+    let weighted_addr = unused_local_addr();
+    let (zero_shutdown_tx, zero_shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let (weighted_shutdown_tx, weighted_shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let zero_server_task = spawn_server_with_payload(
+        zero_addr,
+        zero_shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(0),
+        Bytes::from_static(b"\x0a\x04zero"),
+    );
+    let weighted_server_task = spawn_server_with_payload(
+        weighted_addr,
+        weighted_shutdown_rx,
+        SERVICE.to_string(),
+        Duration::from_millis(0),
+        Bytes::from_static(b"\x0a\x08weighted"),
+    );
+
+    wait_for_server(zero_addr).await;
+    wait_for_server(weighted_addr).await;
+
+    let zero_endpoint = format!("http://{zero_addr}?interface={SERVICE}&weight=0");
+    let weighted_endpoint = format!("http://{weighted_addr}?interface={SERVICE}&weight=100");
+    let mut client = RawTripleClient::from_static_endpoints_with_options(
+        [zero_endpoint.as_str(), weighted_endpoint.as_str()],
+        RawTripleClientOptions {
+            load_balance: Some("random".to_string()),
+            ..RawTripleClientOptions::default()
+        },
+    )
+    .unwrap();
+
+    for _ in 0..5 {
+        let response = client
+            .unary(RawUnaryRequest {
+                service: SERVICE.to_string(),
+                method: "UnaryEcho".to_string(),
+                path: format!("/{SERVICE}/UnaryEcho"),
+                metadata: RawMetadata::new(),
+                body: Bytes::from_static(b"\x0a\x08dubbo-js"),
+                timeout_ms: Some(10_000),
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(response.body, Bytes::from_static(b"\x0a\x08weighted"));
+    }
+
+    let _ = zero_shutdown_tx.send(());
+    let _ = weighted_shutdown_tx.send(());
+    zero_server_task.await.unwrap();
+    weighted_server_task.await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn raw_unary_routes_static_endpoints_by_group_and_version() {
     const SERVICE: &str = "grpc.examples.echo.GroupVersionEndpointEcho";
     let blue_addr = unused_local_addr();

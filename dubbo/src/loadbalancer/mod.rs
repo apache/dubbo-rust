@@ -37,6 +37,7 @@ use crate::{
     loadbalancer::random::RandomLoadBalancer,
     param::Param,
     protocol::triple::triple_invoker::TripleInvoker,
+    status::{Code, Status},
     svc::NewService,
     StdError,
 };
@@ -127,6 +128,14 @@ where
             // let invks = rdm.select_invokers(service_list, metadata);
             // invks.oneshot(req).await
             // let service_list = ServiceList::new(service_list);
+
+            if routes.is_empty() {
+                return Err(Status::new(
+                    Code::Unavailable,
+                    "no provider available for request".to_string(),
+                )
+                .into());
+            }
 
             // let p2c = tower::balance::p2c::Balance::new(service_list);
             // let p: Box<dyn LoadBalancer<Invoker = BoxService<http::Request<CloneBody>, http::Response<UnsyncBoxBody<bytes::Bytes, status::Status>>, Box<dyn std::error::Error + std::marker::Send + std::marker::Sync>>> + std::marker::Send + std::marker::Sync> = get_loadbalancer("p2c").into();
