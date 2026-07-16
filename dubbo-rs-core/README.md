@@ -32,6 +32,21 @@ keep the user-facing client API while a N-API addon reuses the Rust core.
 - `registry-zookeeper`: enable Zookeeper registry support.
 - `registry`: enable all registry backends currently wired into this crate.
 
+## Publishing And Host Usage
+
+This crate is intended to be consumed by host-language bindings, such as a
+Node.js N-API package. During local development those bindings can depend on the
+crate by path. After publishing, switch them to a normal version dependency and
+enable only the registry features they need:
+
+```toml
+dubbo-rs-core = { version = "0.1", features = ["registry"] }
+```
+
+The crate keeps protobuf encoding and generated service shape outside the Rust
+boundary. Host runtimes pass raw request bytes, metadata, and endpoint or
+registry options into Rust, then decode raw response bytes themselves.
+
 ## Example
 
 ```rust
