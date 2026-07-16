@@ -5,6 +5,9 @@ edition = "2021"
 license = "Apache-2.0"
 description = "Stable core facade for embedding Dubbo Rust in other runtimes"
 repository = "https://github.com/apache/dubbo-rust.git"
+readme = "README.md"
+keywords = ["dubbo", "triple", "rpc", "napi"]
+categories = ["network-programming", "api-bindings"]
 
 [dependencies]
 bytes.workspace = true
