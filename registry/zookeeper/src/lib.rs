@@ -226,7 +226,7 @@ impl ZookeeperRegistry {
         }
 
         for (key, old_host) in old_urls_map.iter() {
-            let new_host = old_urls_map.get(key);
+            let new_host = new_urls_map.get(key);
             match new_host {
                 None => {
                     removed_hosts.push(old_host.clone());

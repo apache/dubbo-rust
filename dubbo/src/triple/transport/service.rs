@@ -169,7 +169,7 @@ impl DubboServer {
         };
 
         let acceptor: Option<TlsAcceptor>;
-        if self.certs.len() != 0 && !self.keys.len() != 0 {
+        if self.certs.len() != 0 && self.keys.len() != 0 {
             let mut keys = self.keys;
 
             let config = rustls::ServerConfig::builder()
